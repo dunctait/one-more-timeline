@@ -20,4 +20,8 @@ Early rungs and building unlocks must be reachable within a normal first-session
 
 Unlocked actions, roles, and buildings must be explicitly discoverable and actionable from the primary surfaces where the player makes decisions. Never hide progression behind unannounced tabs or off-screen states without clear signposts.
 
+## Mathematical reachability and prestige thresholds
+
+Progression requirements across developmental rungs and buildings must be mathematically solvable within the player's available storage and production caps at that rung. The threshold for prestige resets must be explicitly demarcated so players understand when a timeline has achieved its maximum potential and are never left facing an artificial deadlock.
+
 Layer 0 resource rules are implemented and tested in `src/engine/`. No hosted economy service or real-money monetisation is currently provided by this repository.

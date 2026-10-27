@@ -26,6 +26,8 @@ Use explicit status language: “specified”, “scaffolded”, “not implemen
 
 Feedback Codification Protocol: Whenever user feedback is received or an operational fix is delivered, extract the underlying game design or engineering philosophy into our normative documents (docs/philosophy/, docs/rules/, docs/contracts/) and AGENTS.md. Never treat feedback as merely a local bug fix; derive and codify the general invariant so agents do not repeat the failure mode.
 
+- Never allow soft wall fizzles: When an incremental phase culminates, alert the player that prestige is ready rather than letting progress stall into an unexplained bottleneck.
+
 ## Verification and ergonomics
 
 CI passing is not proof of game feel or mobile layout ergonomics; tests must exercise complete-state journeys and mobile viewport geometry.

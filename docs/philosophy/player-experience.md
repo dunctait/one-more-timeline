@@ -20,4 +20,8 @@ Early rungs and building unlocks must be reachable within a normal first-session
 
 Unlocked actions, roles, and buildings must be explicitly discoverable and actionable from the primary surfaces where the player makes decisions. Never hide progression behind unannounced tabs or off-screen states without clear signposts.
 
+## Prestige as climax, not stagnation
+
+When a run reaches a developmental ceiling designed to prompt prestige, the game must never quietly stall, fizzle out, or present mathematically impossible goals as if they were standard tasks. It must celebrate the timeline's culmination as an earned milestone, alerting the player prominently (e.g. via toast notifications) that the temporal horizon has been reached and that a Time Jump is the triumphant next step.
+
 The service and engine are not implemented by this foundation. These statements specify the intended experience, not current availability.
