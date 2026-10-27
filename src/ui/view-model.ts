@@ -116,6 +116,9 @@ export interface TimelineViewModel {
     canForage: boolean;
     canScavenge: boolean;
     canStudy: boolean;
+    forageYield: number;
+    pacing: string;
+    learningGrace: string;
   };
   buildings: BuildingViewModel[];
   rungProgression: RungProgressionViewModel;
@@ -389,6 +392,9 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       canForage: true,
       canScavenge: true,
       canStudy: true,
+      forageYield: state.season === 'Winter' ? 1.8 : 3,
+      pacing: 'One action per tick; wait for the next tick before choosing again.',
+      learningGrace: state.tick < 4 ? 'Learning grace: the first few ticks are forgiving.' : '',
     },
     buildings: buildingsVm,
     rungProgression: {
