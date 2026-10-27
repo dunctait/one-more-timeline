@@ -212,7 +212,8 @@ export function stepTick(state: TimelineState): TimelineState {
     season: nextSeason,
     furthestYear: nextFurthestYear,
     learningGraceTicks: Math.max(0, state.learningGraceTicks - 1),
-    actionCooldown: Math.max(0, state.actionCooldown - 1),
+     // Kept at zero for save compatibility; manual actions are intentionally immediate.
+     actionCooldown: 0,
     resources: {
       food: Number(nextFood.toFixed(2)),
       materials: Number(nextMaterials.toFixed(2)),
@@ -242,9 +243,6 @@ export function executeAction(
     }
 
     case 'FORAGE': {
-      if (state.actionCooldown > 0) {
-        return { success: false, state, error: `Rest for ${state.actionCooldown} tick before taking another manual action.`, events: [] };
-      }
       // Pure food yield, scaled by season (winter is harsher)
       const isWinter = state.season === 'Winter';
       const foodGain = isWinter ? 1.8 : 3.0;
@@ -263,8 +261,8 @@ export function executeAction(
           ...state.resources,
           food: Number(newFood.toFixed(2)),
         },
-        actionCooldown: 1,
-        logs: [log, ...state.logs].slice(0, 50),
+         actionCooldown: 0,
+         logs: [log, ...state.logs].slice(0, 50),
       };
 
       return {
@@ -275,9 +273,6 @@ export function executeAction(
     }
 
     case 'SCAVENGE': {
-      if (state.actionCooldown > 0) {
-        return { success: false, state, error: `Rest for ${state.actionCooldown} tick before taking another manual action.`, events: [] };
-      }
       // Scavenge yields materials: flint, dry boughs, river stones
       const materialsGain = 1.5;
 
@@ -298,8 +293,8 @@ export function executeAction(
           ...state.resources,
           materials: Number(newMaterials.toFixed(2)),
         },
-        actionCooldown: 1,
-        logs: [log, ...state.logs].slice(0, 50),
+         actionCooldown: 0,
+         logs: [log, ...state.logs].slice(0, 50),
       };
 
       return {
@@ -310,9 +305,6 @@ export function executeAction(
     }
 
     case 'STUDY': {
-      if (state.actionCooldown > 0) {
-        return { success: false, state, error: `Rest for ${state.actionCooldown} tick before taking another manual action.`, events: [] };
-      }
       // Manual contemplation/ponder yields knowledge and a small stability grounding
       const knowledgeGain = 1.5;
       const newKnowledge = Math.min(
@@ -334,8 +326,8 @@ export function executeAction(
           knowledge: Number(newKnowledge.toFixed(2)),
           stability: Number(newStability.toFixed(2)),
         },
-        actionCooldown: 1,
-        logs: [log, ...state.logs].slice(0, 50),
+         actionCooldown: 0,
+         logs: [log, ...state.logs].slice(0, 50),
       };
 
       return {

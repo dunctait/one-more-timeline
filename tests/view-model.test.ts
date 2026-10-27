@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialState } from '../src/engine/engine.js';
+import { createInitialState, executeAction } from '../src/engine/engine.js';
 import { loadGame, isDevMode, saveGame, setDevMode } from '../src/ui/storage.js';
 import {
   buildTimelineViewModel,
@@ -116,7 +116,8 @@ describe('UI View Model & Storage', () => {
     expect(vm.actions.canForage).toBe(true);
     expect(vm.actions.canScavenge).toBe(true);
     expect(vm.actions.canStudy).toBe(true);
-    expect(vm.actions.actionPacing).toContain('One manual action per tick');
+    expect(vm.actions.actionPacing).toContain('resolve immediately');
+    expect(vm.actions.pacing).toContain('Act quickly');
     expect(vm.actions.learningGrace).toContain('Learning grace');
 
     // Next rung prerequisite items
@@ -144,5 +145,59 @@ describe('UI View Model & Storage', () => {
     const hutBuilding = vm.buildings.find((b) => b.id === 'hut');
     expect(hutBuilding?.unlocked).toBe(true);
     expect(hutBuilding?.canAfford).toBe(true);
+  });
+
+  it('simulates a complete opening progression sequence into Settled Camp', () => {
+    let state = createInitialState({ seed: 101 });
+    // Rapid gathering
+    for (let i = 0; i < 8; i++) {
+      state = executeAction(state, { type: 'STUDY' }).state;
+      state = executeAction(state, { type: 'FORAGE' }).state;
+    }
+    for (let i = 0; i < 4; i++) {
+      state = executeAction(state, { type: 'TICK' }).state;
+    }
+
+    let vm = buildTimelineViewModel(state);
+    expect(vm.rungProgression.nextRung?.eligible).toBe(true);
+
+    // Ascend to Gathering Band
+    state = executeAction(state, { type: 'ADVANCE_RUNG', rungId: 'band' }).state;
+    vm = buildTimelineViewModel(state);
+    expect(vm.header.rungName).toBe('Gathering Band');
+    // Huts should now be unlocked in settlement tab
+    const hut = vm.buildings.find((b) => b.id === 'hut');
+    expect(hut?.unlocked).toBe(true);
+
+    // Gather for Hut and build
+    for (let i = 0; i < 8; i++) {
+      state = executeAction(state, { type: 'SCAVENGE' }).state;
+      state = executeAction(state, { type: 'FORAGE' }).state;
+    }
+    state = executeAction(state, { type: 'BUILD', buildingId: 'hut' }).state;
+    expect(state.buildings.hut).toBe(1);
+
+    // Gather remaining materials & knowledge for Settled Camp
+    for (let i = 0; i < 15; i++) {
+      state = executeAction(state, { type: 'SCAVENGE' }).state;
+      state = executeAction(state, { type: 'STUDY' }).state;
+      state = executeAction(state, { type: 'FORAGE' }).state;
+    }
+    while (state.year < 4) {
+      state = executeAction(state, { type: 'TICK' }).state;
+    }
+
+    vm = buildTimelineViewModel(state);
+    expect(vm.rungProgression.nextRung?.eligible).toBe(true);
+    expect(vm.rungProgression.nextRung?.id).toBe('settlement');
+
+    state = executeAction(state, { type: 'ADVANCE_RUNG', rungId: 'settlement' }).state;
+    vm = buildTimelineViewModel(state);
+    expect(vm.header.rungName).toBe('Settled Camp');
+    // Workshops and fire pits are now visibly unlocked
+    const workshop = vm.buildings.find((b) => b.id === 'workshop');
+    const firePit = vm.buildings.find((b) => b.id === 'fire_pit');
+    expect(workshop?.unlocked).toBe(true);
+    expect(firePit?.unlocked).toBe(true);
   });
 });

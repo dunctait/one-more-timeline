@@ -54,6 +54,8 @@ export interface RungProgressionViewModel {
     id: RungId;
     name: string;
     subtitle: string;
+    description: string;
+    unlockedFeatures: string[];
     eligible: boolean;
     reasons: string[];
     items: RungPrerequisiteItem[];
@@ -337,10 +339,21 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       }
     }
 
+    const unlockedFeatures: string[] = [];
+    if (nextRungId === 'band') {
+      unlockedFeatures.push('Foragers', 'Builders', 'Thatched Huts', 'Elevated Granaries');
+    } else if (nextRungId === 'settlement') {
+      unlockedFeatures.push('Scholars', 'Tool Workshops', 'Eternal Fire Pits');
+    } else if (nextRungId === 'village') {
+      unlockedFeatures.push('Healers', 'Chronicle Obelisks');
+    }
+
     nextRungVm = {
       id: nextRungId,
       name: nextDef.name,
       subtitle: nextDef.subtitle,
+      description: nextDef.description,
+      unlockedFeatures,
       eligible: check.eligible,
       reasons: check.reasons,
       items,
@@ -403,16 +416,13 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       unassigned: state.population.roles.unassigned,
       roles: rolesVm,
     },
-    actions: {
-      canForage: state.actionCooldown === 0,
-      canScavenge: state.actionCooldown === 0,
-      canStudy: state.actionCooldown === 0,
-      actionPacing:
-        state.actionCooldown === 0
-          ? 'One manual action per tick. Take your time; the simulation advances between actions.'
-          : `Manual action ready after ${state.actionCooldown} tick.`,
-      forageYield: state.season === 'Winter' ? 1.8 : 3,
-      pacing: 'One action per tick; wait for the next tick before choosing again.',
+     actions: {
+       canForage: true,
+       canScavenge: true,
+       canStudy: true,
+       actionPacing: 'Manual actions resolve immediately. Repeat any action whenever you choose.',
+       forageYield: state.season === 'Winter' ? 1.8 : 3,
+       pacing: 'Act quickly or let the timeline breathe; ticks continue independently.',
       learningGrace:
         state.learningGraceTicks > 0
           ? `Learning grace: ${state.learningGraceTicks} ticks. Reading and exploring will not drain the hearth.`

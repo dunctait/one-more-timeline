@@ -321,7 +321,7 @@ html, body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.65rem;
-  padding: 0.65rem 0.1rem 0.15rem;
+  padding: 0.5rem 0.1rem 0.15rem;
 }
 
 .eyebrow {
@@ -335,7 +335,7 @@ html, body {
 .hearth-intro h1 {
   color: var(--text-bright);
   font-size: 1.15rem;
-  line-height: 1.1;
+  line-height: 1.15;
   margin-top: 0.15rem;
 }
 
@@ -347,15 +347,27 @@ html, body {
   max-width: 38rem;
 }
 
+.action-pacing-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
 .action-pacing {
   border: 1px solid rgba(56, 189, 248, 0.35);
-  border-radius: 999px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.08);
   color: var(--accent-blue);
-  flex: 0 0 auto;
   font-size: 0.62rem;
-  font-weight: 700;
-  padding: 0.22rem 0.45rem;
-  white-space: nowrap;
+  font-weight: 600;
+  padding: 0.2rem 0.45rem;
+  max-width: 11rem;
+  line-height: 1.25;
+  text-align: right;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .section-box {
@@ -623,12 +635,18 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
 }
 
 .building-title-group {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  min-width: 0;
+}
+
+.building-card.locked .unlock-badge {
+  flex-shrink: 0;
 }
 
 .building-name {
@@ -765,12 +783,10 @@ html, body {
 
 .action-pacing-controls {
   display: flex;
-  align-items: center;
-  gap: 0.6rem;
-}
-
-.action-pacing-controls .action-pacing {
-  margin: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
 }
 
 .next-rung-content {
@@ -783,6 +799,32 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.next-rung-description {
+  font-size: 0.74rem;
+  color: var(--text-main);
+  line-height: 1.35;
+  margin-top: 0.15rem;
+}
+
+.next-rung-unlocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+}
+
+.unlock-pill {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #7dd3fc;
 }
 
 .next-rung-label {
@@ -821,8 +863,8 @@ html, body {
 }
 
 @keyframes pulse-ascend {
-  0% { transform: scale(1); box-shadow: 0 0 6px rgba(245, 158, 11, 0.3); }
-  100% { transform: scale(1.01); box-shadow: 0 0 14px rgba(245, 158, 11, 0.6); }
+  0% { box-shadow: 0 0 6px rgba(245, 158, 11, 0.3); }
+  100% { box-shadow: 0 0 14px rgba(245, 158, 11, 0.6); }
 }
 
 .time-jump-box {
@@ -1371,17 +1413,26 @@ html, body {
   }
 
   .hearth-intro {
-    gap: 0.35rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
   }
 
   .hearth-intro h1 {
-    font-size: 1rem;
+    font-size: 1.05rem;
+  }
+
+  .action-pacing-controls {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
   }
 
   .action-pacing {
-    max-width: 7rem;
+    max-width: none;
+    text-align: left;
     white-space: normal;
-    text-align: center;
   }
 }
 

@@ -64,7 +64,7 @@ export interface TimelineState {
   insight: number;
   /** Number of ticks remaining in the protected opening/learning window. */
   learningGraceTicks: number;
-  /** One manual action is allowed per tick; this is the remaining lockout. */
+  /** Legacy save field; manual actions are immediate and always responsive. */
   actionCooldown: number;
   rung: RungId;
   resources: ResourceMap;

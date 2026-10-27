@@ -476,16 +476,28 @@ function render(): void {
   } else {
     elNextRungLabel.textContent = `Next Rung: ${nextRung.name}`;
     elNextRungSubtitle.textContent = nextRung.subtitle;
-    elNextRungPrerequisites.innerHTML = nextRung.items
-      .map(
-        (item) => `
-        <div class="prereq-chip ${item.met ? 'met' : 'unmet'}">
-          <span>${item.name}: ${item.current} / ${item.required}</span>
-          <span>${item.met ? '✅' : '❌'}</span>
-        </div>
-      `
-      )
-      .join('');
+    const unlocksHtml = nextRung.unlockedFeatures.length > 0
+      ? `<div class="next-rung-unlocks">${nextRung.unlockedFeatures.map((u) => `<span class="unlock-pill">🔓 ${escapeHtml(u)}</span>`).join('')}</div>`
+      : '';
+    const descHtml = nextRung.description
+      ? `<p class="next-rung-description">${escapeHtml(nextRung.description)}</p>`
+      : '';
+    elNextRungPrerequisites.innerHTML = `
+      ${descHtml}
+      ${unlocksHtml}
+      <div class="prereq-grid">
+        ${nextRung.items
+          .map(
+            (item) => `
+            <div class="prereq-chip ${item.met ? 'met' : 'unmet'}">
+              <span>${item.name}: ${item.current} / ${item.required}</span>
+              <span>${item.met ? '✅' : '❌'}</span>
+            </div>
+          `
+          )
+          .join('')}
+      </div>
+    `;
     elBtnAdvanceRung.textContent = nextRung.eligible
       ? `🌟 Ascend to ${nextRung.name}`
       : `Prerequisites Incomplete for ${nextRung.name}`;

@@ -37,15 +37,13 @@ describe('Deterministic Engine', () => {
     expect(runA).toEqual(runB);
   });
 
-  it('paces manual actions to one per tick and exposes a pleasant deterministic trade-off', () => {
+  it('resolves repeated manual actions immediately without a click throttle', () => {
     const state = createInitialState();
     const first = executeAction(state, { type: 'FORAGE' });
     expect(first.success).toBe(true);
-    const spam = executeAction(first.state, { type: 'FORAGE' });
-    expect(spam.success).toBe(false);
-    const afterTick = executeAction(first.state, { type: 'TICK' });
-    expect(afterTick.success).toBe(true);
-    expect(executeAction(afterTick.state, { type: 'FORAGE' }).success).toBe(true);
+    const repeated = executeAction(first.state, { type: 'FORAGE' });
+    expect(repeated.success).toBe(true);
+    expect(repeated.state.resources.food).toBe(first.state.resources.food + 3);
   });
 
   it('reaches Settled Camp with a named deterministic opening sequence', () => {
@@ -57,49 +55,39 @@ describe('Deterministic Engine', () => {
     };
     const tick = () => action({ type: 'TICK' });
 
-    // The Hearth-to-Camp route: study/forage on alternating ticks, then house the band.
+    // The Hearth-to-Camp route: rapid manual agency followed by natural timeline progression.
+    // Reach Gathering Band requirements: Year 2, Knowledge 12, Food 12.
     for (let i = 0; i < 8; i += 1) {
       action({ type: 'STUDY' });
-      tick();
       action({ type: 'FORAGE' });
+    }
+    // Advance time to Year 2 (4 ticks = 1 year)
+    for (let i = 0; i < 4; i += 1) {
       tick();
     }
     action({ type: 'ADVANCE_RUNG', rungId: 'band' });
-    for (let i = 0; i < 4; i += 1) {
-      action({ type: 'FORAGE' });
-      tick();
-    }
-    for (let i = 0; i < 4; i += 1) {
-      action({ type: 'SCAVENGE' });
-      tick();
-    }
-    for (let i = 0; i < 3; i += 1) {
-      action({ type: 'FORAGE' });
-      tick();
-    }
-    action({ type: 'BUILD', buildingId: 'hut' });
-    tick();
-    for (let i = 0; i < 7; i += 1) {
-      action({ type: 'SCAVENGE' });
-      tick();
-    }
+    expect(state.rung).toBe('band');
+
+    // At Band rung: gather resources, build a hut, gather materials for Settled Camp (15 Mats, 20 Knw, 1 Hut, Year 4)
     for (let i = 0; i < 8; i += 1) {
+      action({ type: 'SCAVENGE' });
       action({ type: 'FORAGE' });
-      tick();
     }
     action({ type: 'BUILD', buildingId: 'hut' });
-    tick();
-    for (let i = 0; i < 10; i += 1) {
-      action({ type: 'STUDY' });
-      tick();
-    }
-    for (let i = 0; i < 10; i += 1) {
+    expect(state.buildings.hut).toBe(1);
+
+    for (let i = 0; i < 14; i += 1) {
       action({ type: 'SCAVENGE' });
+      action({ type: 'STUDY' });
+      action({ type: 'FORAGE' });
+    }
+    // Advance to Year 4
+    while (state.year < 4) {
       tick();
     }
     action({ type: 'ADVANCE_RUNG', rungId: 'settlement' });
     expect(state.rung).toBe('settlement');
-    expect(state.tick).toBeLessThanOrEqual(70);
+    expect(state.tick).toBeLessThanOrEqual(50);
   });
 
   it('handles manual FORAGE, SCAVENGE, and STUDY actions cleanly within caps', () => {
