@@ -21,3 +21,11 @@ Changes to release, contract, governance, persistence, and accessibility documen
 ## Implementation status
 
 Use explicit status language: “specified”, “scaffolded”, “not implemented”, or “implemented and tested”. Do not imply that an API, service, engine, or hosted feature exists merely because its contract is documented.
+
+## Feedback codification protocol
+
+Feedback Codification Protocol: Whenever user feedback is received or an operational fix is delivered, extract the underlying game design or engineering philosophy into our normative documents (docs/philosophy/, docs/rules/, docs/contracts/) and AGENTS.md. Never treat feedback as merely a local bug fix; derive and codify the general invariant so agents do not repeat the failure mode.
+
+## Verification and ergonomics
+
+CI passing is not proof of game feel or mobile layout ergonomics; tests must exercise complete-state journeys and mobile viewport geometry.

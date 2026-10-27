@@ -8,4 +8,16 @@ Guest play is a first-class path. A guest MAY begin and play without creating an
 
 Authentication is capability-triggered. Google and Apple sign-in MAY be offered when a player asks to sync, recover, share, or use another capability that requires an account. The product MUST explain what capability is being unlocked, MUST preserve the guest state during the transition, and MUST NOT imply that either provider is required for ordinary guest play.
 
+## Responsiveness over artificial lockouts
+
+In incremental games, manual gathering actions must remain immediately responsive to user input. Never lock or throttle clicks via interaction delays or tick cooldowns to solve pacing; pace through mathematical yield, caps, and opportunity costs, not interaction hostility.
+
+## Continuous progression reachability
+
+Early rungs and building unlocks must be reachable within a normal first-session attention span without requiring divine knowledge or secret developer cheats. The path from gathering to the first settlement must be visibly progressive and unblocked.
+
+## Affordance visibility
+
+Unlocked actions, roles, and buildings must be explicitly discoverable and actionable from the primary surfaces where the player makes decisions. Never hide progression behind unannounced tabs or off-screen states without clear signposts.
+
 The service and engine are not implemented by this foundation. These statements specify the intended experience, not current availability.
