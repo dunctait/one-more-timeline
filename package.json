@@ -1,0 +1,11 @@
+{
+  "name": "one-more-timeline",
+  "version": "0.0.0",
+  "private": false,
+  "description": "Public foundation and normative contracts for One More Timeline.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit"
+  }
+}
