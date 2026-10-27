@@ -104,8 +104,8 @@ export const RUNGS: Record<RungId, RungDef> = {
     description: 'Others gather to your fire. Assign roles to community members and build basic shelters.',
     prerequisites: {
       year: 2,
-      knowledge: 15,
-      food: 15,
+      knowledge: 12,
+      food: 12,
     },
   },
   settlement: {
@@ -115,11 +115,11 @@ export const RUNGS: Record<RungId, RungDef> = {
     subtitle: 'Roots take hold.',
     description: 'Paths are beaten into the earth. Erect workshops, communal hearths, and set scholars to study.',
     prerequisites: {
-      year: 5,
-      population: 4,
-      huts: 2,
-      knowledge: 40,
-      materials: 25,
+      year: 4,
+      population: 1,
+      huts: 1,
+      knowledge: 20,
+      materials: 15,
     },
   },
   village: {
@@ -186,7 +186,7 @@ export function calculateNetRates(state: TimelineState): NetRates {
   const foragerYield = season === 'Winter' ? 0.9 : 1.5;
   const foodProduced = roles.forager * foragerYield * insightEfficiency;
   // Consumption: 0.5 food per population member per tick
-  const foodConsumed = population.total * 0.5;
+  const foodConsumed = population.total * 0.35;
   const foodRate = foodProduced - foodConsumed;
 
   // Materials calculation:

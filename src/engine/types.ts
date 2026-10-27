@@ -62,6 +62,10 @@ export interface TimelineState {
   furthestYear: number;
   timelinesCreated: number;
   insight: number;
+  /** Number of ticks remaining in the protected opening/learning window. */
+  learningGraceTicks: number;
+  /** One manual action is allowed per tick; this is the remaining lockout. */
+  actionCooldown: number;
   rung: RungId;
   resources: ResourceMap;
   caps: ResourceCaps;

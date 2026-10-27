@@ -271,6 +271,12 @@ function render(): void {
   }
 
   // Resources: Food
+  elBtnForage.disabled = !vm.actions.canForage;
+  elBtnScavenge.disabled = !vm.actions.canScavenge;
+  elBtnStudy.disabled = !vm.actions.canStudy;
+  elBtnForage.title = vm.actions.actionPacing;
+  elBtnScavenge.title = vm.actions.actionPacing;
+  elBtnStudy.title = `${vm.actions.actionPacing} ${vm.actions.learningGrace}`;
   elResFoodCurrent.textContent = `${vm.resources.food.current}`;
   elResFoodMax.textContent = `${vm.resources.food.max}`;
   elResFoodRate.textContent = vm.resources.food.rateFormatted;
