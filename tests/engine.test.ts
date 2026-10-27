@@ -234,6 +234,68 @@ describe('Deterministic Engine', () => {
     expect(nextTimeline.timelineId).toBe('timeline_1337_1');
   });
 
+  it('expands knowledge capacity through Workshop and Chronicle Obelisk to unlock Dawn Village', () => {
+    let state = createInitialState();
+    state.rung = 'settlement';
+    state.year = 8;
+    state.furthestYear = 8;
+    state.buildings.granary = 1;
+    state.buildings.hut = 2;
+    state.population.total = 6;
+    state.caps = {
+      ...state.caps,
+      food: 30 + 1 * 50,
+    };
+    state.population.max = 2 + 2 * 2;
+
+    // Base knowledge cap without workshop or obelisk is 20
+    expect(state.caps.knowledge).toBe(20);
+
+    // Verify Chronicle Obelisk is unlocked at Settled Camp with reachable base cost
+    expect(BUILDINGS.chronicle_stone.unlockedAt).toBe('settlement');
+    expect(BUILDINGS.chronicle_stone.baseCost.materials).toBe(30);
+    expect(BUILDINGS.chronicle_stone.baseCost.knowledge).toBe(15);
+
+    // Building Workshop expands materials cap by +40 and knowledge cap by +10
+    state.resources.materials = 25;
+    state.resources.knowledge = 10;
+    const buildWorkshop = executeAction(state, { type: 'BUILD', buildingId: 'workshop' });
+    expect(buildWorkshop.success).toBe(true);
+    state = buildWorkshop.state;
+    expect(state.buildings.workshop).toBe(1);
+    expect(state.caps.materials).toBe(65);
+    expect(state.caps.knowledge).toBe(30);
+
+    // Building Chronicle Obelisk costs 30 mats and 15 knowledge, expanding knowledge cap to 60
+    state.resources.materials = 30;
+    state.resources.knowledge = 15;
+    const buildObelisk = executeAction(state, { type: 'BUILD', buildingId: 'chronicle_stone' });
+    expect(buildObelisk.success).toBe(true);
+    state = buildObelisk.state;
+    expect(state.buildings.chronicle_stone).toBe(1);
+    expect(state.caps.knowledge).toBe(60);
+
+    // Check Dawn Village prerequisites
+    state.resources.knowledge = 60;
+    const prereqCheck = checkRungPrerequisites(state, 'village');
+    expect(prereqCheck.eligible).toBe(true);
+    expect(prereqCheck.reasons).toHaveLength(0);
+
+    // Advance to Dawn Village
+    const advanceVillage = executeAction(state, { type: 'ADVANCE_RUNG', rungId: 'village' });
+    expect(advanceVillage.success).toBe(true);
+    state = advanceVillage.state;
+    expect(state.rung).toBe('village');
+    // Dawn Village provides +50 knowledge cap bonus
+    expect(state.caps.knowledge).toBe(110);
+
+    // Assign healer (unlocked at Dawn Village)
+    state.population.roles.unassigned = 1;
+    const assignHealer = executeAction(state, { type: 'ASSIGN_ROLE', role: 'healer', delta: 1 });
+    expect(assignHealer.success).toBe(true);
+    expect(assignHealer.state.population.roles.healer).toBe(1);
+  });
+
   it('supports dev mode actions', () => {
     const state = createInitialState();
     const addRes = executeAction(state, { type: 'DEV_ADD_RESOURCES', amount: 50 });

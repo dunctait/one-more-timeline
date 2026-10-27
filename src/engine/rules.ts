@@ -47,7 +47,7 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
   workshop: {
     id: 'workshop',
     name: 'Tool Workshop',
-    description: 'Sharpened flint and wooden levers. Increases Materials capacity by +40 and boosts builder output.',
+    description: 'Sharpened flint and wooden levers. Increases Materials capacity by +40, Knowledge cap by +10, and boosts builder output.',
     unlockedAt: 'settlement',
     baseCost: { materials: 25, knowledge: 10 },
     costMultiplier: 1.3,
@@ -64,8 +64,8 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = {
     id: 'chronicle_stone',
     name: 'Chronicle Obelisk',
     description: 'Tall pillars scored with astronomical markings. Increases Knowledge cap by +30 and produces +0.5 Knowledge/tick.',
-    unlockedAt: 'village',
-    baseCost: { materials: 35, knowledge: 25 },
+    unlockedAt: 'settlement',
+    baseCost: { materials: 30, knowledge: 15 },
     costMultiplier: 1.35,
   },
 };
@@ -129,11 +129,11 @@ export const RUNGS: Record<RungId, RungDef> = {
     subtitle: 'A beacon across the ages.',
     description: 'Permanent architecture and memory stones. Support healers and record timelines for the next leap.',
     prerequisites: {
-      year: 10,
-      population: 8,
+      year: 8,
+      population: 6,
       workshop: 1,
       granary: 1,
-      knowledge: 100,
+      knowledge: 60,
     },
   },
 };
@@ -168,7 +168,11 @@ export function calculateCaps(buildings: BuildingsMap, rung: RungId): {
 } {
   const food = 30 + buildings.granary * 50;
   const materials = 25 + buildings.workshop * 40;
-  const knowledge = 20 + buildings.chronicle_stone * 30 + (rung === 'village' ? 50 : 0);
+  const knowledge =
+    20 +
+    buildings.workshop * 10 +
+    buildings.chronicle_stone * 30 +
+    (rung === 'village' ? 50 : 0);
   const population = 2 + buildings.hut * 2;
 
   return { food, materials, knowledge, population };

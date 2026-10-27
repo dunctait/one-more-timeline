@@ -3,9 +3,11 @@ import { createInitialState, executeAction } from '../src/engine/engine.js';
 import { loadGame, isDevMode, saveGame, setDevMode } from '../src/ui/storage.js';
 import {
   buildTimelineViewModel,
-  formatRate,
   countNewLogIds,
+  formatRate,
   getStabilityLabel,
+  PRESTIGE_TOAST_MESSAGE,
+  shouldShowPrestigeToast,
 } from '../src/ui/view-model.js';
 
 describe('UI View Model & Storage', () => {
@@ -194,10 +196,44 @@ describe('UI View Model & Storage', () => {
     state = executeAction(state, { type: 'ADVANCE_RUNG', rungId: 'settlement' }).state;
     vm = buildTimelineViewModel(state);
     expect(vm.header.rungName).toBe('Settled Camp');
-    // Workshops and fire pits are now visibly unlocked
+    // Workshops, fire pits, and chronicle stones are now visibly unlocked
     const workshop = vm.buildings.find((b) => b.id === 'workshop');
     const firePit = vm.buildings.find((b) => b.id === 'fire_pit');
+    const chronicle = vm.buildings.find((b) => b.id === 'chronicle_stone');
     expect(workshop?.unlocked).toBe(true);
     expect(firePit?.unlocked).toBe(true);
+    expect(chronicle?.unlocked).toBe(true);
+  });
+
+  it('evaluates prestige toast eligibility correctly across timeline runs', () => {
+    let state = createInitialState({ seed: 777 });
+    expect(state.year).toBe(1);
+    expect(shouldShowPrestigeToast(state, null)).toBe(false);
+
+    state.year = 2;
+    expect(shouldShowPrestigeToast(state, null)).toBe(false);
+
+    // Year 3 reached: prestige is ready and toast should fire
+    state.year = 3;
+    expect(shouldShowPrestigeToast(state, null)).toBe(true);
+    expect(PRESTIGE_TOAST_MESSAGE).toContain('Temporal Horizon Reached');
+    expect(PRESTIGE_TOAST_MESSAGE).toContain('Time Jump is now ready in Evolution');
+
+    // Dismissing for this timeline suppresses the toast for this run
+    expect(shouldShowPrestigeToast(state, state.timelineId)).toBe(false);
+
+    // Execute Time Jump to start a new timeline cycle
+    const jumpResult = executeAction(state, { type: 'TIME_JUMP' });
+    expect(jumpResult.success).toBe(true);
+    const nextTimeline = jumpResult.state;
+    expect(nextTimeline.timelineId).not.toBe(state.timelineId);
+    expect(nextTimeline.year).toBe(1);
+
+    // In Year 1 of new timeline, toast is not active
+    expect(shouldShowPrestigeToast(nextTimeline, state.timelineId)).toBe(false);
+
+    // Once Year 3 is reached in the new timeline, toast fires again for the new run
+    nextTimeline.year = 3;
+    expect(shouldShowPrestigeToast(nextTimeline, state.timelineId)).toBe(true);
   });
 });

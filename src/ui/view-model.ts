@@ -129,6 +129,16 @@ export interface TimelineViewModel {
   logs: LogEntry[];
 }
 
+export const PRESTIGE_TOAST_MESSAGE =
+  '🌀 Temporal Horizon Reached: The timeline has reached its zenith! Time Jump is now ready in Evolution to collapse this timeline into enduring Insight.';
+
+export function shouldShowPrestigeToast(
+  state: TimelineState,
+  dismissedTimelineId: string | null
+): boolean {
+  return state.year >= 3 && dismissedTimelineId !== state.timelineId;
+}
+
 export function countNewLogIds(
   logs: LogEntry[],
   seenIds: ReadonlySet<string>
@@ -343,9 +353,9 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     if (nextRungId === 'band') {
       unlockedFeatures.push('Foragers', 'Builders', 'Thatched Huts', 'Elevated Granaries');
     } else if (nextRungId === 'settlement') {
-      unlockedFeatures.push('Scholars', 'Tool Workshops', 'Eternal Fire Pits');
+      unlockedFeatures.push('Scholars', 'Tool Workshops', 'Eternal Fire Pits', 'Chronicle Obelisks');
     } else if (nextRungId === 'village') {
-      unlockedFeatures.push('Healers', 'Chronicle Obelisks');
+      unlockedFeatures.push('Healers', 'Expanded Horizon');
     }
 
     nextRungVm = {

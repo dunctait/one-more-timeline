@@ -4,6 +4,7 @@ import {
   stepTick,
 } from './engine/engine.js';
 import { BuildingId, EngineAction, RoleId, TimelineState } from './engine/types.js';
+import { RUNGS } from './engine/rules.js';
 import {
   clearDevProposals,
   clearGame,
@@ -15,7 +16,13 @@ import {
   saveGame,
   setDevMode,
 } from './ui/storage.js';
-import { buildTimelineViewModel, countNewLogIds, TimelineViewModel } from './ui/view-model.js';
+import {
+  buildTimelineViewModel,
+  countNewLogIds,
+  PRESTIGE_TOAST_MESSAGE,
+  shouldShowPrestigeToast,
+  TimelineViewModel,
+} from './ui/view-model.js';
 
 // Application state
 let state: TimelineState = loadGame() ?? createInitialState();
@@ -39,6 +46,40 @@ function loadSeenUnlocks(): Set<string> {
   }
 }
 const seenUnlocks = loadSeenUnlocks();
+
+const prestigeSeenKey = 'omt.seenPrestigeTimeline';
+function loadPrestigeDismissedTimelineId(): string | null {
+  try {
+    return localStorage.getItem(prestigeSeenKey);
+  } catch {
+    return null;
+  }
+}
+
+function savePrestigeDismissedTimelineId(timelineId: string | null): void {
+  try {
+    if (timelineId) {
+      localStorage.setItem(prestigeSeenKey, timelineId);
+    } else {
+      localStorage.removeItem(prestigeSeenKey);
+    }
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+let prestigeDismissedTimelineId: string | null = loadPrestigeDismissedTimelineId();
+
+interface ToastPayload {
+  id: string;
+  message: string;
+  type?: 'prestige' | 'milestone' | 'info';
+  actionLabel?: string;
+  onAction?: () => void;
+  persistent?: boolean;
+}
+
+let activeToast: ToastPayload | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Persistent Header Status Elements
@@ -195,22 +236,152 @@ function showStorageMessage(message: string): void {
   document.querySelector('.app-shell')?.prepend(notice);
 }
 
-function showToast(message: string): void {
-  elToastRegion.innerHTML = `<div class="toast">${escapeHtml(message)}</div>`;
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    elToastRegion.replaceChildren();
-  }, 4200);
+function dismissToast(id?: string): void {
+  if (id && activeToast && activeToast.id !== id) {
+    return;
+  }
+  if (activeToast?.id === 'prestige') {
+    prestigeDismissedTimelineId = state.timelineId;
+    savePrestigeDismissedTimelineId(state.timelineId);
+  }
+  activeToast = null;
+  if (toastTimer) {
+    clearTimeout(toastTimer);
+    toastTimer = null;
+  }
+  elToastRegion.replaceChildren();
+
+  checkAndTriggerPrestigeToast();
+}
+
+function showToast(message: string, options?: Partial<ToastPayload>): void {
+  const payload: ToastPayload = {
+    id: options?.id ?? `toast_${Date.now()}`,
+    message,
+    type: options?.type ?? 'info',
+    actionLabel: options?.actionLabel,
+    onAction: options?.onAction,
+    persistent: options?.persistent ?? false,
+  };
+
+  if (activeToast?.id === 'prestige' && payload.type !== 'prestige' && payload.type !== 'milestone') {
+    return;
+  }
+
+  activeToast = payload;
+  if (toastTimer) {
+    clearTimeout(toastTimer);
+    toastTimer = null;
+  }
+
+  const toastEl = document.createElement('div');
+  const typeClass =
+    payload.type === 'prestige'
+      ? 'toast-prestige'
+      : payload.type === 'milestone'
+      ? 'toast-milestone'
+      : 'toast-info';
+  toastEl.className = `toast ${typeClass}`;
+  toastEl.setAttribute('role', 'status');
+
+  const contentEl = document.createElement('div');
+  contentEl.className = 'toast-content';
+  contentEl.textContent = payload.message;
+  toastEl.appendChild(contentEl);
+
+  const actionsEl = document.createElement('div');
+  actionsEl.className = 'toast-actions';
+
+  if (payload.actionLabel && payload.onAction) {
+    const actionBtn = document.createElement('button');
+    actionBtn.type = 'button';
+    actionBtn.className = 'btn-toast-action';
+    actionBtn.textContent = payload.actionLabel;
+    actionBtn.addEventListener('click', () => {
+      payload.onAction?.();
+      dismissToast(payload.id);
+    });
+    actionsEl.appendChild(actionBtn);
+  }
+
+  const dismissBtn = document.createElement('button');
+  dismissBtn.type = 'button';
+  dismissBtn.className = 'btn-toast-dismiss';
+  dismissBtn.setAttribute('aria-label', 'Dismiss notification');
+  dismissBtn.textContent = '✕';
+  dismissBtn.addEventListener('click', () => {
+    dismissToast(payload.id);
+  });
+  actionsEl.appendChild(dismissBtn);
+
+  toastEl.appendChild(actionsEl);
+
+  elToastRegion.replaceChildren(toastEl);
+
+  if (!payload.persistent) {
+    toastTimer = setTimeout(() => {
+      dismissToast(payload.id);
+    }, 8000);
+  }
+}
+
+function checkAndTriggerPrestigeToast(): void {
+  if (shouldShowPrestigeToast(state, prestigeDismissedTimelineId)) {
+    if (!activeToast || activeToast.id !== 'prestige') {
+      showToast(PRESTIGE_TOAST_MESSAGE, {
+        id: 'prestige',
+        type: 'prestige',
+        actionLabel: 'View in Evolution',
+        onAction: () => {
+          switchTab('evolution');
+        },
+        persistent: true,
+      });
+    }
+  }
 }
 
 function checkForProgressionFeedback(previousState: TimelineState, nextState: TimelineState): void {
+  if (previousState.rung !== nextState.rung) {
+    const rungDef = RUNGS[nextState.rung];
+    const unlockKey = `rung_${nextState.rung}`;
+    if (!seenUnlocks.has(unlockKey)) {
+      seenUnlocks.add(unlockKey);
+      localStorage.setItem(seenUnlocksKey, JSON.stringify([...seenUnlocks].slice(-50)));
+      showToast(
+        `🌟 ${rungDef.name} Reached: ${rungDef.subtitle} ${rungDef.description}`,
+        {
+          id: unlockKey,
+          type: 'milestone',
+          actionLabel:
+            nextState.rung === 'settlement' || nextState.rung === 'village'
+              ? 'View Settlement'
+              : 'View Hearth',
+          onAction: () => {
+            switchTab(
+              nextState.rung === 'settlement' || nextState.rung === 'village'
+                ? 'settlement'
+                : 'hearth'
+            );
+          },
+          persistent: true,
+        }
+      );
+      return;
+    }
+  }
+
   const previousLogIds = new Set(previousState.logs.map((log) => log.id));
   const newMilestones = nextState.logs.filter(
     (log) => !previousLogIds.has(log.id) && log.type === 'milestone'
   );
   const newestMilestone = newMilestones[0];
   if (newestMilestone && !seenUnlocks.has(newestMilestone.id)) {
-    showToast(newestMilestone.text);
+    showToast(newestMilestone.text, {
+      id: newestMilestone.id,
+      type: 'milestone',
+      persistent: false,
+    });
     seenUnlocks.add(newestMilestone.id);
     localStorage.setItem(seenUnlocksKey, JSON.stringify([...seenUnlocks].slice(-50)));
   }
@@ -221,7 +392,11 @@ function dispatch(action: EngineAction): void {
   const result = executeAction(state, action);
   if (result.success) {
     state = result.state;
+    if (action.type === 'TIME_JUMP') {
+      dismissToast();
+    }
     checkForProgressionFeedback(previousState, state);
+    checkAndTriggerPrestigeToast();
     persistState();
     checkForNewLogs();
     render();
@@ -232,7 +407,10 @@ function dispatch(action: EngineAction): void {
 
 function handleTick(): void {
   if (isPaused) return;
+  const previousState = state;
   state = stepTick(state);
+  checkForProgressionFeedback(previousState, state);
+  checkAndTriggerPrestigeToast();
   persistState();
   checkForNewLogs();
   render();
@@ -615,6 +793,9 @@ function setupListeners(): void {
     const confirmed = confirm('Reset this timeline to Year 1? Furthest Year and Insight will be reset.');
     if (confirmed) {
       clearGame();
+      savePrestigeDismissedTimelineId(null);
+      prestigeDismissedTimelineId = null;
+      dismissToast();
       state = createInitialState();
       switchTab('hearth');
       render();
@@ -688,6 +869,9 @@ function setupListeners(): void {
     const confirmed = confirm('Clear game save and reset to Year 1?');
     if (confirmed) {
       clearGame();
+      savePrestigeDismissedTimelineId(null);
+      prestigeDismissedTimelineId = null;
+      dismissToast();
       state = createInitialState();
       switchTab('hearth');
       render();
@@ -783,6 +967,7 @@ updateDevModeUI();
 setupListeners();
 updatePauseButton();
 render();
+checkAndTriggerPrestigeToast();
 const startupStorageNotice = consumeStorageNotice();
 if (startupStorageNotice) showStorageMessage(startupStorageNotice);
 resetTickTimer(1000);
