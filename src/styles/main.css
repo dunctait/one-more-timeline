@@ -763,6 +763,41 @@ html, body {
   color: #fb7185;
 }
 
+.action-pacing-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.action-pacing-controls .action-pacing {
+  margin: 0;
+}
+
+.next-rung-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.next-rung-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.next-rung-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--accent-amber);
+  font-weight: 700;
+}
+
+.next-rung-subtitle {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
 .btn-ascend {
   background: #334155;
   border: 1px solid #475569;

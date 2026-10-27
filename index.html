@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>One More Timeline — Playable Layer 0</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./src/styles/main.css" />
   </head>
   <body>
@@ -114,7 +115,10 @@
                 <h1 id="hearth-intro-title">Keep the hearth alive.</h1>
                 <p class="hearth-intro-copy">Take one deliberate action, then let the timeline breathe. Food keeps the community here; knowledge and materials open the next rung.</p>
               </div>
-              <p id="action-pacing" class="action-pacing" aria-live="polite">One action per tick.</p>
+              <div class="action-pacing-controls">
+                <p id="action-pacing" class="action-pacing" aria-live="polite">One action per tick.</p>
+                <button id="btn-pause" class="btn btn-sm" type="button" aria-pressed="false">Pause timeline</button>
+              </div>
             </section>
 
             <!-- Manual Actions -->
@@ -196,7 +200,14 @@
                 <span class="section-hint">Epoch milestone</span>
               </div>
               <div id="next-rung-container" class="next-rung-container">
-                <!-- Injected by ViewModel -->
+                <div class="next-rung-content">
+                  <div class="next-rung-heading">
+                    <span id="next-rung-label" class="next-rung-label"></span>
+                    <span id="next-rung-subtitle" class="next-rung-subtitle"></span>
+                  </div>
+                  <div id="next-rung-prerequisites" class="prereq-grid"></div>
+                  <button id="btn-advance-rung" class="btn-ascend" type="button" disabled></button>
+                </div>
               </div>
             </section>
 

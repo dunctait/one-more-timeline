@@ -30,7 +30,15 @@ let unreadLogsCount = 0;
 let seenLogIds = new Set(state.logs.map((log) => log.id));
 let proposalOpener: HTMLButtonElement | null = null;
 const seenUnlocksKey = 'omt.seenUnlocks';
-const seenUnlocks = new Set<string>(JSON.parse(localStorage.getItem(seenUnlocksKey) ?? '[]'));
+function loadSeenUnlocks(): Set<string> {
+  try {
+    const stored = JSON.parse(localStorage.getItem(seenUnlocksKey) ?? '[]');
+    return new Set(Array.isArray(stored) ? stored.filter((id): id is string => typeof id === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+const seenUnlocks = loadSeenUnlocks();
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Persistent Header Status Elements
@@ -81,6 +89,10 @@ const elCurrentRungName = document.getElementById('current-rung-name') as HTMLEl
 const elCurrentRungSubtitle = document.getElementById('current-rung-subtitle') as HTMLElement;
 const elCurrentRungDesc = document.getElementById('current-rung-desc') as HTMLElement;
 const elNextRungContainer = document.getElementById('next-rung-container') as HTMLElement;
+const elNextRungLabel = document.getElementById('next-rung-label') as HTMLElement;
+const elNextRungSubtitle = document.getElementById('next-rung-subtitle') as HTMLElement;
+const elNextRungPrerequisites = document.getElementById('next-rung-prerequisites') as HTMLElement;
+const elBtnAdvanceRung = document.getElementById('btn-advance-rung') as HTMLButtonElement;
 const elInsightBadge = document.getElementById('insight-badge') as HTMLElement;
 const elTimeJumpDesc = document.getElementById('time-jump-desc') as HTMLElement;
 const elBtnTimeJump = document.getElementById('btn-time-jump') as HTMLButtonElement;
@@ -121,6 +133,7 @@ const elBtnClearProposals = document.getElementById('btn-clear-proposals') as HT
 const elToastRegion = document.getElementById('toast-region') as HTMLElement;
 const elForageYield = document.getElementById('forage-yield') as HTMLElement;
 const elActionPacing = document.getElementById('action-pacing') as HTMLElement;
+const elBtnPause = document.getElementById('btn-pause') as HTMLButtonElement;
 
 // Bottom Tab Navigation buttons & panels
 const tabButtons: Record<TabId, HTMLButtonElement> = {
@@ -234,6 +247,11 @@ function checkForNewLogs(): void {
     }
     seenLogIds = result.updatedSeenIds;
   }
+}
+
+function updatePauseButton(): void {
+  elBtnPause.textContent = isPaused ? 'Resume timeline' : 'Pause timeline';
+  elBtnPause.setAttribute('aria-pressed', isPaused ? 'true' : 'false');
 }
 
 function resetTickTimer(intervalMs: number): void {
@@ -449,13 +467,16 @@ function render(): void {
 
   const nextRung = vm.rungProgression.nextRung;
   if (!nextRung) {
-    elNextRungContainer.innerHTML = `
-      <div style="font-size: 0.8rem; color: var(--accent-gold); font-weight: 700; padding: 0.4rem 0;">
-        🌟 You have reached the pinnacle of Layer 0 settlement evolution!
-      </div>
-    `;
+    elNextRungLabel.textContent = '🌟 You have reached the pinnacle of Layer 0 settlement evolution!';
+    elNextRungSubtitle.textContent = '';
+    elNextRungPrerequisites.replaceChildren();
+    elBtnAdvanceRung.textContent = '';
+    elBtnAdvanceRung.disabled = true;
+    elBtnAdvanceRung.classList.remove('ready');
   } else {
-    const prereqHtml = nextRung.items
+    elNextRungLabel.textContent = `Next Rung: ${nextRung.name}`;
+    elNextRungSubtitle.textContent = nextRung.subtitle;
+    elNextRungPrerequisites.innerHTML = nextRung.items
       .map(
         (item) => `
         <div class="prereq-chip ${item.met ? 'met' : 'unmet'}">
@@ -465,23 +486,11 @@ function render(): void {
       `
       )
       .join('');
-
-    elNextRungContainer.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 0.35rem;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-          <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--accent-amber); font-weight: 700;">
-            Next Rung: ${nextRung.name}
-          </span>
-          <span style="font-size: 0.72rem; font-style: italic; color: var(--text-muted);">
-            ${nextRung.subtitle}
-          </span>
-        </div>
-        <div class="prereq-grid">${prereqHtml}</div>
-        <button id="btn-advance-rung" class="btn-ascend ${nextRung.eligible ? 'ready' : ''}" ${nextRung.eligible ? '' : 'disabled'}>
-          ${nextRung.eligible ? `🌟 Ascend to ${nextRung.name}` : `Prerequisites Incomplete for ${nextRung.name}`}
-        </button>
-      </div>
-    `;
+    elBtnAdvanceRung.textContent = nextRung.eligible
+      ? `🌟 Ascend to ${nextRung.name}`
+      : `Prerequisites Incomplete for ${nextRung.name}`;
+    elBtnAdvanceRung.disabled = !nextRung.eligible;
+    elBtnAdvanceRung.classList.toggle('ready', nextRung.eligible);
   }
 
   // Time Jump Card
@@ -549,15 +558,24 @@ function setupListeners(): void {
     }
   });
 
-  // Advance Rung delegation
-  elNextRungContainer.addEventListener('click', (ev) => {
-    const target = ev.target as HTMLElement;
-    if (target.id === 'btn-advance-rung') {
-      const vm = buildTimelineViewModel(state);
-      if (vm.rungProgression.nextRung?.eligible) {
-        dispatch({ type: 'ADVANCE_RUNG', rungId: vm.rungProgression.nextRung.id });
-      }
+  // Advance Rung: the button is stable across renders, so clicks remain attached during ticks.
+  elBtnAdvanceRung.addEventListener('click', () => {
+    const vm = buildTimelineViewModel(state);
+    if (vm.rungProgression.nextRung?.eligible) {
+      dispatch({ type: 'ADVANCE_RUNG', rungId: vm.rungProgression.nextRung.id });
     }
+  });
+
+  // Normal-player pause control; Dev Mode speed controls remain separate diagnostics.
+  elBtnPause.addEventListener('click', () => {
+    isPaused = !isPaused;
+    if (isPaused) {
+      resetTickTimer(0);
+      tickIntervalMs = 1000;
+    } else {
+      resetTickTimer(tickIntervalMs);
+    }
+    updatePauseButton();
   });
 
   // Time Jump Prestige
@@ -751,6 +769,7 @@ function setupListeners(): void {
 // Start up
 updateDevModeUI();
 setupListeners();
+updatePauseButton();
 render();
 const startupStorageNotice = consumeStorageNotice();
 if (startupStorageNotice) showStorageMessage(startupStorageNotice);
