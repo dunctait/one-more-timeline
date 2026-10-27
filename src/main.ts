@@ -7,6 +7,7 @@ import { BuildingId, EngineAction, RoleId, TimelineState } from './engine/types.
 import {
   clearDevProposals,
   clearGame,
+  consumeStorageNotice,
   getDevProposals,
   isDevMode,
   loadGame,
@@ -14,7 +15,7 @@ import {
   saveGame,
   setDevMode,
 } from './ui/storage.js';
-import { buildTimelineViewModel, TimelineViewModel } from './ui/view-model.js';
+import { buildTimelineViewModel, countNewLogIds, TimelineViewModel } from './ui/view-model.js';
 
 // Application state
 let state: TimelineState = loadGame() ?? createInitialState();
@@ -26,7 +27,8 @@ let isPaused = false;
 type TabId = 'hearth' | 'settlement' | 'evolution' | 'chronicle' | 'settings';
 let activeTab: TabId = 'hearth';
 let unreadLogsCount = 0;
-let lastKnownLogCount = state.logs.length;
+let seenLogIds = new Set(state.logs.map((log) => log.id));
+let proposalOpener: HTMLButtonElement | null = null;
 
 // Persistent Header Status Elements
 const elStatYear = document.getElementById('stat-year') as HTMLElement;
@@ -151,15 +153,34 @@ function switchTab(target: TabId): void {
 
   if (target === 'chronicle') {
     unreadLogsCount = 0;
+    seenLogIds = new Set(state.logs.map((log) => log.id));
     elChronicleUnreadBadge.hidden = true;
   }
+}
+
+function persistState(): boolean {
+  const result = saveGame(state);
+  if (!result.ok) {
+    showStorageMessage(result.error ?? 'Your timeline could not be saved locally.');
+  }
+  return result.ok;
+}
+
+function showStorageMessage(message: string): void {
+  const existing = document.getElementById('storage-notice');
+  if (existing) existing.remove();
+  const notice = document.createElement('div');
+  notice.id = 'storage-notice';
+  notice.setAttribute('role', 'alert');
+  notice.textContent = message;
+  document.querySelector('.app-shell')?.prepend(notice);
 }
 
 function dispatch(action: EngineAction): void {
   const result = executeAction(state, action);
   if (result.success) {
     state = result.state;
-    saveGame(state);
+    persistState();
     checkForNewLogs();
     render();
   } else if (result.error) {
@@ -170,19 +191,19 @@ function dispatch(action: EngineAction): void {
 function handleTick(): void {
   if (isPaused) return;
   state = stepTick(state);
-  saveGame(state);
+  persistState();
   checkForNewLogs();
   render();
 }
 
 function checkForNewLogs(): void {
-  const currentCount = state.logs.length;
-  if (currentCount > lastKnownLogCount) {
+  const result = countNewLogIds(state.logs, seenLogIds);
+  if (result.count > 0) {
     if (activeTab !== 'chronicle') {
-      unreadLogsCount += currentCount - lastKnownLogCount;
+      unreadLogsCount += result.count;
       elChronicleUnreadBadge.hidden = false;
     }
-    lastKnownLogCount = currentCount;
+    seenLogIds = result.updatedSeenIds;
   }
 }
 
@@ -203,6 +224,10 @@ function updateDevModeUI(): void {
   elDevProposalsContainer.hidden = !devModeActive;
 
   elBtnToggleDev.setAttribute('aria-pressed', devModeActive ? 'true' : 'false');
+  elBtnOpenProposal.disabled = !devModeActive;
+  elBtnOpenProposal.title = devModeActive
+    ? 'Open the local Dev Mode proposal simulation'
+    : 'Feature proposals are currently in closed incubation';
   elBtnToggleDev.textContent = devModeActive ? '🛠️ Dev Mode: On (Active)' : '🛠️ Dev Mode: Off';
   if (devModeActive) {
     elBtnToggleDev.classList.add('btn-accent');
@@ -514,8 +539,7 @@ function setupListeners(): void {
 
   // Settings Save & Reset
   elBtnManualSave.addEventListener('click', () => {
-    saveGame(state);
-    alert('Timeline saved successfully!');
+    if (persistState()) alert('Timeline saved successfully!');
   });
 
   elBtnResetGame.addEventListener('click', () => {
@@ -602,19 +626,49 @@ function setupListeners(): void {
   });
 
   // Feature proposal modal
-  elBtnOpenProposal.addEventListener('click', () => {
-    elProposalModalBackdrop.hidden = false;
-    renderDevProposals();
-  });
+  const modalDialog = elProposalModalBackdrop.querySelector<HTMLElement>('[role="dialog"]');
+  const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
   const closeModal = (): void => {
     elProposalModalBackdrop.hidden = true;
+    proposalOpener?.focus();
   };
+
+  elBtnOpenProposal.addEventListener('click', () => {
+    if (!devModeActive || elBtnOpenProposal.disabled) return;
+    proposalOpener = elBtnOpenProposal;
+    elProposalModalBackdrop.hidden = false;
+    renderDevProposals();
+    (modalDialog?.querySelector<HTMLElement>(focusableSelector) ?? modalDialog)?.focus();
+  });
 
   elBtnCloseProposal.addEventListener('click', closeModal);
   elBtnCancelProposal.addEventListener('click', closeModal);
   elProposalModalBackdrop.addEventListener('click', (ev) => {
     if (ev.target === elProposalModalBackdrop) closeModal();
+  });
+  elProposalModalBackdrop.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') {
+      ev.preventDefault();
+      closeModal();
+      return;
+    }
+    if (ev.key !== 'Tab' || !modalDialog) return;
+    const focusable = Array.from(modalDialog.querySelectorAll<HTMLElement>(focusableSelector));
+    if (focusable.length === 0) {
+      ev.preventDefault();
+      modalDialog.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (ev.shiftKey && document.activeElement === first) {
+      ev.preventDefault();
+      last.focus();
+    } else if (!ev.shiftKey && document.activeElement === last) {
+      ev.preventDefault();
+      first.focus();
+    }
   });
 
   // Proposal submission
@@ -633,13 +687,17 @@ function setupListeners(): void {
     const whatToChange = (document.getElementById('prop-change') as HTMLTextAreaElement).value;
     const whyItImproves = (document.getElementById('prop-why') as HTMLTextAreaElement).value;
 
-    saveDevProposal({
+    const saveResult = saveDevProposal({
       title,
       category,
       whatToChange,
       whyItImproves,
     });
 
+    if (!saveResult.ok) {
+      showStorageMessage(saveResult.error ?? 'The proposal could not be saved locally.');
+      return;
+    }
     elProposalForm.reset();
     renderDevProposals();
     alert('Simulated local proposal queued in Dev Mode (stored in localStorage.omt.devProposals)!');
@@ -655,4 +713,6 @@ function setupListeners(): void {
 updateDevModeUI();
 setupListeners();
 render();
+const startupStorageNotice = consumeStorageNotice();
+if (startupStorageNotice) showStorageMessage(startupStorageNotice);
 resetTickTimer(1000);

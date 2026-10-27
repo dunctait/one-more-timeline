@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from '../src/engine/engine.js';
-import { isDevMode, setDevMode } from '../src/ui/storage.js';
+import { loadGame, isDevMode, saveGame, setDevMode } from '../src/ui/storage.js';
 import {
   buildTimelineViewModel,
   formatRate,
+  countNewLogIds,
   getStabilityLabel,
 } from '../src/ui/view-model.js';
 
@@ -27,6 +28,41 @@ describe('UI View Model & Storage', () => {
     setDevMode(false);
     expect(isDevMode()).toBe(false);
   });
+  it('quarantines malformed saves and returns a clean load path', () => {
+    const store = new Map<string, string>([['omt.save.v1', '{"schemaVersion":1}']]);
+    (globalThis as any).localStorage = {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    };
+
+    expect(loadGame()).toBeNull();
+    expect(store.has('omt.save.v1')).toBe(false);
+    expect(store.get('omt.save.v1.invalid')).toBe('{"schemaVersion":1}');
+  });
+
+  it('returns a failed result when local save persistence throws', () => {
+    (globalThis as any).localStorage = {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error('quota');
+      },
+      removeItem: () => undefined,
+    };
+
+    expect(saveGame(createInitialState()).ok).toBe(false);
+  });
+
+  it('tracks unread logs by stable event id across ring-buffer replacement', () => {
+    const first = { id: 'new-1', tick: 1, year: 1, text: 'first', type: 'info' as const };
+    const second = { id: 'new-2', tick: 2, year: 1, text: 'second', type: 'info' as const };
+    const initial = countNewLogIds([first], new Set(['old-1']));
+    const replacement = countNewLogIds([second], initial.updatedSeenIds);
+
+    expect(initial.count).toBe(1);
+    expect(replacement.count).toBe(1);
+  });
+
   it('formats rates cleanly', () => {
     expect(formatRate(1.5)).toBe('+1.5/t');
     expect(formatRate(-0.5)).toBe('-0.5/t');

@@ -12,30 +12,79 @@ export interface DevProposal {
 
 const STORAGE_KEYS = {
   SAVE: 'omt.save.v1',
+  INVALID_SAVE: 'omt.save.v1.invalid',
   DEV_MODE: 'omt.devMode',
   DEV_PROPOSALS: 'omt.devProposals',
 } as const;
+
+let storageNotice: string | null = null;
+
+export function consumeStorageNotice(): string | null {
+  const notice = storageNotice;
+  storageNotice = null;
+  return notice;
+}
+
+function isValidSave(value: unknown): value is TimelineState {
+  if (!value || typeof value !== 'object') return false;
+  const parsed = value as Partial<TimelineState>;
+  return (
+    parsed.schemaVersion === 1 &&
+    typeof parsed.timelineId === 'string' &&
+    typeof parsed.resources === 'object' &&
+    parsed.resources !== null &&
+    typeof parsed.population === 'object' &&
+    parsed.population !== null &&
+    Array.isArray(parsed.logs)
+  );
+}
+
+function quarantineInvalidSave(raw: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.INVALID_SAVE, raw);
+    localStorage.removeItem(STORAGE_KEYS.SAVE);
+  } catch (err) {
+    console.warn('Failed to quarantine invalid save from localStorage', err);
+  }
+}
 
 export function loadGame(): TimelineState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SAVE);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as TimelineState;
-    if (parsed.schemaVersion !== 1 || !parsed.resources || !parsed.population) {
+    const parsed: unknown = JSON.parse(raw);
+    if (!isValidSave(parsed)) {
+      quarantineInvalidSave(raw);
+      storageNotice = 'The previous local save was invalid, so it was cleared safely. A fresh timeline has been started.';
       return null;
     }
     return parsed;
   } catch (err) {
     console.warn('Failed to load save from localStorage', err);
+    storageNotice = 'The previous local save could not be read, so it was cleared safely. A fresh timeline has been started.';
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.SAVE);
+      if (raw) quarantineInvalidSave(raw);
+    } catch (quarantineErr) {
+      console.warn('Failed to recover invalid save from localStorage', quarantineErr);
+    }
     return null;
   }
 }
 
-export function saveGame(state: TimelineState): void {
+export interface SaveResult {
+  ok: boolean;
+  error?: string;
+}
+
+export function saveGame(state: TimelineState): SaveResult {
   try {
     localStorage.setItem(STORAGE_KEYS.SAVE, JSON.stringify(state));
+    return { ok: true };
   } catch (err) {
     console.warn('Failed to save game state', err);
+    storageNotice = 'Your timeline could not be saved locally. Check browser storage and try again.';
+    return { ok: false, error: storageNotice };
   }
 }
 
@@ -73,9 +122,15 @@ export function getDevProposals(): DevProposal[] {
   }
 }
 
+export interface ProposalSaveResult {
+  proposal: DevProposal;
+  ok: boolean;
+  error?: string;
+}
+
 export function saveDevProposal(
   proposal: Omit<DevProposal, 'id' | 'timestamp' | 'status'>
-): DevProposal {
+): ProposalSaveResult {
   const proposals = getDevProposals();
   const created: DevProposal = {
     ...proposal,
@@ -86,10 +141,11 @@ export function saveDevProposal(
   proposals.unshift(created);
   try {
     localStorage.setItem(STORAGE_KEYS.DEV_PROPOSALS, JSON.stringify(proposals));
+    return { proposal: created, ok: true };
   } catch (err) {
     console.warn('Failed to save proposal', err);
+    return { proposal: created, ok: false, error: 'The proposal could not be saved locally.' };
   }
-  return created;
 }
 
 export function clearDevProposals(): void {
