@@ -1,6 +1,6 @@
 # Engine contract
 
-The engine is the deterministic authority for game state transitions. It is specified here and is not implemented yet.
+The engine is the deterministic authority for game state transitions. The Layer 0 deterministic engine core is implemented and tested in `src/engine/`. Multi-layer and hosted services remain specified and are not implemented yet.
 
 An engine operation MUST accept a versioned state, a versioned ruleset, a declared action, and deterministic context such as a seed or elapsed interval. It MUST return either a validated new state and outcome or a structured failure that leaves the prior state unchanged.
 

@@ -15,10 +15,10 @@ The public repository contains rules, contracts, governance, and eventually dist
 ## Current status
 
 - Normative documentation: established.
-- Frontend: not implemented.
-- Engine: not implemented.
-- Authentication and hosted services: not implemented.
-- Save, replay, and migration formats: specified as contracts, not yet shipped.
+- Frontend: Layer 0 playable web client implemented and served via GitHub Pages.
+- Engine: Layer 0 deterministic core engine implemented and tested.
+- Authentication and hosted services: not implemented (feature intake currently in closed incubation mode).
+- Save, replay, and migration formats: client local persistence implemented; hosted format specified as contracts.
 
 ## Development
 

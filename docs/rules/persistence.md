@@ -8,4 +8,4 @@ Local guest saves SHOULD be exportable. Account-backed saves MAY be synchronised
 
 Deletion and export are player-controlled operations. A service MAY retain security and abuse-prevention records where law or safety requires it, but those records are not game state and MUST NOT be represented as such.
 
-Persistence is specified, not implemented.
+Client local persistence for Layer 0 is implemented in `src/ui/storage.ts`. Hosted sync persistence is specified, not implemented.

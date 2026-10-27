@@ -24,25 +24,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Build static site scaffold
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          if [ -f frontend/package.json ]; then
-            cd frontend
-            if [ -f package-lock.json ]; then npm ci; else npm install; fi
-            npm run build
-            cp -R dist ../dist
-          else
-            cat > dist/index.html <<'EOF'
-          <!doctype html>
-          <html lang="en">
-            <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>One More Timeline</title></head>
-            <body><main><h1>One More Timeline</h1><p>The public foundation is scaffolded. The playable experience is not implemented yet.</p></main></body>
-          </html>
-          EOF
-          fi
+      - name: Install dependencies
+        run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Build static site
+        run: npm run build
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact

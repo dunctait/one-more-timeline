@@ -25,4 +25,4 @@ Any incremental mechanic MUST pass all of these gates before implementation:
 5. A reset, prestige, or equivalent loss is optional, explained, and agency-preserving.
 6. The mechanic remains meaningful at small and large values without relying on runaway numbers alone.
 
-The engine is not implemented yet; this document defines the acceptance bar.
+The Layer 0 deterministic rules are implemented and tested in `src/engine/`; this document defines the ongoing acceptance bar.

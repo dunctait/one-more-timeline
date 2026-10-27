@@ -8,4 +8,4 @@ Costs MUST be visible before commitment. Rewards MUST identify their source. A r
 
 The economy MUST NOT sell competitive advantage for real money in a way that undermines the experiment thesis. If monetisation is added later, it MUST be documented separately, tested against the anti-goals, and kept outside the deterministic core.
 
-No economy service or implementation is currently provided by this repository.
+Layer 0 resource rules are implemented and tested in `src/engine/`. No hosted economy service or real-money monetisation is currently provided by this repository.

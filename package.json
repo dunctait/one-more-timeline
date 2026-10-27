@@ -6,6 +6,14 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "check": "tsc --noEmit"
+    "dev": "vite",
+    "build": "vite build",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }
