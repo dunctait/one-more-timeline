@@ -29,6 +29,9 @@ let activeTab: TabId = 'hearth';
 let unreadLogsCount = 0;
 let seenLogIds = new Set(state.logs.map((log) => log.id));
 let proposalOpener: HTMLButtonElement | null = null;
+const seenUnlocksKey = 'omt.seenUnlocks';
+const seenUnlocks = new Set<string>(JSON.parse(localStorage.getItem(seenUnlocksKey) ?? '[]'));
+let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Persistent Header Status Elements
 const elStatYear = document.getElementById('stat-year') as HTMLElement;
@@ -115,6 +118,9 @@ const elBtnSubmitProposal = document.getElementById('btn-submit-proposal') as HT
 const elDevProposalsContainer = document.getElementById('dev-proposals-container') as HTMLElement;
 const elDevProposalsList = document.getElementById('dev-proposals-list') as HTMLElement;
 const elBtnClearProposals = document.getElementById('btn-clear-proposals') as HTMLButtonElement;
+const elToastRegion = document.getElementById('toast-region') as HTMLElement;
+const elForageYield = document.getElementById('forage-yield') as HTMLElement;
+const elActionPacing = document.getElementById('action-pacing') as HTMLElement;
 
 // Bottom Tab Navigation buttons & panels
 const tabButtons: Record<TabId, HTMLButtonElement> = {
@@ -176,10 +182,33 @@ function showStorageMessage(message: string): void {
   document.querySelector('.app-shell')?.prepend(notice);
 }
 
+function showToast(message: string): void {
+  elToastRegion.innerHTML = `<div class="toast">${escapeHtml(message)}</div>`;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    elToastRegion.replaceChildren();
+  }, 4200);
+}
+
+function checkForProgressionFeedback(previousState: TimelineState, nextState: TimelineState): void {
+  const previousLogIds = new Set(previousState.logs.map((log) => log.id));
+  const newMilestones = nextState.logs.filter(
+    (log) => !previousLogIds.has(log.id) && log.type === 'milestone'
+  );
+  const newestMilestone = newMilestones[0];
+  if (newestMilestone && !seenUnlocks.has(newestMilestone.id)) {
+    showToast(newestMilestone.text);
+    seenUnlocks.add(newestMilestone.id);
+    localStorage.setItem(seenUnlocksKey, JSON.stringify([...seenUnlocks].slice(-50)));
+  }
+}
+
 function dispatch(action: EngineAction): void {
+  const previousState = state;
   const result = executeAction(state, action);
   if (result.success) {
     state = result.state;
+    checkForProgressionFeedback(previousState, state);
     persistState();
     checkForNewLogs();
     render();
@@ -283,6 +312,10 @@ function render(): void {
   elStatFurthest.textContent = `Yr ${vm.header.furthestYear}`;
   elStatInsight.textContent = `${vm.header.insight}`;
   elStatTimelines.textContent = `${vm.header.timelinesCreated}`;
+  elForageYield.textContent = `+${vm.actions.forageYield.toFixed(1)} Food`;
+  elActionPacing.textContent = vm.actions.learningGrace
+    ? `${vm.actions.pacing} ${vm.actions.learningGrace}`
+    : vm.actions.pacing;
 
   if (vm.header.timelinesCreated > 0) {
     elStatTimelinesWrap.style.display = 'inline-block';

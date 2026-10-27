@@ -117,6 +117,8 @@ export interface TimelineViewModel {
     canScavenge: boolean;
     canStudy: boolean;
     actionPacing: string;
+    forageYield: number;
+    pacing: string;
     learningGrace: string;
   };
   buildings: BuildingViewModel[];
@@ -409,6 +411,8 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
         state.actionCooldown === 0
           ? 'One manual action per tick. Take your time; the simulation advances between actions.'
           : `Manual action ready after ${state.actionCooldown} tick.`,
+      forageYield: state.season === 'Winter' ? 1.8 : 3,
+      pacing: 'One action per tick; wait for the next tick before choosing again.',
       learningGrace:
         state.learningGraceTicks > 0
           ? `Learning grace: ${state.learningGraceTicks} ticks. Reading and exploring will not drain the hearth.`

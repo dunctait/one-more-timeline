@@ -102,10 +102,21 @@
       </header>
 
       <!-- Active Tab Viewport -->
+      <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
       <main class="tab-viewport">
         <!-- TAB 1: HEARTH -->
         <section id="tab-hearth" class="tab-panel active" role="tabpanel" aria-labelledby="tab-btn-hearth">
           <div class="tab-inner">
+            <section class="hearth-intro" aria-labelledby="hearth-intro-title">
+              <div>
+                <p class="eyebrow">A small flame. One more season.</p>
+                <h1 id="hearth-intro-title">Keep the hearth alive.</h1>
+                <p class="hearth-intro-copy">Take one deliberate action, then let the timeline breathe. Food keeps the community here; knowledge and materials open the next rung.</p>
+              </div>
+              <p id="action-pacing" class="action-pacing" aria-live="polite">One action per tick.</p>
+            </section>
+
             <!-- Manual Actions -->
             <section class="section-box">
               <div class="section-header">
@@ -113,11 +124,11 @@
                 <span class="section-hint">Immediate agency</span>
               </div>
               <div class="manual-actions-grid">
-                <button id="btn-forage" class="action-btn action-forage" title="Forage roots and berries (+Food, season-scaled)">
+                <button id="btn-forage" class="action-btn action-forage" title="Forage roots and berries. Winter yield is lower.">
                   <span class="action-icon">🌿</span>
                   <div class="action-details">
                     <span class="action-name">Forage</span>
-                    <span class="action-yield">+3.0 Food</span>
+                    <span id="forage-yield" class="action-yield">+3.0 Food</span>
                   </div>
                 </button>
                 <button id="btn-scavenge" class="action-btn action-scavenge" title="Gather flint, dry boughs, and river stones (+Materials)">
@@ -239,13 +250,12 @@
                 <h2 class="section-title">💡 Community &amp; Governance</h2>
                 <span class="section-hint">Public layer</span>
               </div>
-              <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 0.6rem;">
-                One More Timeline is governed by deterministic rules and public contracts. Feature submission intake is currently in closed incubation mode.
+              <p class="settings-copy">
+                Feature submissions are in closed incubation while the public ruleset is stabilised. You can read along on GitHub; no form is open here yet.
               </p>
-               <button id="btn-open-proposal" class="btn btn-sm btn-primary" disabled title="Feature proposals are currently in closed incubation">
-                 💡 Feature Proposals (Closed Incubation)
-               </button>
-
+              <button id="btn-open-proposal" class="btn btn-sm btn-primary" disabled title="Feature proposals are currently in closed incubation">
+                💡 Feature Proposals (Closed Incubation)
+              </button>
             </section>
 
             <!-- Developer Mode Toggle -->
@@ -349,14 +359,13 @@
         </div>
 
         <div class="incubation-notice" role="status">
-          <strong>Notice:</strong> Feature submission intake is currently in closed incubation mode. Submissions from the public are not accepted yet. Follow along on GitHub.
+          <strong>Closed incubation.</strong> The public submission channel is not open yet. This note is informational only; no proposal can be submitted from this build.
         </div>
 
          <div id="proposal-preview" class="incubation-notice" style="margin-bottom: 0.75rem;">
            This preview shows the future proposal shape. Public submission is not available yet.
          </div>
-         <form id="proposal-form" style="display: flex; flex-direction: column; gap: 0.75rem;" aria-describedby="proposal-preview">
-
+         <form id="proposal-form" class="proposal-form" aria-describedby="proposal-preview" hidden>
           <div class="form-group">
             <label for="prop-title" class="form-label">Title of Proposal</label>
             <input type="text" id="prop-title" class="form-input" placeholder="e.g. Add Firekeeper role in Settled Camp" required />
