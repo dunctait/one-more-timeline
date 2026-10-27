@@ -116,6 +116,8 @@ export interface TimelineViewModel {
     canForage: boolean;
     canScavenge: boolean;
     canStudy: boolean;
+    actionPacing: string;
+    learningGrace: string;
   };
   buildings: BuildingViewModel[];
   rungProgression: RungProgressionViewModel;
@@ -141,7 +143,11 @@ export function getStabilityLabel(stability: number): {
 }
 
 export function buildTimelineViewModel(state: TimelineState): TimelineViewModel {
-  const rates = calculateNetRates(state);
+  const rawRates = calculateNetRates(state);
+  const rates =
+    state.learningGraceTicks > 0 && state.rung === 'hearth'
+      ? { ...rawRates, food: Math.max(0, rawRates.food) }
+      : rawRates;
 
   const seasonClass = `season-${state.season.toLowerCase()}`;
 
@@ -386,9 +392,17 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       roles: rolesVm,
     },
     actions: {
-      canForage: true,
-      canScavenge: true,
-      canStudy: true,
+      canForage: state.actionCooldown === 0,
+      canScavenge: state.actionCooldown === 0,
+      canStudy: state.actionCooldown === 0,
+      actionPacing:
+        state.actionCooldown === 0
+          ? 'One manual action per tick. Take your time; the simulation advances between actions.'
+          : `Manual action ready after ${state.actionCooldown} tick.`,
+      learningGrace:
+        state.learningGraceTicks > 0
+          ? `Learning grace: ${state.learningGraceTicks} ticks. Reading and exploring will not drain the hearth.`
+          : 'Learning grace ended: keep an eye on food and stability.',
     },
     buildings: buildingsVm,
     rungProgression: {

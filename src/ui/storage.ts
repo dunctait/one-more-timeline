@@ -20,15 +20,29 @@ export function loadGame(): TimelineState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SAVE);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as TimelineState;
-    if (parsed.schemaVersion !== 1 || !parsed.resources || !parsed.population) {
-      return null;
-    }
+    const parsed: unknown = JSON.parse(raw);
+    if (!isTimelineState(parsed)) return null;
     return parsed;
   } catch (err) {
     console.warn('Failed to load save from localStorage', err);
     return null;
   }
+}
+
+function isTimelineState(value: unknown): value is TimelineState {
+  if (!value || typeof value !== 'object') return false;
+  const state = value as Partial<TimelineState>;
+  return (
+    state.schemaVersion === 1 &&
+    typeof state.timelineId === 'string' &&
+    typeof state.seed === 'number' &&
+    typeof state.tick === 'number' &&
+    typeof state.learningGraceTicks === 'number' &&
+    typeof state.actionCooldown === 'number' &&
+    Boolean(state.resources) &&
+    Boolean(state.population) &&
+    Boolean(state.population?.roles)
+  );
 }
 
 export function saveGame(state: TimelineState): void {

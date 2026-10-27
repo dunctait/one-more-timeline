@@ -17,16 +17,14 @@ import {
   TimelineState,
 } from './types.js';
 
-let logIdCounter = 0;
 function createLog(
   tick: number,
   year: number,
   text: string,
   type: LogEntry['type'] = 'info'
 ): LogEntry {
-  logIdCounter += 1;
   return {
-    id: `log_${tick}_${logIdCounter}`,
+    id: `log_${tick}_${year}_${text}`, 
     tick,
     year,
     text,
@@ -45,8 +43,7 @@ export function createInitialState(options?: {
   const furthestYear = Math.max(1, options?.furthestYear ?? 1);
   const timelinesCreated = options?.timelinesCreated ?? 0;
   const insight = options?.insight ?? 0;
-  const timelineId =
-    options?.timelineId ?? `timeline_${Date.now().toString(36)}_${timelinesCreated}`;
+  const timelineId = options?.timelineId ?? `timeline_${seed}_${timelinesCreated}`;
 
   const buildings = {
     hut: 0,
@@ -79,6 +76,8 @@ export function createInitialState(options?: {
     furthestYear,
     timelinesCreated,
     insight,
+    learningGraceTicks: 8,
+    actionCooldown: 0,
     rung: 'hearth',
     resources: {
       food: startingFood,
@@ -119,7 +118,11 @@ export function stepTick(state: TimelineState): TimelineState {
   }
 
   // Calculate net production rates
-  const rates = calculateNetRates(state);
+  const rawRates = calculateNetRates(state);
+  const rates =
+    state.learningGraceTicks > 0 && state.rung === 'hearth'
+      ? { ...rawRates, food: Math.max(0, rawRates.food) }
+      : rawRates;
 
   let nextFood = Math.max(0, Math.min(state.caps.food, state.resources.food + rates.food));
   const nextMaterials = Math.max(
@@ -208,6 +211,8 @@ export function stepTick(state: TimelineState): TimelineState {
     year: nextYear,
     season: nextSeason,
     furthestYear: nextFurthestYear,
+    learningGraceTicks: Math.max(0, state.learningGraceTicks - 1),
+    actionCooldown: Math.max(0, state.actionCooldown - 1),
     resources: {
       food: Number(nextFood.toFixed(2)),
       materials: Number(nextMaterials.toFixed(2)),
@@ -237,6 +242,9 @@ export function executeAction(
     }
 
     case 'FORAGE': {
+      if (state.actionCooldown > 0) {
+        return { success: false, state, error: `Rest for ${state.actionCooldown} tick before taking another manual action.`, events: [] };
+      }
       // Pure food yield, scaled by season (winter is harsher)
       const isWinter = state.season === 'Winter';
       const foodGain = isWinter ? 1.8 : 3.0;
@@ -255,6 +263,7 @@ export function executeAction(
           ...state.resources,
           food: Number(newFood.toFixed(2)),
         },
+        actionCooldown: 1,
         logs: [log, ...state.logs].slice(0, 50),
       };
 
@@ -266,6 +275,9 @@ export function executeAction(
     }
 
     case 'SCAVENGE': {
+      if (state.actionCooldown > 0) {
+        return { success: false, state, error: `Rest for ${state.actionCooldown} tick before taking another manual action.`, events: [] };
+      }
       // Scavenge yields materials: flint, dry boughs, river stones
       const materialsGain = 1.5;
 
@@ -286,6 +298,7 @@ export function executeAction(
           ...state.resources,
           materials: Number(newMaterials.toFixed(2)),
         },
+        actionCooldown: 1,
         logs: [log, ...state.logs].slice(0, 50),
       };
 
@@ -297,6 +310,9 @@ export function executeAction(
     }
 
     case 'STUDY': {
+      if (state.actionCooldown > 0) {
+        return { success: false, state, error: `Rest for ${state.actionCooldown} tick before taking another manual action.`, events: [] };
+      }
       // Manual contemplation/ponder yields knowledge and a small stability grounding
       const knowledgeGain = 1.5;
       const newKnowledge = Math.min(
@@ -318,6 +334,7 @@ export function executeAction(
           knowledge: Number(newKnowledge.toFixed(2)),
           stability: Number(newStability.toFixed(2)),
         },
+        actionCooldown: 1,
         logs: [log, ...state.logs].slice(0, 50),
       };
 
@@ -560,6 +577,7 @@ export function executeAction(
       const totalInsight = state.insight + gainedInsight;
 
       const resetState = createInitialState({
+        seed: state.seed,
         furthestYear: newFurthestYear,
         timelinesCreated: nextTimelinesCreated,
         insight: totalInsight,

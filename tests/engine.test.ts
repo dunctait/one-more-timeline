@@ -12,6 +12,8 @@ describe('Deterministic Engine', () => {
     expect(state.resources.food).toBeGreaterThan(0);
     expect(state.population.total).toBe(1);
     expect(state.population.roles.unassigned).toBe(1);
+    expect(state.timelineId).toBe('timeline_1337_0');
+    expect(state.learningGraceTicks).toBeGreaterThan(0);
   });
 
   it('runs deterministic ticks identically from identical initial state', () => {
@@ -32,6 +34,72 @@ describe('Deterministic Engine', () => {
     expect(runA.resources).toEqual(runB.resources);
     expect(runA.population).toEqual(runB.population);
     expect(runA.furthestYear).toBe(runB.furthestYear);
+    expect(runA).toEqual(runB);
+  });
+
+  it('paces manual actions to one per tick and exposes a pleasant deterministic trade-off', () => {
+    const state = createInitialState();
+    const first = executeAction(state, { type: 'FORAGE' });
+    expect(first.success).toBe(true);
+    const spam = executeAction(first.state, { type: 'FORAGE' });
+    expect(spam.success).toBe(false);
+    const afterTick = executeAction(first.state, { type: 'TICK' });
+    expect(afterTick.success).toBe(true);
+    expect(executeAction(afterTick.state, { type: 'FORAGE' }).success).toBe(true);
+  });
+
+  it('reaches Settled Camp with a named deterministic opening sequence', () => {
+    let state = createInitialState({ seed: 7 });
+    const action = (next: Parameters<typeof executeAction>[1]) => {
+      const result = executeAction(state, next);
+      expect(result.success, `${JSON.stringify(next)}: ${result.error ?? 'ok'}`).toBe(true);
+      state = result.state;
+    };
+    const tick = () => action({ type: 'TICK' });
+
+    // The Hearth-to-Camp route: study/forage on alternating ticks, then house the band.
+    for (let i = 0; i < 8; i += 1) {
+      action({ type: 'STUDY' });
+      tick();
+      action({ type: 'FORAGE' });
+      tick();
+    }
+    action({ type: 'ADVANCE_RUNG', rungId: 'band' });
+    for (let i = 0; i < 4; i += 1) {
+      action({ type: 'FORAGE' });
+      tick();
+    }
+    for (let i = 0; i < 4; i += 1) {
+      action({ type: 'SCAVENGE' });
+      tick();
+    }
+    for (let i = 0; i < 3; i += 1) {
+      action({ type: 'FORAGE' });
+      tick();
+    }
+    action({ type: 'BUILD', buildingId: 'hut' });
+    tick();
+    for (let i = 0; i < 7; i += 1) {
+      action({ type: 'SCAVENGE' });
+      tick();
+    }
+    for (let i = 0; i < 8; i += 1) {
+      action({ type: 'FORAGE' });
+      tick();
+    }
+    action({ type: 'BUILD', buildingId: 'hut' });
+    tick();
+    for (let i = 0; i < 10; i += 1) {
+      action({ type: 'STUDY' });
+      tick();
+    }
+    for (let i = 0; i < 10; i += 1) {
+      action({ type: 'SCAVENGE' });
+      tick();
+    }
+    action({ type: 'ADVANCE_RUNG', rungId: 'settlement' });
+    expect(state.rung).toBe('settlement');
+    expect(state.tick).toBeLessThanOrEqual(70);
   });
 
   it('handles manual FORAGE, SCAVENGE, and STUDY actions cleanly within caps', () => {
@@ -174,6 +242,8 @@ describe('Deterministic Engine', () => {
     expect(nextTimeline.rung).toBe('hearth');
     // Insight bonus should have increased starting food
     expect(nextTimeline.resources.food).toBeGreaterThan(12);
+    expect(nextTimeline.seed).toBe(state.seed);
+    expect(nextTimeline.timelineId).toBe('timeline_1337_1');
   });
 
   it('supports dev mode actions', () => {

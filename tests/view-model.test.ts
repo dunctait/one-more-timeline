@@ -80,6 +80,8 @@ describe('UI View Model & Storage', () => {
     expect(vm.actions.canForage).toBe(true);
     expect(vm.actions.canScavenge).toBe(true);
     expect(vm.actions.canStudy).toBe(true);
+    expect(vm.actions.actionPacing).toContain('One manual action per tick');
+    expect(vm.actions.learningGrace).toContain('Learning grace');
 
     // Next rung prerequisite items
     expect(vm.rungProgression.nextRung).not.toBeNull();
