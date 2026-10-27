@@ -20,6 +20,10 @@ Early rungs and building unlocks must be reachable within a normal first-session
 
 Unlocked actions, roles, and buildings must be explicitly discoverable and actionable from the primary surfaces where the player makes decisions. Never hide progression behind unannounced tabs or off-screen states without clear signposts.
 
+Actionable navigation signals: Navigation chrome may surface a small, quiet indicator only when the destination contains an immediately actionable decision. Never use noisy unread indicators for historical/log-only views; distinguish attention-required work from optional reading.
+
+Explain persistent progression currencies: Any prestige/legacy currency must be explained in the first place it appears, including what it changes now, what it changes next run, and how it is earned. Names alone are not affordances.
+
 ## Prestige as climax, not stagnation
 
 When a run reaches a developmental ceiling designed to prompt prestige, the game must never quietly stall, fizzle out, or present mathematically impossible goals as if they were standard tasks. It must celebrate the timeline's culmination as an earned milestone, alerting the player prominently (e.g. via toast notifications) that the temporal horizon has been reached and that a Time Jump is the triumphant next step.

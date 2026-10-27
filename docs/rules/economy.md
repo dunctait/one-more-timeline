@@ -24,4 +24,6 @@ Unlocked actions, roles, and buildings must be explicitly discoverable and actio
 
 Progression requirements across developmental rungs and buildings must be mathematically solvable within the player's available storage and production caps at that rung. The threshold for prestige resets must be explicitly demarcated so players understand when a timeline has achieved its maximum potential and are never left facing an artificial deadlock.
 
+Legacy currency transparency: A persistent currency MUST have a visible formula or breakdown for its current effect, projected gain, and next-cycle benefit.
+
 Layer 0 resource rules are implemented and tested in `src/engine/`. No hosted economy service or real-money monetisation is currently provided by this repository.

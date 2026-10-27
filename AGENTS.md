@@ -27,6 +27,8 @@ Use explicit status language: “specified”, “scaffolded”, “not implemen
 Feedback Codification Protocol: Whenever user feedback is received or an operational fix is delivered, extract the underlying game design or engineering philosophy into our normative documents (docs/philosophy/, docs/rules/, docs/contracts/) and AGENTS.md. Never treat feedback as merely a local bug fix; derive and codify the general invariant so agents do not repeat the failure mode.
 
 - Never allow soft wall fizzles: When an incremental phase culminates, alert the player that prestige is ready rather than letting progress stall into an unexplained bottleneck.
+- Badges are for actionable state, not logs: navigation indicators MUST point to attention-required work, not historical or log-only views.
+- Game currencies need plain-language mechanical explanations: explain what a currency changes now, what it changes next run, and how it is earned where it first appears.
 
 ## Verification and ergonomics
 
