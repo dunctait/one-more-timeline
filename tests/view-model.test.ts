@@ -130,6 +130,60 @@ describe('UI View Model & Storage', () => {
     expect(vm.timeJump.eligible).toBe(false);
   });
 
+  it('shows actionable badges for unassigned population and affordable buildings', () => {
+    const state = createInitialState();
+    state.rung = 'settlement';
+    state.population.roles.unassigned = 2;
+    state.resources.materials = 30;
+    state.resources.food = 20;
+    state.resources.knowledge = 20;
+
+    const vm = buildTimelineViewModel(state);
+
+    expect(vm.population.unallocated).toBe(2);
+    expect(vm.tabBadges.hearth).toBe(true);
+    expect(vm.tabBadges.hearthCount).toBe(2);
+    expect(vm.buildings.some((building) => building.unlocked && building.affordable)).toBe(true);
+    expect(vm.tabBadges.settlement).toBe(true);
+    expect(vm.tabBadges.settlementCount).toBeGreaterThan(0);
+    expect(vm.tabBadges.chronicle).toBe(false);
+  });
+
+  it('shows the Evolution badge when ascension or Time Jump is ready', () => {
+    const ascensionState = createInitialState();
+    ascensionState.year = 2;
+    ascensionState.resources.food = 12;
+    ascensionState.resources.knowledge = 12;
+    const ascensionVm = buildTimelineViewModel(ascensionState);
+    expect(ascensionVm.rungProgression.nextRung?.eligible).toBe(true);
+    expect(ascensionVm.tabBadges.evolution).toBe(true);
+
+    const prestigeState = createInitialState();
+    prestigeState.year = 3;
+    const prestigeVm = buildTimelineViewModel(prestigeState);
+    expect(prestigeVm.timeJump.eligible).toBe(true);
+    expect(prestigeVm.tabBadges.evolution).toBe(true);
+  });
+
+  it('exposes plain-language Insight benefits and its Time Jump calculation', () => {
+    const state = createInitialState({ insight: 3 });
+    state.year = 4;
+    state.population.total = 8;
+    state.resources.knowledge = 80;
+
+    const vm = buildTimelineViewModel(state);
+
+    expect(vm.timeJump.breakdown.whatIsInsight).toContain('Permanent cosmic memory');
+    expect(vm.timeJump.currentMultiplier).toContain('+3% permanent production');
+    expect(vm.timeJump.currentMultiplier).toContain('all roles and builders');
+    expect(vm.timeJump.projectedGain).toContain('+');
+    expect(vm.timeJump.projectedGain).toContain('production boost next cycle');
+    expect(vm.timeJump.startingBonus).toContain('per Insight');
+    expect(vm.timeJump.breakdown.formulaExplanation).toContain('Year');
+    expect(vm.timeJump.breakdown.formulaExplanation).toContain('Highest Rung');
+    expect(vm.timeJump.confirmationText).toContain('Next dawn reserves');
+  });
+
   it('reflects unlocked roles and affordable buildings at Settled Camp', () => {
     const state = createInitialState();
     state.rung = 'settlement';

@@ -22,7 +22,7 @@
             <span id="stat-rung" class="meta-pill meta-rung">Solitary Hearth</span>
           </div>
           <div class="header-legacy-pills">
-            <span class="meta-pill meta-insight" title="Insight Legacy">✨ <strong id="stat-insight">0</strong></span>
+            <span id="stat-insight-pill" class="meta-pill meta-insight" title="Insight Legacy: Permanent cosmic memory">✨ <strong id="stat-insight">0</strong></span>
             <span class="meta-pill meta-furthest" title="Furthest Year">🏆 <strong id="stat-furthest">Yr 1</strong></span>
             <span id="stat-timelines-wrap" class="meta-pill meta-timelines" title="Timelines Lived" style="display: none;">Cycles: <strong id="stat-timelines">0</strong></span>
           </div>
@@ -217,9 +217,12 @@
                 <h2 class="section-title" style="color: var(--accent-gold);">🌀 Time Jump (Prestige)</h2>
                 <span id="insight-badge" class="insight-badge">+0 Insight</span>
               </div>
-              <p id="time-jump-desc" class="time-jump-text">
-                Endure until at least Year 3 to collapse this timeline into enduring Insight.
-              </p>
+              <div id="time-jump-content" class="time-jump-content">
+                <p id="time-jump-desc" class="time-jump-text">
+                  Endure until at least Year 3 to collapse this timeline into enduring Insight.
+                </p>
+                <div id="time-jump-breakdown" class="time-jump-breakdown"></div>
+              </div>
               <button id="btn-time-jump" class="btn btn-timejump" disabled>
                 Initiate Time Jump
               </button>
@@ -339,19 +342,21 @@
         <button id="tab-btn-hearth" class="tab-nav-btn active" role="tab" aria-selected="true" data-tab="hearth">
           <span class="tab-icon">🔥</span>
           <span class="tab-label">Hearth</span>
+          <span id="tab-badge-hearth" class="tab-badge" hidden></span>
         </button>
         <button id="tab-btn-settlement" class="tab-nav-btn" role="tab" aria-selected="false" data-tab="settlement">
           <span class="tab-icon">🏛️</span>
           <span class="tab-label">Settlement</span>
+          <span id="tab-badge-settlement" class="tab-badge" hidden></span>
         </button>
         <button id="tab-btn-evolution" class="tab-nav-btn" role="tab" aria-selected="false" data-tab="evolution">
           <span class="tab-icon">🌀</span>
           <span class="tab-label">Evolution</span>
+          <span id="tab-badge-evolution" class="tab-badge" hidden></span>
         </button>
         <button id="tab-btn-chronicle" class="tab-nav-btn" role="tab" aria-selected="false" data-tab="chronicle">
           <span class="tab-icon">📜</span>
           <span class="tab-label">Chronicle</span>
-          <span id="chronicle-unread-badge" class="unread-badge" hidden></span>
         </button>
         <button id="tab-btn-settings" class="tab-nav-btn" role="tab" aria-selected="false" data-tab="settings">
           <span class="tab-icon">⚙️</span>

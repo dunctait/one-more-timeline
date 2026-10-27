@@ -36,6 +36,7 @@ export interface BuildingViewModel {
   cost: { materials: number; food: number; knowledge: number };
   costString: string;
   canAfford: boolean;
+  affordable: boolean;
 }
 
 export interface RungPrerequisiteItem {
@@ -62,10 +63,47 @@ export interface RungProgressionViewModel {
   } | null;
 }
 
+export interface TimeJumpCalculationItem {
+  name: string;
+  value: number;
+  description: string;
+}
+
+export interface TimeJumpBenefitsBreakdown {
+  whatIsInsight: string;
+  currentMultiplier: string;
+  projectedGain: string;
+  startingBonus: string;
+  currentProductionBonusPercent: number;
+  projectedProductionBonusPercent: number;
+  currentStartingFood: number;
+  currentStartingMaterials: number;
+  nextStartingFood: number;
+  nextStartingMaterials: number;
+  formulaExplanation: string;
+  calculationDetails: TimeJumpCalculationItem[];
+}
+
 export interface TimeJumpViewModel {
   eligible: boolean;
   projectedInsight: number;
   description: string;
+  currentInsight: number;
+  currentMultiplier: string;
+  projectedGain: string;
+  startingBonus: string;
+  breakdown: TimeJumpBenefitsBreakdown;
+  benefits: TimeJumpBenefitsBreakdown;
+  confirmationText: string;
+}
+
+export interface TabBadgesViewModel {
+  hearth: boolean;
+  settlement: boolean;
+  evolution: boolean;
+  chronicle: boolean;
+  hearthCount: number;
+  settlementCount: number;
 }
 
 export interface TimelineViewModel {
@@ -112,6 +150,7 @@ export interface TimelineViewModel {
     total: number;
     max: number;
     unassigned: number;
+    unallocated: number;
     roles: RoleViewModel[];
   };
   actions: {
@@ -126,6 +165,7 @@ export interface TimelineViewModel {
   buildings: BuildingViewModel[];
   rungProgression: RungProgressionViewModel;
   timeJump: TimeJumpViewModel;
+  tabBadges: TabBadgesViewModel;
   logs: LogEntry[];
 }
 
@@ -268,6 +308,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       cost,
       costString: costParts.join(', '),
       canAfford,
+      affordable: canAfford,
     };
   });
 
@@ -370,9 +411,105 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     };
   }
 
-  // Time Jump
+  // Time Jump & Insight Benefits
   const timeJumpEligible = state.year >= 3;
   const projectedInsight = calculateTimeJumpInsight(state);
+
+  const yearComponent = Math.floor(Math.sqrt(state.year));
+  const rungBonus =
+    state.rung === 'village'
+      ? 5
+      : state.rung === 'settlement'
+      ? 3
+      : state.rung === 'band'
+      ? 1
+      : 0;
+  const knowledgeComponent = Math.floor(state.resources.knowledge / 40);
+  const popComponent = Math.floor(state.population.total / 4);
+
+  const currentProductionBonusPercent = Math.min(state.insight, 50);
+  const nextTotalInsight = state.insight + projectedInsight;
+  const currentMultiplier = `+${currentProductionBonusPercent}% permanent production to all roles and builders (+1% per Insight, up to +50%)`;
+
+  const projectedGain = timeJumpEligible
+    ? `+${projectedInsight} Insight (+${projectedInsight}% production boost next cycle, starts with +${projectedInsight * 2} Food, +${projectedInsight} Materials)`
+    : `+0 Insight (Endure until at least Year 3 to harvest Insight)`;
+
+  const startingBonus = `+2 Food, +1 Materials per Insight at the dawn of each new timeline (currently +${state.insight * 2} Food, +${state.insight} Materials; next timeline starts with +${nextTotalInsight * 2} Food, +${nextTotalInsight} Materials)`;
+
+  const formulaExplanation = `Calculated from Year (+${yearComponent}), Highest Rung (+${rungBonus}), Population (+${popComponent}), and Knowledge (+${knowledgeComponent}).`;
+
+  const benefitsBreakdown: TimeJumpBenefitsBreakdown = {
+    whatIsInsight: 'Permanent cosmic memory preserved across timeline collapses.',
+    currentMultiplier,
+    projectedGain,
+    startingBonus,
+    currentProductionBonusPercent,
+    projectedProductionBonusPercent: projectedInsight,
+    currentStartingFood: state.insight * 2,
+    currentStartingMaterials: state.insight,
+    nextStartingFood: nextTotalInsight * 2,
+    nextStartingMaterials: nextTotalInsight,
+    formulaExplanation,
+    calculationDetails: [
+      {
+        name: 'Year Duration',
+        value: yearComponent,
+        description: `Year ${state.year} (floor(sqrt(${state.year})))`,
+      },
+      {
+        name: 'Highest Rung',
+        value: rungBonus,
+        description: `${RUNGS[state.rung].name} (+${rungBonus})`,
+      },
+      {
+        name: 'Population',
+        value: popComponent,
+        description: `${state.population.total} Pop (floor(${state.population.total} / 4))`,
+      },
+      {
+        name: 'Knowledge',
+        value: knowledgeComponent,
+        description: `${Math.floor(state.resources.knowledge)} Knw (floor(${Math.floor(state.resources.knowledge)} / 40))`,
+      },
+    ],
+  };
+
+  const confirmationText = `Initiate Time Jump?\n\nThis will collapse the current timeline into permanent cosmic memory:\n• Gain: +${projectedInsight} permanent Insight\n• Production boost: +${projectedInsight}% to all roles and builders next cycle\n• Next dawn reserves: Starts with +${nextTotalInsight * 2} Food, +${nextTotalInsight} Materials\n• Retains Furthest Year record (${Math.max(state.furthestYear, state.year)})\n\nAre you ready to awaken in a new dawn?`;
+
+  const timeJumpVm: TimeJumpViewModel = {
+    eligible: timeJumpEligible,
+    projectedInsight,
+    description: timeJumpEligible
+      ? `Collapse this timeline to awaken in a new dawn. Retains Furthest Year (${Math.max(
+          state.furthestYear,
+          state.year
+        )}) and grants +${projectedInsight} permanent Insight (+${projectedInsight}% production boost next cycle, starts with +${projectedInsight * 2} Food, +${projectedInsight} Materials).`
+      : 'The timeline is too fragile to yield Insight. Endure until at least Year 3 to collapse this timeline into enduring Insight.',
+    currentInsight: state.insight,
+    currentMultiplier,
+    projectedGain,
+    startingBonus,
+    breakdown: benefitsBreakdown,
+    benefits: benefitsBreakdown,
+    confirmationText,
+  };
+
+  // Actionable Tab Notification Badges
+  const unassignedCount = state.population.roles.unassigned;
+  const affordableBuildingsCount = buildingsVm.filter(
+    (b) => b.unlocked && (b.canAfford || b.affordable)
+  ).length;
+  const evolutionReady = Boolean(nextRungVm?.eligible || timeJumpEligible);
+
+  const tabBadges: TabBadgesViewModel = {
+    hearth: unassignedCount > 0,
+    settlement: affordableBuildingsCount > 0,
+    evolution: evolutionReady,
+    chronicle: false,
+    hearthCount: unassignedCount,
+    settlementCount: affordableBuildingsCount,
+  };
 
   return {
     header: {
@@ -424,6 +561,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       total: state.population.total,
       max: state.population.max,
       unassigned: state.population.roles.unassigned,
+      unallocated: state.population.roles.unassigned,
       roles: rolesVm,
     },
      actions: {
@@ -446,16 +584,8 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       currentDescription: RUNGS[state.rung].description,
       nextRung: nextRungVm,
     },
-    timeJump: {
-      eligible: timeJumpEligible,
-      projectedInsight,
-      description: timeJumpEligible
-        ? `Collapse this timeline to awaken in a new dawn. Retains Furthest Year (${Math.max(
-            state.furthestYear,
-            state.year
-          )}) and grants +${projectedInsight} permanent Insight.`
-        : 'The timeline is too fragile to yield Insight. Endure until at least Year 3 to initiate a Time Jump.',
-    },
+    timeJump: timeJumpVm,
+    tabBadges,
     logs: state.logs,
   };
 }

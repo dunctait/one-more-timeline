@@ -33,7 +33,6 @@ let isPaused = false;
 
 type TabId = 'hearth' | 'settlement' | 'evolution' | 'chronicle' | 'settings';
 let activeTab: TabId = 'hearth';
-let unreadLogsCount = 0;
 let seenLogIds = new Set(state.logs.map((log) => log.id));
 let proposalOpener: HTMLButtonElement | null = null;
 const seenUnlocksKey = 'omt.seenUnlocks';
@@ -88,6 +87,7 @@ const elStatSeason = document.getElementById('stat-season') as HTMLElement;
 const elStatRung = document.getElementById('stat-rung') as HTMLElement;
 const elStatFurthest = document.getElementById('stat-furthest') as HTMLElement;
 const elStatInsight = document.getElementById('stat-insight') as HTMLElement;
+const elStatInsightPill = document.getElementById('stat-insight-pill') as HTMLElement;
 const elStatTimelines = document.getElementById('stat-timelines') as HTMLElement;
 const elStatTimelinesWrap = document.getElementById('stat-timelines-wrap') as HTMLElement;
 
@@ -136,11 +136,16 @@ const elNextRungPrerequisites = document.getElementById('next-rung-prerequisites
 const elBtnAdvanceRung = document.getElementById('btn-advance-rung') as HTMLButtonElement;
 const elInsightBadge = document.getElementById('insight-badge') as HTMLElement;
 const elTimeJumpDesc = document.getElementById('time-jump-desc') as HTMLElement;
+const elTimeJumpBreakdown = document.getElementById('time-jump-breakdown') as HTMLElement;
 const elBtnTimeJump = document.getElementById('btn-time-jump') as HTMLButtonElement;
+
+// Actionable bottom navigation badges
+const elTabBadgeHearth = document.getElementById('tab-badge-hearth') as HTMLElement;
+const elTabBadgeSettlement = document.getElementById('tab-badge-settlement') as HTMLElement;
+const elTabBadgeEvolution = document.getElementById('tab-badge-evolution') as HTMLElement;
 
 // Tab 4: Chronicle
 const elChronicleLog = document.getElementById('chronicle-log') as HTMLElement;
-const elChronicleUnreadBadge = document.getElementById('chronicle-unread-badge') as HTMLElement;
 
 // Tab 5: Settings & Dev Controls
 const elBtnManualSave = document.getElementById('btn-manual-save') as HTMLButtonElement;
@@ -212,9 +217,7 @@ function switchTab(target: TabId): void {
   });
 
   if (target === 'chronicle') {
-    unreadLogsCount = 0;
     seenLogIds = new Set(state.logs.map((log) => log.id));
-    elChronicleUnreadBadge.hidden = true;
   }
 }
 
@@ -419,10 +422,6 @@ function handleTick(): void {
 function checkForNewLogs(): void {
   const result = countNewLogIds(state.logs, seenLogIds);
   if (result.count > 0) {
-    if (activeTab !== 'chronicle') {
-      unreadLogsCount += result.count;
-      elChronicleUnreadBadge.hidden = false;
-    }
     seenLogIds = result.updatedSeenIds;
   }
 }
@@ -507,7 +506,19 @@ function render(): void {
   elStatRung.textContent = vm.header.rungName;
   elStatFurthest.textContent = `Yr ${vm.header.furthestYear}`;
   elStatInsight.textContent = `${vm.header.insight}`;
+  elStatInsightPill.title = `${vm.timeJump.breakdown.whatIsInsight} Current effect: ${vm.timeJump.currentMultiplier}. ${vm.timeJump.breakdown.startingBonus}`;
   elStatTimelines.textContent = `${vm.header.timelinesCreated}`;
+
+  // Keep actionable tab badges live as resources, population, and progression change.
+  elTabBadgeHearth.hidden = !vm.tabBadges.hearth;
+  elTabBadgeHearth.textContent = vm.tabBadges.hearthCount > 1 ? `${vm.tabBadges.hearthCount}` : '';
+  elTabBadgeHearth.classList.toggle('badge-count', vm.tabBadges.hearthCount > 1);
+  elTabBadgeSettlement.hidden = !vm.tabBadges.settlement;
+  elTabBadgeSettlement.textContent = vm.tabBadges.settlementCount > 1 ? `${vm.tabBadges.settlementCount}` : '';
+  elTabBadgeSettlement.classList.toggle('badge-count', vm.tabBadges.settlementCount > 1);
+  elTabBadgeEvolution.hidden = !vm.tabBadges.evolution;
+  elTabBadgeEvolution.textContent = '';
+  elTabBadgeEvolution.classList.remove('badge-count');
   elForageYield.textContent = `+${vm.actions.forageYield.toFixed(1)} Food`;
   elActionPacing.textContent = vm.actions.learningGrace
     ? `${vm.actions.pacing} ${vm.actions.learningGrace}`
@@ -686,6 +697,27 @@ function render(): void {
   // Time Jump Card
   elInsightBadge.textContent = `+${vm.timeJump.projectedInsight} Insight`;
   elTimeJumpDesc.textContent = vm.timeJump.description;
+  elTimeJumpBreakdown.innerHTML = `
+    <div class="time-jump-card-section">
+      <div class="time-jump-section-title">✨ What Insight means</div>
+      <p class="time-jump-concept-callout">${escapeHtml(vm.timeJump.breakdown.whatIsInsight)}</p>
+      <ul class="time-jump-stat-list">
+        <li><span class="time-jump-stat-label">Current production</span><span class="time-jump-stat-val highlight">${escapeHtml(vm.timeJump.currentMultiplier)}</span></li>
+        <li><span class="time-jump-stat-label">Current starting reserves</span><span class="time-jump-stat-val">+${vm.timeJump.breakdown.currentStartingFood} Food, +${vm.timeJump.breakdown.currentStartingMaterials} Materials</span></li>
+      </ul>
+    </div>
+    <div class="time-jump-card-section">
+      <div class="time-jump-section-title">🌀 Next Time Jump</div>
+      <ul class="time-jump-stat-list">
+        <li><span class="time-jump-stat-label">Projected gain</span><span class="time-jump-stat-val highlight">${escapeHtml(vm.timeJump.projectedGain)}</span></li>
+        <li><span class="time-jump-stat-label">Next timeline reserves</span><span class="time-jump-stat-val">+${vm.timeJump.breakdown.nextStartingFood} Food, +${vm.timeJump.breakdown.nextStartingMaterials} Materials</span></li>
+      </ul>
+      <p class="time-jump-concept-callout">${escapeHtml(vm.timeJump.breakdown.formulaExplanation)}</p>
+      <div class="time-jump-calc-grid">
+        ${vm.timeJump.breakdown.calculationDetails.map((item) => `<div class="time-jump-calc-chip" title="${escapeHtml(item.description)}"><span class="time-jump-calc-name">${escapeHtml(item.name)}</span><span class="time-jump-calc-val">+${item.value}</span></div>`).join('')}
+      </div>
+    </div>
+  `;
   elBtnTimeJump.disabled = !vm.timeJump.eligible;
 
   // Tab 4: Chronicle
@@ -772,12 +804,7 @@ function setupListeners(): void {
   elBtnTimeJump.addEventListener('click', () => {
     const vm = buildTimelineViewModel(state);
     if (!vm.timeJump.eligible) return;
-    const confirmed = confirm(
-      `Initiate Time Jump?\n\nThis will collapse the current timeline. You will gain +${vm.timeJump.projectedInsight} permanent Insight and preserve your Furthest Year record (${Math.max(
-        state.furthestYear,
-        state.year
-      )}).`
-    );
+    const confirmed = confirm(vm.timeJump.confirmationText);
     if (confirmed) {
       dispatch({ type: 'TIME_JUMP' });
       switchTab('hearth');
