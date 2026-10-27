@@ -18,37 +18,24 @@ import { buildTimelineViewModel, TimelineViewModel } from './ui/view-model.js';
 
 // Application state
 let state: TimelineState = loadGame() ?? createInitialState();
-let devModeActive = isDevMode();
+let devModeActive = isDevMode(); // Strictly false unless localStorage has explicitly 'true'
 let tickIntervalMs = 1000;
 let tickTimer: ReturnType<typeof setInterval> | null = null;
 let isPaused = false;
 
-// DOM Elements cache
-const elDevBanner = document.getElementById('dev-banner') as HTMLElement;
-const elBtnToggleDev = document.getElementById('btn-toggle-dev') as HTMLButtonElement;
-const elBtnDisableDev = document.getElementById('btn-disable-dev') as HTMLButtonElement;
-const elDevPanel = document.getElementById('dev-panel') as HTMLElement;
-const elDevTick = document.getElementById('dev-tick') as HTMLElement;
-const elDevSeed = document.getElementById('dev-seed') as HTMLElement;
-const elDevRawState = document.getElementById('dev-raw-state') as HTMLElement;
+type TabId = 'hearth' | 'settlement' | 'evolution' | 'chronicle' | 'settings';
+let activeTab: TabId = 'hearth';
+let unreadLogsCount = 0;
+let lastKnownLogCount = state.logs.length;
 
-// Speed controls
-const elDevSpeedPause = document.getElementById('dev-speed-pause') as HTMLButtonElement;
-const elDevSpeed1x = document.getElementById('dev-speed-1x') as HTMLButtonElement;
-const elDevSpeed2x = document.getElementById('dev-speed-2x') as HTMLButtonElement;
-const elDevSpeed5x = document.getElementById('dev-speed-5x') as HTMLButtonElement;
-const elDevSpeedStep = document.getElementById('dev-speed-step') as HTMLButtonElement;
-const elDevAddResources = document.getElementById('dev-add-resources') as HTMLButtonElement;
-const elDevSetYear10 = document.getElementById('dev-set-year-10') as HTMLButtonElement;
-const elDevClearSave = document.getElementById('dev-clear-save') as HTMLButtonElement;
-
-// Status bar elements
+// Persistent Header Status Elements
 const elStatYear = document.getElementById('stat-year') as HTMLElement;
 const elStatSeason = document.getElementById('stat-season') as HTMLElement;
 const elStatRung = document.getElementById('stat-rung') as HTMLElement;
 const elStatFurthest = document.getElementById('stat-furthest') as HTMLElement;
 const elStatInsight = document.getElementById('stat-insight') as HTMLElement;
 const elStatTimelines = document.getElementById('stat-timelines') as HTMLElement;
+const elStatTimelinesWrap = document.getElementById('stat-timelines-wrap') as HTMLElement;
 
 // Resources
 const elResFoodCurrent = document.getElementById('res-food-current') as HTMLElement;
@@ -70,32 +57,51 @@ const elResStabilityCurrent = document.getElementById('res-stability-current') a
 const elResStabilityBadge = document.getElementById('res-stability-badge') as HTMLElement;
 const elResStabilityBar = document.getElementById('res-stability-bar') as HTMLElement;
 
-// Actions
-const elBtnForage = document.getElementById('btn-forage') as HTMLButtonElement;
-const elBtnStudy = document.getElementById('btn-study') as HTMLButtonElement;
-
-// Community
 const elPopTotal = document.getElementById('pop-total') as HTMLElement;
 const elPopMax = document.getElementById('pop-max') as HTMLElement;
 const elPopUnassigned = document.getElementById('pop-unassigned') as HTMLElement;
+const elResPopBar = document.getElementById('res-pop-bar') as HTMLElement;
+
+// Tab 1: Hearth
+const elBtnForage = document.getElementById('btn-forage') as HTMLButtonElement;
+const elBtnScavenge = document.getElementById('btn-scavenge') as HTMLButtonElement;
+const elBtnStudy = document.getElementById('btn-study') as HTMLButtonElement;
 const elRoleList = document.getElementById('role-list') as HTMLElement;
 
-// Rung
+// Tab 2: Settlement
+const elBuildingGrid = document.getElementById('building-grid') as HTMLElement;
+
+// Tab 3: Evolution
 const elCurrentRungName = document.getElementById('current-rung-name') as HTMLElement;
 const elCurrentRungSubtitle = document.getElementById('current-rung-subtitle') as HTMLElement;
 const elCurrentRungDesc = document.getElementById('current-rung-desc') as HTMLElement;
 const elNextRungContainer = document.getElementById('next-rung-container') as HTMLElement;
-
-// Buildings
-const elBuildingGrid = document.getElementById('building-grid') as HTMLElement;
-
-// Time Jump
 const elInsightBadge = document.getElementById('insight-badge') as HTMLElement;
 const elTimeJumpDesc = document.getElementById('time-jump-desc') as HTMLElement;
 const elBtnTimeJump = document.getElementById('btn-time-jump') as HTMLButtonElement;
 
-// Chronicle
+// Tab 4: Chronicle
 const elChronicleLog = document.getElementById('chronicle-log') as HTMLElement;
+const elChronicleUnreadBadge = document.getElementById('chronicle-unread-badge') as HTMLElement;
+
+// Tab 5: Settings & Dev Controls
+const elBtnManualSave = document.getElementById('btn-manual-save') as HTMLButtonElement;
+const elBtnResetGame = document.getElementById('btn-reset-game') as HTMLButtonElement;
+const elBtnToggleDev = document.getElementById('btn-toggle-dev') as HTMLButtonElement;
+const elBtnDisableDev = document.getElementById('btn-disable-dev') as HTMLButtonElement;
+const elDevPanel = document.getElementById('dev-panel') as HTMLElement;
+const elDevTick = document.getElementById('dev-tick') as HTMLElement;
+const elDevSeed = document.getElementById('dev-seed') as HTMLElement;
+const elDevRawState = document.getElementById('dev-raw-state') as HTMLElement;
+
+const elDevSpeedPause = document.getElementById('dev-speed-pause') as HTMLButtonElement;
+const elDevSpeed1x = document.getElementById('dev-speed-1x') as HTMLButtonElement;
+const elDevSpeed2x = document.getElementById('dev-speed-2x') as HTMLButtonElement;
+const elDevSpeed5x = document.getElementById('dev-speed-5x') as HTMLButtonElement;
+const elDevSpeedStep = document.getElementById('dev-speed-step') as HTMLButtonElement;
+const elDevAddResources = document.getElementById('dev-add-resources') as HTMLButtonElement;
+const elDevSetYear10 = document.getElementById('dev-set-year-10') as HTMLButtonElement;
+const elDevClearSave = document.getElementById('dev-clear-save') as HTMLButtonElement;
 
 // Modal
 const elBtnOpenProposal = document.getElementById('btn-open-proposal') as HTMLButtonElement;
@@ -108,11 +114,53 @@ const elDevProposalsContainer = document.getElementById('dev-proposals-container
 const elDevProposalsList = document.getElementById('dev-proposals-list') as HTMLElement;
 const elBtnClearProposals = document.getElementById('btn-clear-proposals') as HTMLButtonElement;
 
+// Bottom Tab Navigation buttons & panels
+const tabButtons: Record<TabId, HTMLButtonElement> = {
+  hearth: document.getElementById('tab-btn-hearth') as HTMLButtonElement,
+  settlement: document.getElementById('tab-btn-settlement') as HTMLButtonElement,
+  evolution: document.getElementById('tab-btn-evolution') as HTMLButtonElement,
+  chronicle: document.getElementById('tab-btn-chronicle') as HTMLButtonElement,
+  settings: document.getElementById('tab-btn-settings') as HTMLButtonElement,
+};
+
+const tabPanels: Record<TabId, HTMLElement> = {
+  hearth: document.getElementById('tab-hearth') as HTMLElement,
+  settlement: document.getElementById('tab-settlement') as HTMLElement,
+  evolution: document.getElementById('tab-evolution') as HTMLElement,
+  chronicle: document.getElementById('tab-chronicle') as HTMLElement,
+  settings: document.getElementById('tab-settings') as HTMLElement,
+};
+
+function switchTab(target: TabId): void {
+  activeTab = target;
+  (Object.keys(tabButtons) as TabId[]).forEach((tab) => {
+    const btn = tabButtons[tab];
+    const panel = tabPanels[tab];
+    if (tab === target) {
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+      panel.hidden = false;
+      panel.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+      btn.setAttribute('aria-selected', 'false');
+      panel.hidden = true;
+      panel.classList.remove('active');
+    }
+  });
+
+  if (target === 'chronicle') {
+    unreadLogsCount = 0;
+    elChronicleUnreadBadge.hidden = true;
+  }
+}
+
 function dispatch(action: EngineAction): void {
   const result = executeAction(state, action);
   if (result.success) {
     state = result.state;
     saveGame(state);
+    checkForNewLogs();
     render();
   } else if (result.error) {
     alert(result.error);
@@ -123,7 +171,19 @@ function handleTick(): void {
   if (isPaused) return;
   state = stepTick(state);
   saveGame(state);
+  checkForNewLogs();
   render();
+}
+
+function checkForNewLogs(): void {
+  const currentCount = state.logs.length;
+  if (currentCount > lastKnownLogCount) {
+    if (activeTab !== 'chronicle') {
+      unreadLogsCount += currentCount - lastKnownLogCount;
+      elChronicleUnreadBadge.hidden = false;
+    }
+    lastKnownLogCount = currentCount;
+  }
 }
 
 function resetTickTimer(intervalMs: number): void {
@@ -138,14 +198,19 @@ function resetTickTimer(intervalMs: number): void {
 }
 
 function updateDevModeUI(): void {
-  elDevBanner.hidden = !devModeActive;
+  // Dev panel strictly visible only if dev mode is enabled
   elDevPanel.hidden = !devModeActive;
   elDevProposalsContainer.hidden = !devModeActive;
 
   elBtnToggleDev.setAttribute('aria-pressed', devModeActive ? 'true' : 'false');
-  elBtnToggleDev.textContent = devModeActive ? '🛠️ Dev Mode: On' : '🛠️ Dev Mode: Off';
+  elBtnToggleDev.textContent = devModeActive ? '🛠️ Dev Mode: On (Active)' : '🛠️ Dev Mode: Off';
+  if (devModeActive) {
+    elBtnToggleDev.classList.add('btn-accent');
+  } else {
+    elBtnToggleDev.classList.remove('btn-accent');
+  }
 
-  // In Dev Mode, feature submission simulation is unlocked
+  // Feature submission intake
   if (devModeActive) {
     elBtnSubmitProposal.disabled = false;
     elBtnSubmitProposal.title = 'Simulate submitting this proposal into local Dev Mode queue';
@@ -163,22 +228,19 @@ function renderDevProposals(): void {
   if (!devModeActive) return;
   const proposals = getDevProposals();
   if (proposals.length === 0) {
-    elDevProposalsList.innerHTML = '<p style="color: var(--text-muted);">No simulated proposals in local queue.</p>';
+    elDevProposalsList.innerHTML = '<p style="color: var(--text-muted); font-size: 0.7rem;">No simulated proposals in local queue.</p>';
     return;
   }
 
   elDevProposalsList.innerHTML = proposals
     .map(
       (p) => `
-      <div class="dev-proposal-item">
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-          <strong style="color: var(--text-bright);">${escapeHtml(p.title)}</strong>
-          <span style="font-size: 0.7rem; background: #341a00; color: #ffc480; padding: 0.1rem 0.4rem; border-radius: 4px;">
-            ${escapeHtml(p.status)}
-          </span>
+      <div style="border-bottom: 1px solid #332200; padding: 0.2rem 0;">
+        <div style="display: flex; justify-content: space-between;">
+          <strong style="color: #ffedd5;">${escapeHtml(p.title)}</strong>
+          <span style="font-size: 0.65rem; color: #ffc480;">${escapeHtml(p.category)}</span>
         </div>
-        <div style="font-size: 0.75rem; color: var(--accent-amber);">Category: ${escapeHtml(p.category)}</div>
-        <div style="font-size: 0.75rem; color: var(--text-muted);">${escapeHtml(p.whatToChange)}</div>
+        <div style="font-size: 0.68rem; color: #fed7aa;">${escapeHtml(p.whatToChange)}</div>
       </div>
     `
     )
@@ -188,16 +250,20 @@ function renderDevProposals(): void {
 function render(): void {
   const vm: TimelineViewModel = buildTimelineViewModel(state);
 
-  // Status Bar
+  // Persistent Status Header
   elStatYear.textContent = `Year ${vm.header.year}`;
   elStatSeason.textContent = vm.header.season;
-  elStatSeason.className = `season-badge ${vm.header.seasonClass}`;
+  elStatSeason.className = `meta-pill season-badge ${vm.header.seasonClass}`;
   elStatRung.textContent = vm.header.rungName;
-  elStatFurthest.textContent = `Year ${vm.header.furthestYear}`;
+  elStatFurthest.textContent = `Yr ${vm.header.furthestYear}`;
   elStatInsight.textContent = `${vm.header.insight}`;
   elStatTimelines.textContent = `${vm.header.timelinesCreated}`;
 
-  // Dev panel stats
+  if (vm.header.timelinesCreated > 0) {
+    elStatTimelinesWrap.style.display = 'inline-block';
+  }
+
+  // Dev panel debug stats
   if (devModeActive) {
     elDevTick.textContent = `${state.tick}`;
     elDevSeed.textContent = `${state.seed}`;
@@ -226,25 +292,31 @@ function render(): void {
   // Resources: Stability
   elResStabilityCurrent.textContent = `${vm.resources.stability.current}`;
   elResStabilityBadge.textContent = vm.resources.stability.label;
-  elResStabilityBadge.className = `status-badge ${vm.resources.stability.statusClass}`;
+  elResStabilityBadge.className = `res-status-badge ${vm.resources.stability.statusClass}`;
   elResStabilityBar.style.width = `${Math.min(100, Math.max(0, vm.resources.stability.current))}%`;
 
   // Population
   elPopTotal.textContent = `${vm.population.total}`;
   elPopMax.textContent = `${vm.population.max}`;
   elPopUnassigned.textContent = `${vm.population.unassigned}`;
+  const popPercent = Math.min(100, Math.floor((vm.population.total / vm.population.max) * 100));
+  elResPopBar.style.width = `${popPercent}%`;
 
-  // Population Roles
+  // Tab 1: Community Roles
+  const hasFreePop = vm.population.unassigned > 0;
   elRoleList.innerHTML = vm.population.roles
     .map((role) => {
       if (!role.unlocked) {
         return `
-          <div class="role-item" style="opacity: 0.45;">
+          <div class="role-row locked">
             <div class="role-info">
-              <span class="role-name">🔒 ${role.name}</span>
-              <span class="role-desc">${role.description}</span>
+              <div class="role-title-row">
+                <span class="role-title">🔒 ${role.name}</span>
+                <span class="unlock-badge">${role.unlockPrereq}</span>
+              </div>
+              <span class="role-effect">${role.description}</span>
             </div>
-            <div style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">
+            <div style="font-size: 0.7rem; color: var(--text-dim); font-style: italic;">
               Locked
             </div>
           </div>
@@ -252,84 +324,53 @@ function render(): void {
       }
 
       return `
-        <div class="role-item">
+        <div class="role-row">
           <div class="role-info">
-            <span class="role-name">${role.name}</span>
-            <span class="role-desc">${role.description}</span>
+            <div class="role-title-row">
+              <span class="role-title">${role.name}</span>
+            </div>
+            <span class="role-effect">${role.description}</span>
           </div>
           <div class="role-controls">
-            <button class="btn btn-sm btn-role-minus" data-role="${role.id}" ${role.canRemove ? '' : 'disabled'}>-</button>
-            <span class="role-count">${role.count}</span>
-            <button class="btn btn-sm btn-role-plus" data-role="${role.id}" ${role.canAdd ? '' : 'disabled'}>+</button>
+            <button class="btn-ctrl btn-role-minus" data-role="${role.id}" ${role.canRemove ? '' : 'disabled'} aria-label="Remove 1 ${role.name}">-</button>
+            <span class="role-count-num">${role.count}</span>
+            <button class="btn-ctrl btn-role-plus ${hasFreePop ? 'highlight-add' : ''}" data-role="${role.id}" ${role.canAdd ? '' : 'disabled'} aria-label="Add 1 ${role.name}">+</button>
           </div>
         </div>
       `;
     })
     .join('');
 
-  // Rung Card
-  elCurrentRungName.textContent = vm.rungProgression.currentName;
-  elCurrentRungSubtitle.textContent = vm.rungProgression.currentSubtitle;
-  elCurrentRungDesc.textContent = vm.rungProgression.currentDescription;
-
-  const nextRung = vm.rungProgression.nextRung;
-  if (!nextRung) {
-    elNextRungContainer.innerHTML = `
-      <div style="font-size: 0.85rem; color: var(--accent-gold); font-weight: 600;">
-        🌟 You have reached the pinnacle of Layer 0 settlement evolution!
-      </div>
-    `;
-  } else {
-    const reasonsHtml = nextRung.reasons
-      .map((r) => `<li class="prereq-item">❌ ${r}</li>`)
-      .join('');
-
-    elNextRungContainer.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-          <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600;">
-            Next Rung: ${nextRung.name}
-          </span>
-          <span style="font-size: 0.75rem; font-style: italic; color: var(--text-muted);">
-            ${nextRung.subtitle}
-          </span>
-        </div>
-        ${reasonsHtml ? `<ul class="prereq-list">${reasonsHtml}</ul>` : ''}
-        <button id="btn-advance-rung" class="btn btn-accent" style="width: 100%; margin-top: 0.3rem;" ${nextRung.eligible ? '' : 'disabled'}>
-          ${nextRung.eligible ? `Ascend to ${nextRung.name}` : `Prerequisites Incomplete for ${nextRung.name}`}
-        </button>
-      </div>
-    `;
-  }
-
-  // Buildings Grid
+  // Tab 2: Buildings
   elBuildingGrid.innerHTML = vm.buildings
     .map((b) => {
       if (!b.unlocked) {
         return `
-          <div class="building-item" style="opacity: 0.45;">
-            <div class="building-top">
-              <span class="building-name">🔒 ${b.name}</span>
+          <div class="building-card locked">
+            <div class="building-card-top">
+              <div class="building-title-group">
+                <span class="building-name">🔒 ${b.name}</span>
+              </div>
+              <span class="unlock-badge">${b.unlockPrereq}</span>
             </div>
-            <p class="building-desc">${b.description}</p>
-            <div style="font-size: 0.75rem; color: var(--text-muted); font-style: italic; margin-top: 0.2rem;">
-              Requires higher civilization rung
-            </div>
+            <p class="building-desc-text">${b.description}</p>
           </div>
         `;
       }
 
       return `
-        <div class="building-item">
-          <div class="building-top">
-            <span class="building-name">${b.name}</span>
-            <span class="building-count-badge">Built: ${b.count}</span>
+        <div class="building-card ${b.canAfford ? 'affordable' : ''}">
+          <div class="building-card-top">
+            <div class="building-title-group">
+              <span class="building-name">${b.name}</span>
+              <span class="building-count-chip">Built: ${b.count}</span>
+            </div>
           </div>
-          <p class="building-desc">${b.description}</p>
-          <div class="building-footer">
-            <span class="building-cost">Cost: ${b.costString}</span>
-            <button class="btn btn-sm btn-primary btn-build" data-building="${b.id}" ${b.canAfford ? '' : 'disabled'}>
-              Build +1
+          <p class="building-desc-text">${b.description}</p>
+          <div class="building-card-bottom">
+            <span class="building-cost-tags">Cost: ${b.costString}</span>
+            <button class="btn-build-action btn-build ${b.canAfford ? 'can-buy' : ''}" data-building="${b.id}" ${b.canAfford ? '' : 'disabled'}>
+              Build (+1)
             </button>
           </div>
         </div>
@@ -337,12 +378,54 @@ function render(): void {
     })
     .join('');
 
+  // Tab 3: Evolution (Rung Progression & Time Jump)
+  elCurrentRungName.textContent = vm.rungProgression.currentName;
+  elCurrentRungSubtitle.textContent = vm.rungProgression.currentSubtitle;
+  elCurrentRungDesc.textContent = vm.rungProgression.currentDescription;
+
+  const nextRung = vm.rungProgression.nextRung;
+  if (!nextRung) {
+    elNextRungContainer.innerHTML = `
+      <div style="font-size: 0.8rem; color: var(--accent-gold); font-weight: 700; padding: 0.4rem 0;">
+        🌟 You have reached the pinnacle of Layer 0 settlement evolution!
+      </div>
+    `;
+  } else {
+    const prereqHtml = nextRung.items
+      .map(
+        (item) => `
+        <div class="prereq-chip ${item.met ? 'met' : 'unmet'}">
+          <span>${item.name}: ${item.current} / ${item.required}</span>
+          <span>${item.met ? '✅' : '❌'}</span>
+        </div>
+      `
+      )
+      .join('');
+
+    elNextRungContainer.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 0.35rem;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+          <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--accent-amber); font-weight: 700;">
+            Next Rung: ${nextRung.name}
+          </span>
+          <span style="font-size: 0.72rem; font-style: italic; color: var(--text-muted);">
+            ${nextRung.subtitle}
+          </span>
+        </div>
+        <div class="prereq-grid">${prereqHtml}</div>
+        <button id="btn-advance-rung" class="btn-ascend ${nextRung.eligible ? 'ready' : ''}" ${nextRung.eligible ? '' : 'disabled'}>
+          ${nextRung.eligible ? `🌟 Ascend to ${nextRung.name}` : `Prerequisites Incomplete for ${nextRung.name}`}
+        </button>
+      </div>
+    `;
+  }
+
   // Time Jump Card
   elInsightBadge.textContent = `+${vm.timeJump.projectedInsight} Insight`;
   elTimeJumpDesc.textContent = vm.timeJump.description;
   elBtnTimeJump.disabled = !vm.timeJump.eligible;
 
-  // Chronicle Logs
+  // Tab 4: Chronicle
   elChronicleLog.innerHTML = vm.logs
     .map((log) => {
       let typeClass = '';
@@ -371,8 +454,14 @@ function escapeHtml(str: string): string {
 
 // Event Listeners setup
 function setupListeners(): void {
-  // Direct Actions
+  // Tab switching
+  (Object.keys(tabButtons) as TabId[]).forEach((tab) => {
+    tabButtons[tab].addEventListener('click', () => switchTab(tab));
+  });
+
+  // Direct Manual Actions
   elBtnForage.addEventListener('click', () => dispatch({ type: 'FORAGE' }));
+  elBtnScavenge.addEventListener('click', () => dispatch({ type: 'SCAVENGE' }));
   elBtnStudy.addEventListener('click', () => dispatch({ type: 'STUDY' }));
 
   // Population Role buttons delegation
@@ -419,6 +508,23 @@ function setupListeners(): void {
     );
     if (confirmed) {
       dispatch({ type: 'TIME_JUMP' });
+      switchTab('hearth');
+    }
+  });
+
+  // Settings Save & Reset
+  elBtnManualSave.addEventListener('click', () => {
+    saveGame(state);
+    alert('Timeline saved successfully!');
+  });
+
+  elBtnResetGame.addEventListener('click', () => {
+    const confirmed = confirm('Reset this timeline to Year 1? Furthest Year and Insight will be reset.');
+    if (confirmed) {
+      clearGame();
+      state = createInitialState();
+      switchTab('hearth');
+      render();
     }
   });
 
@@ -490,6 +596,7 @@ function setupListeners(): void {
     if (confirmed) {
       clearGame();
       state = createInitialState();
+      switchTab('hearth');
       render();
     }
   });

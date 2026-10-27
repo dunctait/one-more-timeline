@@ -237,12 +237,38 @@ export function executeAction(
     }
 
     case 'FORAGE': {
-      // Foraging yields food and sometimes a trace of materials
+      // Pure food yield, scaled by season (winter is harsher)
       const isWinter = state.season === 'Winter';
-      const foodGain = isWinter ? 2.0 : 3.5;
-      const materialsGain = isWinter ? 0.5 : 1.0;
+      const foodGain = isWinter ? 1.8 : 3.0;
 
       const newFood = Math.min(state.caps.food, state.resources.food + foodGain);
+
+      const log = createLog(
+        state.tick,
+        state.year,
+        `Foraged wild roots and game (+${foodGain} Food).`
+      );
+
+      const nextState: TimelineState = {
+        ...state,
+        resources: {
+          ...state.resources,
+          food: Number(newFood.toFixed(2)),
+        },
+        logs: [log, ...state.logs].slice(0, 50),
+      };
+
+      return {
+        success: true,
+        state: nextState,
+        events: [`Foraged +${foodGain} Food`],
+      };
+    }
+
+    case 'SCAVENGE': {
+      // Scavenge yields materials: flint, dry boughs, river stones
+      const materialsGain = 1.5;
+
       const newMaterials = Math.min(
         state.caps.materials,
         state.resources.materials + materialsGain
@@ -251,14 +277,13 @@ export function executeAction(
       const log = createLog(
         state.tick,
         state.year,
-        `Foraged the wilderness (+${foodGain} Food, +${materialsGain} Materials).`
+        `Scavenged flint, dry boughs, and river stones (+${materialsGain} Materials).`
       );
 
       const nextState: TimelineState = {
         ...state,
         resources: {
           ...state.resources,
-          food: Number(newFood.toFixed(2)),
           materials: Number(newMaterials.toFixed(2)),
         },
         logs: [log, ...state.logs].slice(0, 50),
@@ -267,23 +292,23 @@ export function executeAction(
       return {
         success: true,
         state: nextState,
-        events: [`Foraged +${foodGain} Food, +${materialsGain} Materials`],
+        events: [`Scavenged +${materialsGain} Materials`],
       };
     }
 
     case 'STUDY': {
-      // Manual study yields knowledge and a small stability grounding
-      const knowledgeGain = 2.0;
+      // Manual contemplation/ponder yields knowledge and a small stability grounding
+      const knowledgeGain = 1.5;
       const newKnowledge = Math.min(
         state.caps.knowledge,
         state.resources.knowledge + knowledgeGain
       );
-      const newStability = Math.min(100, state.resources.stability + 1);
+      const newStability = Math.min(100, state.resources.stability + 0.5);
 
       const log = createLog(
         state.tick,
         state.year,
-        `Gazed into the embers and night sky (+${knowledgeGain} Knowledge).`
+        `Pondered the embers and night sky (+${knowledgeGain} Knowledge).`
       );
 
       const nextState: TimelineState = {
@@ -299,7 +324,7 @@ export function executeAction(
       return {
         success: true,
         state: nextState,
-        events: [`Studied +${knowledgeGain} Knowledge`],
+        events: [`Pondered +${knowledgeGain} Knowledge`],
       };
     }
 

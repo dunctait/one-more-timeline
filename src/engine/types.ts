@@ -73,6 +73,7 @@ export interface TimelineState {
 export type EngineAction =
   | { type: 'TICK' }
   | { type: 'FORAGE' }
+  | { type: 'SCAVENGE' }
   | { type: 'STUDY' }
   | { type: 'ASSIGN_ROLE'; role: RoleId; delta: number }
   | { type: 'BUILD'; buildingId: BuildingId }

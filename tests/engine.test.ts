@@ -34,15 +34,28 @@ describe('Deterministic Engine', () => {
     expect(runA.furthestYear).toBe(runB.furthestYear);
   });
 
-  it('handles manual FORAGE action cleanly within caps', () => {
+  it('handles manual FORAGE, SCAVENGE, and STUDY actions cleanly within caps', () => {
     let state = createInitialState();
     const initialFood = state.resources.food;
     const initialMats = state.resources.materials;
+    const initialKnw = state.resources.knowledge;
 
-    const res = executeAction(state, { type: 'FORAGE' });
-    expect(res.success).toBe(true);
-    expect(res.state.resources.food).toBeGreaterThan(initialFood);
-    expect(res.state.resources.materials).toBeGreaterThanOrEqual(initialMats);
+    // FORAGE yields pure food
+    const forageRes = executeAction(state, { type: 'FORAGE' });
+    expect(forageRes.success).toBe(true);
+    expect(forageRes.state.resources.food).toBe(initialFood + 3.0);
+    expect(forageRes.state.resources.materials).toBe(initialMats);
+
+    // SCAVENGE yields materials
+    const scavengeRes = executeAction(state, { type: 'SCAVENGE' });
+    expect(scavengeRes.success).toBe(true);
+    expect(scavengeRes.state.resources.materials).toBe(initialMats + 1.5);
+    expect(scavengeRes.state.resources.food).toBe(initialFood);
+
+    // STUDY yields knowledge
+    const studyRes = executeAction(state, { type: 'STUDY' });
+    expect(studyRes.success).toBe(true);
+    expect(studyRes.state.resources.knowledge).toBe(initialKnw + 1.5);
   });
 
   it('enforces role assignment rules based on rung and available population', () => {

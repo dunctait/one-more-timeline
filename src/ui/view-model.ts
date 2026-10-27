@@ -20,6 +20,7 @@ export interface RoleViewModel {
   name: string;
   count: number;
   unlocked: boolean;
+  unlockPrereq: string;
   canAdd: boolean;
   canRemove: boolean;
   description: string;
@@ -31,9 +32,17 @@ export interface BuildingViewModel {
   description: string;
   count: number;
   unlocked: boolean;
+  unlockPrereq: string;
   cost: { materials: number; food: number; knowledge: number };
   costString: string;
   canAfford: boolean;
+}
+
+export interface RungPrerequisiteItem {
+  name: string;
+  current: number;
+  required: number;
+  met: boolean;
 }
 
 export interface RungProgressionViewModel {
@@ -47,6 +56,7 @@ export interface RungProgressionViewModel {
     subtitle: string;
     eligible: boolean;
     reasons: string[];
+    items: RungPrerequisiteItem[];
   } | null;
 }
 
@@ -104,6 +114,7 @@ export interface TimelineViewModel {
   };
   actions: {
     canForage: boolean;
+    canScavenge: boolean;
     canStudy: boolean;
   };
   buildings: BuildingViewModel[];
@@ -191,6 +202,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       name: roleDef.name,
       count,
       unlocked,
+      unlockPrereq: `Unlocks at ${RUNGS[roleDef.minRung].name}`,
       canAdd,
       canRemove,
       description: roleDef.description,
@@ -222,6 +234,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       description: def.description,
       count,
       unlocked,
+      unlockPrereq: `Unlocks at ${RUNGS[def.unlockedAt].name}`,
       cost,
       costString: costParts.join(', '),
       canAfford,
@@ -237,12 +250,82 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   if (nextRungId) {
     const check = checkRungPrerequisites(state, nextRungId);
     const nextDef = RUNGS[nextRungId];
+    const items: RungPrerequisiteItem[] = [];
+    const prereqs = nextDef.prerequisites;
+    if (prereqs) {
+      if (prereqs.year) {
+        items.push({
+          name: 'Year',
+          current: state.year,
+          required: prereqs.year,
+          met: state.year >= prereqs.year,
+        });
+      }
+      if (prereqs.knowledge) {
+        items.push({
+          name: 'Knowledge',
+          current: Math.floor(state.resources.knowledge),
+          required: prereqs.knowledge,
+          met: state.resources.knowledge >= prereqs.knowledge,
+        });
+      }
+      if (prereqs.food) {
+        items.push({
+          name: 'Food',
+          current: Math.floor(state.resources.food),
+          required: prereqs.food,
+          met: state.resources.food >= prereqs.food,
+        });
+      }
+      if (prereqs.materials) {
+        items.push({
+          name: 'Materials',
+          current: Math.floor(state.resources.materials),
+          required: prereqs.materials,
+          met: state.resources.materials >= prereqs.materials,
+        });
+      }
+      if (prereqs.population) {
+        items.push({
+          name: 'Population',
+          current: state.population.total,
+          required: prereqs.population,
+          met: state.population.total >= prereqs.population,
+        });
+      }
+      if (prereqs.huts) {
+        items.push({
+          name: 'Huts',
+          current: state.buildings.hut,
+          required: prereqs.huts,
+          met: state.buildings.hut >= prereqs.huts,
+        });
+      }
+      if (prereqs.workshop) {
+        items.push({
+          name: 'Workshop',
+          current: state.buildings.workshop,
+          required: prereqs.workshop,
+          met: state.buildings.workshop >= prereqs.workshop,
+        });
+      }
+      if (prereqs.granary) {
+        items.push({
+          name: 'Granary',
+          current: state.buildings.granary,
+          required: prereqs.granary,
+          met: state.buildings.granary >= prereqs.granary,
+        });
+      }
+    }
+
     nextRungVm = {
       id: nextRungId,
       name: nextDef.name,
       subtitle: nextDef.subtitle,
       eligible: check.eligible,
       reasons: check.reasons,
+      items,
     };
   }
 
@@ -304,6 +387,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     },
     actions: {
       canForage: true,
+      canScavenge: true,
       canStudy: true,
     },
     buildings: buildingsVm,

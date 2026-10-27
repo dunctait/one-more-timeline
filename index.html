@@ -2,252 +2,341 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>One More Timeline — Playable Layer 0</title>
     <link rel="stylesheet" href="./src/styles/main.css" />
   </head>
   <body>
-    <!-- Dev Mode Persistent Banner -->
-    <aside id="dev-banner" class="dev-banner" hidden>
-      <div style="display: flex; align-items: center; gap: 0.6rem;">
-        <span class="dev-banner-badge">Dev Mode</span>
-        <span>Dev mode is active on this device (persisted in localStorage). Diagnostics only - grants no server authority.</span>
-      </div>
-      <button id="btn-disable-dev" class="btn btn-sm btn-danger">Turn Off</button>
-    </aside>
+    <div class="app-shell">
+      <!-- Persistent Compact Status Header -->
+      <header class="app-header">
+        <div class="header-meta-row">
+          <div class="header-brand">
+            <span class="game-logo" aria-hidden="true">⏳</span>
+            <span class="game-title">OMT</span>
+          </div>
+          <div class="header-era-pills">
+            <span id="stat-year" class="meta-pill meta-year">Year 1</span>
+            <span id="stat-season" class="meta-pill season-badge season-spring">Spring</span>
+            <span id="stat-rung" class="meta-pill meta-rung">Solitary Hearth</span>
+          </div>
+          <div class="header-legacy-pills">
+            <span class="meta-pill meta-insight" title="Insight Legacy">✨ <strong id="stat-insight">0</strong></span>
+            <span class="meta-pill meta-furthest" title="Furthest Year">🏆 <strong id="stat-furthest">Yr 1</strong></span>
+            <span id="stat-timelines-wrap" class="meta-pill meta-timelines" title="Timelines Lived" style="display: none;">Cycles: <strong id="stat-timelines">0</strong></span>
+          </div>
+        </div>
 
-    <!-- Top Navigation & Header -->
-    <header class="app-header">
-      <div class="title-group">
-        <h1 class="game-title">
-          <span style="color: var(--accent-amber);">⏳</span> One More Timeline
-        </h1>
-        <span class="game-tagline">Layer 0 Playable Slice</span>
-      </div>
-      <div class="top-controls">
-        <button id="btn-open-proposal" class="btn btn-sm" aria-haspopup="dialog">
-          💡 Propose Change
+        <!-- Dense Persistent Resource Ticker Strip -->
+        <div class="resource-strip" aria-label="Current Resources">
+          <!-- Food -->
+          <div class="resource-cell" id="cell-food" title="Food sustains your population">
+            <div class="res-top">
+              <span class="res-label">🌾 Food</span>
+              <span id="res-food-rate" class="res-rate">+0.0/t</span>
+            </div>
+            <div class="res-mid">
+              <span id="res-food-current" class="res-val">12</span><span class="res-max">/<span id="res-food-max">30</span></span>
+            </div>
+            <div class="res-bar-track">
+              <div id="res-food-bar" class="res-bar-fill fill-food" style="width: 40%;"></div>
+            </div>
+          </div>
+
+          <!-- Materials -->
+          <div class="resource-cell" id="cell-materials" title="Materials for buildings and tools">
+            <div class="res-top">
+              <span class="res-label">🪵 Mats</span>
+              <span id="res-materials-rate" class="res-rate">+0.0/t</span>
+            </div>
+            <div class="res-mid">
+              <span id="res-materials-current" class="res-val">6</span><span class="res-max">/<span id="res-materials-max">25</span></span>
+            </div>
+            <div class="res-bar-track">
+              <div id="res-materials-bar" class="res-bar-fill fill-materials" style="width: 24%;"></div>
+            </div>
+          </div>
+
+          <!-- Knowledge -->
+          <div class="resource-cell" id="cell-knowledge" title="Knowledge drives civilization rungs">
+            <div class="res-top">
+              <span class="res-label">✨ Knw</span>
+              <span id="res-knowledge-rate" class="res-rate">+0.0/t</span>
+            </div>
+            <div class="res-mid">
+              <span id="res-knowledge-current" class="res-val">0</span><span class="res-max">/<span id="res-knowledge-max">20</span></span>
+            </div>
+            <div class="res-bar-track">
+              <div id="res-knowledge-bar" class="res-bar-fill fill-knowledge" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- Stability -->
+          <div class="resource-cell" id="cell-stability" title="Stability prevents community collapse">
+            <div class="res-top">
+              <span class="res-label">⚖️ Stb</span>
+              <span id="res-stability-badge" class="res-status-badge status-stable">Stable</span>
+            </div>
+            <div class="res-mid">
+              <span id="res-stability-current" class="res-val">75</span><span class="res-unit">%</span>
+            </div>
+            <div class="res-bar-track">
+              <div id="res-stability-bar" class="res-bar-fill fill-stability" style="width: 75%;"></div>
+            </div>
+          </div>
+
+          <!-- Population -->
+          <div class="resource-cell" id="cell-population" title="Community members and roles">
+            <div class="res-top">
+              <span class="res-label">👥 Pop</span>
+              <span class="res-free"><span id="pop-unassigned">1</span> free</span>
+            </div>
+            <div class="res-mid">
+              <span id="pop-total" class="res-val">1</span><span class="res-max">/<span id="pop-max">2</span></span>
+            </div>
+            <div class="res-bar-track">
+              <div id="res-pop-bar" class="res-bar-fill fill-pop" style="width: 50%;"></div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Active Tab Viewport -->
+      <main class="tab-viewport">
+        <!-- TAB 1: HEARTH -->
+        <section id="tab-hearth" class="tab-panel active" role="tabpanel" aria-labelledby="tab-btn-hearth">
+          <div class="tab-inner">
+            <!-- Manual Actions -->
+            <section class="section-box">
+              <div class="section-header">
+                <h2 class="section-title">⚡ Manual Gathering</h2>
+                <span class="section-hint">Immediate agency</span>
+              </div>
+              <div class="manual-actions-grid">
+                <button id="btn-forage" class="action-btn action-forage" title="Forage roots and berries (+Food, season-scaled)">
+                  <span class="action-icon">🌿</span>
+                  <div class="action-details">
+                    <span class="action-name">Forage</span>
+                    <span class="action-yield">+3.0 Food</span>
+                  </div>
+                </button>
+                <button id="btn-scavenge" class="action-btn action-scavenge" title="Gather flint, dry boughs, and river stones (+Materials)">
+                  <span class="action-icon">🪵</span>
+                  <div class="action-details">
+                    <span class="action-name">Scavenge</span>
+                    <span class="action-yield">+1.5 Materials</span>
+                  </div>
+                </button>
+                <button id="btn-study" class="action-btn action-ponder" title="Ponder the night sky and embers (+Knowledge)">
+                  <span class="action-icon">✨</span>
+                  <div class="action-details">
+                    <span class="action-name">Ponder</span>
+                    <span class="action-yield">+1.5 Knowledge</span>
+                  </div>
+                </button>
+              </div>
+            </section>
+
+            <!-- Community Roles -->
+            <section class="section-box">
+              <div class="section-header">
+                <h2 class="section-title">👥 Community Roles</h2>
+                <span class="section-hint">Assign unallocated population</span>
+              </div>
+              <div id="role-list" class="role-list">
+                <!-- Injected by ViewModel -->
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <!-- TAB 2: SETTLEMENT -->
+        <section id="tab-settlement" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-settlement" hidden>
+          <div class="tab-inner">
+            <section class="section-box">
+              <div class="section-header">
+                <h2 class="section-title">🏛️ Works &amp; Architecture</h2>
+                <span class="section-hint">Permanent capacity expansions</span>
+              </div>
+              <div id="building-grid" class="building-grid">
+                <!-- Injected by ViewModel -->
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <!-- TAB 3: EVOLUTION -->
+        <section id="tab-evolution" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-evolution" hidden>
+          <div class="tab-inner">
+            <!-- Current Rung Info -->
+            <section class="section-box rung-banner-box">
+              <div class="rung-meta-tag">Civilization Stage</div>
+              <h2 id="current-rung-name" class="current-rung-title">Solitary Hearth</h2>
+              <p id="current-rung-subtitle" class="current-rung-sub">The fragile flame in the dawn.</p>
+              <p id="current-rung-desc" class="current-rung-body">
+                A single campfire against the primordial cold. Forage wild roots and ponder the sky.
+              </p>
+            </section>
+
+            <!-- Next Rung Ascension -->
+            <section class="section-box">
+              <div class="section-header">
+                <h2 class="section-title">🌟 Ascension Prerequisites</h2>
+                <span class="section-hint">Epoch milestone</span>
+              </div>
+              <div id="next-rung-container" class="next-rung-container">
+                <!-- Injected by ViewModel -->
+              </div>
+            </section>
+
+            <!-- Time Jump Prestige -->
+            <section class="section-box time-jump-box">
+              <div class="section-header">
+                <h2 class="section-title" style="color: var(--accent-gold);">🌀 Time Jump (Prestige)</h2>
+                <span id="insight-badge" class="insight-badge">+0 Insight</span>
+              </div>
+              <p id="time-jump-desc" class="time-jump-text">
+                Endure until at least Year 3 to collapse this timeline into enduring Insight.
+              </p>
+              <button id="btn-time-jump" class="btn btn-timejump" disabled>
+                Initiate Time Jump
+              </button>
+            </section>
+          </div>
+        </section>
+
+        <!-- TAB 4: CHRONICLE -->
+        <section id="tab-chronicle" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-chronicle" hidden>
+          <div class="tab-inner chronicle-inner">
+            <div class="chronicle-header-bar">
+              <h2 class="section-title">📜 Chronicle of the Timeline</h2>
+              <span class="section-hint">Historical beats</span>
+            </div>
+            <div id="chronicle-log" class="chronicle-log-scroll" aria-live="polite">
+              <!-- Injected by ViewModel -->
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 5: SETTINGS -->
+        <section id="tab-settings" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-settings" hidden>
+          <div class="tab-inner">
+            <!-- Game Management -->
+            <section class="section-box">
+              <div class="section-header">
+                <h2 class="section-title">💾 Game State &amp; Saves</h2>
+                <span class="section-hint">Local persistence</span>
+              </div>
+              <div class="settings-actions-row">
+                <button id="btn-manual-save" class="btn btn-sm">💾 Save Now</button>
+                <button id="btn-reset-game" class="btn btn-sm btn-danger">🗑️ Reset Timeline</button>
+              </div>
+            </section>
+
+            <!-- Feature Proposals -->
+            <section class="section-box">
+              <div class="section-header">
+                <h2 class="section-title">💡 Community &amp; Governance</h2>
+                <span class="section-hint">Public layer</span>
+              </div>
+              <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 0.6rem;">
+                One More Timeline is governed by deterministic rules and public contracts. Feature submission intake is currently in closed incubation mode.
+              </p>
+              <button id="btn-open-proposal" class="btn btn-sm btn-primary">
+                💡 Propose Game Feature / Change
+              </button>
+            </section>
+
+            <!-- Developer Mode Toggle -->
+            <section class="section-box">
+              <div class="section-header">
+                <h2 class="section-title">🛠️ Developer Mode</h2>
+                <span class="section-hint">Off by default</span>
+              </div>
+              <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin-bottom: 0.6rem;">
+                Enable local testing overrides, simulation speed modifiers, and deterministic state inspection.
+              </p>
+              <button id="btn-toggle-dev" class="btn btn-sm" aria-pressed="false">
+                🛠️ Dev Mode: Off
+              </button>
+            </section>
+
+            <!-- Subdued Developer Diagnostics Panel (VERY BOTTOM, hidden when Dev Mode is off) -->
+            <section id="dev-panel" class="dev-panel-contained" hidden>
+              <div class="dev-panel-header">
+                <div class="dev-title-tag">
+                  <span class="dev-pill">DEV OVERRIDES</span>
+                  <span style="font-size: 0.75rem; color: #ffc480;">Seed: <code id="dev-seed">1337</code> | Tick: <code id="dev-tick">0</code></span>
+                </div>
+                <button id="btn-disable-dev" class="btn btn-sm btn-danger" style="padding: 0.15rem 0.4rem; font-size: 0.7rem;">Turn Off</button>
+              </div>
+
+              <!-- Speed Controls -->
+              <div class="dev-row">
+                <span class="dev-row-label">Speed:</span>
+                <div class="dev-btn-group">
+                  <button id="dev-speed-pause" class="btn btn-xs">⏸️</button>
+                  <button id="dev-speed-1x" class="btn btn-xs btn-primary">1x</button>
+                  <button id="dev-speed-2x" class="btn btn-xs">2x</button>
+                  <button id="dev-speed-5x" class="btn btn-xs">5x</button>
+                  <button id="dev-speed-step" class="btn btn-xs btn-accent">Step 1</button>
+                </div>
+              </div>
+
+              <!-- Overrides -->
+              <div class="dev-row">
+                <span class="dev-row-label">Cheats:</span>
+                <div class="dev-btn-group">
+                  <button id="dev-add-resources" class="btn btn-xs">📦 +50 All</button>
+                  <button id="dev-set-year-10" class="btn btn-xs">⏩ Year 10</button>
+                  <button id="dev-clear-save" class="btn btn-xs btn-danger">🗑️ Hard Wipe</button>
+                </div>
+              </div>
+
+              <!-- Simulated Proposals -->
+              <div id="dev-proposals-container" style="margin-top: 0.4rem;" hidden>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;">
+                  <span style="font-size: 0.72rem; font-weight: 700; color: #ffc480;">Simulated Proposals Queue</span>
+                  <button id="btn-clear-proposals" class="btn btn-xs btn-danger">Clear</button>
+                </div>
+                <div id="dev-proposals-list" class="dev-proposals-list"></div>
+              </div>
+
+              <!-- Raw State Inspector -->
+              <details class="dev-state-details">
+                <summary class="dev-state-summary">Inspect Raw Engine State (JSON)</summary>
+                <pre id="dev-raw-state" class="dev-raw-state"></pre>
+              </details>
+            </section>
+          </div>
+        </section>
+      </main>
+
+      <!-- Persistent Bottom Tab Navigation Bar -->
+      <nav class="tab-nav" role="tablist" aria-label="Game Sections">
+        <button id="tab-btn-hearth" class="tab-nav-btn active" role="tab" aria-selected="true" data-tab="hearth">
+          <span class="tab-icon">🔥</span>
+          <span class="tab-label">Hearth</span>
         </button>
-        <button id="btn-toggle-dev" class="btn btn-sm" aria-pressed="false">
-          🛠️ Dev Mode: Off
+        <button id="tab-btn-settlement" class="tab-nav-btn" role="tab" aria-selected="false" data-tab="settlement">
+          <span class="tab-icon">🏛️</span>
+          <span class="tab-label">Settlement</span>
         </button>
-      </div>
-    </header>
-
-    <!-- Dev Mode Diagnostics Panel -->
-    <section id="dev-panel" class="dev-panel" style="margin: 0.75rem 1.25rem 0;" hidden>
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h2 style="font-size: 0.95rem; font-weight: 700; color: #ffc480;">
-          🛠️ Engine Diagnostics & Testing Overrides
-        </h2>
-        <span style="font-size: 0.75rem; color: #ffc480;">Deterministic Context: Seed <code id="dev-seed">1337</code> | Tick <code id="dev-tick">0</code></span>
-      </div>
-
-      <div class="dev-controls-grid">
-        <span style="font-size: 0.8rem; font-weight: 600;">Simulation Speed:</span>
-        <button id="dev-speed-pause" class="btn btn-sm">⏸️ Pause</button>
-        <button id="dev-speed-1x" class="btn btn-sm btn-primary">1x (1s)</button>
-        <button id="dev-speed-2x" class="btn btn-sm">2x (500ms)</button>
-        <button id="dev-speed-5x" class="btn btn-sm">5x (200ms)</button>
-        <button id="dev-speed-step" class="btn btn-sm btn-accent">⏩ Step 1 Tick</button>
-
-        <span style="margin: 0 0.5rem; color: #555;">|</span>
-
-        <button id="dev-add-resources" class="btn btn-sm">📦 +50 All Resources</button>
-        <button id="dev-set-year-10" class="btn btn-sm">⏩ Warp to Year 10</button>
-        <button id="dev-clear-save" class="btn btn-sm btn-danger">🗑️ Clear Save</button>
-      </div>
-
-      <details style="margin-top: 0.25rem;">
-        <summary style="font-size: 0.75rem; color: #ffc480; cursor: pointer;">Inspect Raw Engine State (JSON)</summary>
-        <pre id="dev-raw-state" class="dev-raw-state" style="margin-top: 0.4rem;"></pre>
-      </details>
-    </section>
-
-    <!-- Timeline Status Bar -->
-    <section class="timeline-status-bar" aria-label="Timeline Stats">
-      <div class="status-stat">
-        <span class="stat-label">Timeline Year</span>
-        <span id="stat-year" class="stat-value">Year 1</span>
-      </div>
-      <div class="status-stat">
-        <span class="stat-label">Season</span>
-        <span id="stat-season" class="season-badge season-spring">Spring</span>
-      </div>
-      <div class="status-stat">
-        <span class="stat-label">Civilization Rung</span>
-        <span id="stat-rung" class="stat-value" style="color: var(--accent-amber);">Solitary Hearth</span>
-      </div>
-      <div class="status-stat">
-        <span class="stat-label">Furthest Year</span>
-        <span id="stat-furthest" class="stat-value" style="color: var(--accent-gold);">Year 1</span>
-      </div>
-      <div class="status-stat">
-        <span class="stat-label">Insight Legacy</span>
-        <span id="stat-insight" class="stat-value" style="color: var(--accent-purple);">0</span>
-      </div>
-      <div class="status-stat">
-        <span class="stat-label">Timelines Lived</span>
-        <span id="stat-timelines" class="stat-value">0</span>
-      </div>
-    </section>
-
-    <!-- Main Game Workspace -->
-    <main class="main-container">
-      <!-- Column 1: Economy & Population -->
-      <div class="game-col column-left">
-        <!-- Resources Card -->
-        <section class="card" aria-labelledby="heading-resources">
-          <h2 id="heading-resources" class="card-title">
-            <span>🌾 Resources</span>
-          </h2>
-
-          <div class="resource-list">
-            <!-- Food -->
-            <div class="resource-row">
-              <div class="resource-header">
-                <span class="resource-name">Food</span>
-                <span id="res-food-rate" class="resource-rate">+0.0/t</span>
-              </div>
-              <div class="progress-track" role="progressbar" aria-valuenow="10" aria-valuemin="0" aria-valuemax="30">
-                <div id="res-food-bar" class="progress-fill fill-food" style="width: 33%;"></div>
-              </div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); text-align: right;">
-                <span id="res-food-current">10</span> / <span id="res-food-max">30</span>
-              </div>
-            </div>
-
-            <!-- Materials -->
-            <div class="resource-row">
-              <div class="resource-header">
-                <span class="resource-name">Materials</span>
-                <span id="res-materials-rate" class="resource-rate">+0.0/t</span>
-              </div>
-              <div class="progress-track" role="progressbar" aria-valuenow="5" aria-valuemin="0" aria-valuemax="25">
-                <div id="res-materials-bar" class="progress-fill fill-materials" style="width: 20%;"></div>
-              </div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); text-align: right;">
-                <span id="res-materials-current">5</span> / <span id="res-materials-max">25</span>
-              </div>
-            </div>
-
-            <!-- Knowledge -->
-            <div class="resource-row">
-              <div class="resource-header">
-                <span class="resource-name">Knowledge</span>
-                <span id="res-knowledge-rate" class="resource-rate">+0.0/t</span>
-              </div>
-              <div class="progress-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="20">
-                <div id="res-knowledge-bar" class="progress-fill fill-knowledge" style="width: 0%;"></div>
-              </div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); text-align: right;">
-                <span id="res-knowledge-current">0</span> / <span id="res-knowledge-max">20</span>
-              </div>
-            </div>
-
-            <!-- Stability -->
-            <div class="resource-row" style="margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed var(--border-subtle);">
-              <div class="stability-indicator">
-                <span class="resource-name">Stability</span>
-                <span id="res-stability-badge" class="status-badge status-stable">Stable</span>
-              </div>
-              <div class="progress-track" role="progressbar" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">
-                <div id="res-stability-bar" class="progress-fill fill-stability" style="width: 75%;"></div>
-              </div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); text-align: right;">
-                <span id="res-stability-current">75</span>%
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Direct Actions -->
-        <section class="card" aria-labelledby="heading-actions">
-          <h2 id="heading-actions" class="card-title">
-            <span>⚡ Manual Actions</span>
-          </h2>
-          <div class="action-buttons-group">
-            <button id="btn-forage" class="btn btn-primary" title="Gather wild plants and firewood">
-              🌿 Forage
-            </button>
-            <button id="btn-study" class="btn" title="Contemplate the stars and ember patterns">
-              ✨ Ponder
-            </button>
-          </div>
-        </section>
-
-        <!-- Population & Roles -->
-        <section class="card" aria-labelledby="heading-population">
-          <div class="card-title">
-            <span id="heading-population">👥 Community & Roles</span>
-            <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-muted);">
-              Pop: <strong id="pop-total">1</strong> / <span id="pop-max">2</span>
-              (<span id="pop-unassigned">1</span> free)
-            </span>
-          </div>
-
-          <div id="role-list" class="role-list">
-            <!-- Rendered by ViewModel -->
-          </div>
-        </section>
-      </div>
-
-      <!-- Column 2: Progression, Works, & Time Jump -->
-      <div class="game-col column-center">
-        <!-- Rung Progression Card -->
-        <section class="card rung-card" aria-labelledby="heading-rung">
-          <div class="rung-header">
-            <span class="stat-label">Civilization Evolution</span>
-            <h2 id="current-rung-name" class="rung-title">Solitary Hearth</h2>
-            <p id="current-rung-subtitle" class="rung-subtitle">The fragile flame in the dawn.</p>
-          </div>
-          <p id="current-rung-desc" style="font-size: 0.85rem; color: var(--text-main);">
-            A single campfire against the primordial cold. Forage wild roots and ponder the sky.
-          </p>
-
-          <div id="next-rung-container" style="border-top: 1px solid var(--border-subtle); padding-top: 0.75rem;">
-            <!-- Next rung preview and advance button rendered dynamically -->
-          </div>
-        </section>
-
-        <!-- Buildings & Works -->
-        <section class="card" aria-labelledby="heading-buildings">
-          <h2 id="heading-buildings" class="card-title">
-            <span>🏛️ Settlements & Works</span>
-          </h2>
-          <div id="building-grid" class="building-grid">
-            <!-- Buildings rendered by ViewModel -->
-          </div>
-        </section>
-
-        <!-- Time Jump (Prestige) Card -->
-        <section class="card time-jump-card" aria-labelledby="heading-time-jump">
-          <div class="card-title">
-            <span id="heading-time-jump" style="color: var(--accent-gold);">🌀 Time Jump (Prestige)</span>
-            <span id="insight-badge" class="insight-reward-badge">+0 Insight</span>
-          </div>
-          <p id="time-jump-desc" style="font-size: 0.85rem; color: var(--text-main);">
-            Endure until at least Year 3 to collapse this timeline into enduring Insight.
-          </p>
-          <button id="btn-time-jump" class="btn btn-accent" disabled>
-            Initiate Time Jump
-          </button>
-        </section>
-      </div>
-
-      <!-- Column 3: Event Chronicle -->
-      <div class="game-col column-right">
-        <section class="card" aria-labelledby="heading-chronicle" style="height: 100%;">
-          <div class="card-title">
-            <span id="heading-chronicle">📜 Chronicle of the Timeline</span>
-            <span style="font-size: 0.75rem; color: var(--text-muted);">Recent Beats</span>
-          </div>
-          <div id="chronicle-log" class="log-box" aria-live="polite">
-            <!-- Logs rendered by ViewModel -->
-          </div>
-        </section>
-      </div>
-    </main>
+        <button id="tab-btn-evolution" class="tab-nav-btn" role="tab" aria-selected="false" data-tab="evolution">
+          <span class="tab-icon">🌀</span>
+          <span class="tab-label">Evolution</span>
+        </button>
+        <button id="tab-btn-chronicle" class="tab-nav-btn" role="tab" aria-selected="false" data-tab="chronicle">
+          <span class="tab-icon">📜</span>
+          <span class="tab-label">Chronicle</span>
+          <span id="chronicle-unread-badge" class="unread-badge" hidden></span>
+        </button>
+        <button id="tab-btn-settings" class="tab-nav-btn" role="tab" aria-selected="false" data-tab="settings">
+          <span class="tab-icon">⚙️</span>
+          <span class="tab-label">Settings</span>
+        </button>
+      </nav>
+    </div>
 
     <!-- Feature Proposal Modal -->
     <div id="proposal-modal-backdrop" class="modal-backdrop" hidden>
@@ -257,12 +346,11 @@
           <button id="btn-close-proposal" class="close-btn" aria-label="Close dialog">&times;</button>
         </div>
 
-        <!-- Incubation Notice -->
         <div class="incubation-notice" role="status">
           <strong>Notice:</strong> Feature submission intake is currently in closed incubation mode. Submissions from the public are not accepted yet. Follow along on GitHub.
         </div>
 
-        <form id="proposal-form" style="display: flex; flex-direction: column; gap: 0.9rem;">
+        <form id="proposal-form" style="display: flex; flex-direction: column; gap: 0.75rem;">
           <div class="form-group">
             <label for="prop-title" class="form-label">Title of Proposal</label>
             <input type="text" id="prop-title" class="form-input" placeholder="e.g. Add Firekeeper role in Settled Camp" required />
@@ -273,53 +361,30 @@
             <select id="prop-category" class="form-select" required>
               <option value="new mechanic">New Mechanic</option>
               <option value="balance">Balance Adjustment</option>
-              <option value="story">Story & Lore</option>
+              <option value="story">Story &amp; Lore</option>
               <option value="other">Other Improvement</option>
             </select>
           </div>
 
           <div class="form-group">
             <label for="prop-change" class="form-label">What to change</label>
-            <textarea id="prop-change" class="form-textarea" placeholder="Describe the specific mechanics, rule changes, or numbers..." required></textarea>
+            <textarea id="prop-change" class="form-textarea" placeholder="Describe specific mechanics, numbers, or rules..." required></textarea>
           </div>
 
           <div class="form-group">
             <label for="prop-why" class="form-label">Why it improves the game</label>
-            <textarea id="prop-why" class="form-textarea" placeholder="Explain the player agency, strategic choices, or flavor added..." required></textarea>
+            <textarea id="prop-why" class="form-textarea" placeholder="Explain the player agency or flavor added..." required></textarea>
           </div>
 
-          <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 0.5rem;">
-            <button type="button" id="btn-cancel-proposal" class="btn">Cancel</button>
-            <button type="submit" id="btn-submit-proposal" class="btn btn-primary" disabled title="Feature submission is in closed incubation mode">
+          <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 0.3rem;">
+            <button type="button" id="btn-cancel-proposal" class="btn btn-sm">Cancel</button>
+            <button type="submit" id="btn-submit-proposal" class="btn btn-sm btn-primary" disabled title="Feature submission is in closed incubation mode">
               Submit Proposal
             </button>
           </div>
         </form>
-
-        <!-- Simulated proposals container in Dev Mode -->
-        <div id="dev-proposals-container" style="border-top: 1px solid var(--border-subtle); padding-top: 0.75rem;" hidden>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-            <span style="font-size: 0.8rem; font-weight: 700; color: #ffc480;">
-              🛠️ Local Simulated Proposals (Dev Mode Queue)
-            </span>
-            <button id="btn-clear-proposals" class="btn btn-sm btn-danger">Clear Local Queue</button>
-          </div>
-          <div id="dev-proposals-list" class="dev-proposals-list">
-            <!-- Simulated proposals listed here -->
-          </div>
-        </div>
       </div>
     </div>
-
-    <!-- Footer -->
-    <footer class="footer">
-      <p>
-        <strong>One More Timeline</strong> — An open experimental timeline simulation governed by public contracts.
-        <br />
-        Deterministic Engine &amp; View Projection Architecture. Open source on
-        <a href="https://github.com/farnalabs/one-more-timeline" target="_blank" rel="noopener noreferrer">GitHub</a>.
-      </p>
-    </footer>
 
     <!-- App Entrypoint -->
     <script type="module" src="./src/main.ts"></script>
