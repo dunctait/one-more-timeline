@@ -125,6 +125,16 @@ export interface TimelineViewModel {
   logs: LogEntry[];
 }
 
+export function countNewLogIds(
+  logs: LogEntry[],
+  seenIds: ReadonlySet<string>
+): { count: number; updatedSeenIds: Set<string> } {
+  const updatedSeenIds = new Set(seenIds);
+  const newLogs = logs.filter((log) => !updatedSeenIds.has(log.id));
+  newLogs.forEach((log) => updatedSeenIds.add(log.id));
+  return { count: newLogs.length, updatedSeenIds };
+}
+
 export function formatRate(rate: number): string {
   if (rate > 0) return `+${rate.toFixed(1)}/t`;
   if (rate < 0) return `${rate.toFixed(1)}/t`;
