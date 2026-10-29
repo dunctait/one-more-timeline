@@ -256,6 +256,16 @@ export interface TabBadgesViewModel {
   settlementCount: number;
   /** Which sub-page of each tab holds the waiting work, keyed `tab.sub`. */
   subs: Record<string, boolean>;
+  /**
+   * Counts for every tab and `tab.sub`. `novel` is something the player has never done before (shown filled and
+   * orange); `available` is more of what they already know (shown as a hollow ring).
+   */
+  levels: Record<string, BadgeLevel>;
+}
+
+export interface BadgeLevel {
+  novel: number;
+  available: number;
 }
 
 export interface TimelineViewModel {
@@ -1186,25 +1196,49 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       (timeJumpEligible && (state.rung === 'realm' || state.prestigeCounts[1] === 0))
   );
 
+  // Quiet for the familiar, loud for the new: a first Hut, a new Idea, a rung, a Jumpback are NOVEL; another Hut
+  // or an idle pair of hands is merely AVAILABLE.
+  const levels: Record<string, BadgeLevel> = {};
+  const tally = (key: string, novel: number, available: number): void => {
+    if (novel + available > 0) levels[key] = { novel, available };
+  };
+  const affordable = (wonder: boolean): BuildingViewModel[] =>
+    buildingsVm.filter((b) => b.wonder === wonder && b.unlocked && (b.canAfford || b.affordable));
+  const works = affordable(false);
+  tally('settlement.works', works.filter((b) => b.count === 0).length, works.filter((b) => b.count > 0).length);
+  tally('settlement.wonders', affordable(true).length, 0);
+  tally('settlement.discoveries', discoveriesVm.filter((d) => d.canAfford).length, 0);
+  tally('settlement.edicts', emptyEdictSlots, 0);
+  tally('hearth.gather', state.pendingChoice !== null ? 1 : 0, 0);
+  tally('hearth.roles', 0, unassignedCount);
+  tally('evolution.rung', nextRungVm?.eligible ? 1 : 0, 0);
+  const jumpReady = timeJumpEligible && (state.rung === 'realm' || state.prestigeCounts[1] === 0);
+  tally('evolution.jump', jumpReady && state.prestigeCounts[1] === 0 ? 1 : 0, jumpReady && state.prestigeCounts[1] > 0 ? 1 : 0);
+  tally('evolution.legacy', state.pendingBoon !== null ? 1 : 0, 0);
+  const readyTiers = prestigeVm.filter((p) => p.eligible);
+  tally('evolution.deeper', readyTiers.filter((p) => state.prestigeCounts[p.tier] === 0).length, readyTiers.filter((p) => state.prestigeCounts[p.tier] > 0).length);
+  for (const tab of ['hearth', 'settlement', 'evolution', 'chronicle']) {
+    let novel = 0;
+    let available = 0;
+    for (const [key, level] of Object.entries(levels)) {
+      if (key.startsWith(`${tab}.`)) {
+        novel += level.novel;
+        available += level.available;
+      }
+    }
+    tally(tab, novel, available);
+  }
+  const any = (key: string): boolean => (levels[key]?.novel ?? 0) + (levels[key]?.available ?? 0) > 0;
+
   const tabBadges: TabBadgesViewModel = {
-    hearth: unassignedCount > 0 || state.pendingChoice !== null,
-    settlement: affordableBuildingsCount > 0,
-    evolution: evolutionReady || state.pendingBoon !== null,
+    hearth: any('hearth'),
+    settlement: any('settlement'),
+    evolution: any('evolution'),
     chronicle: false,
     hearthCount: unassignedCount,
-    settlementCount: affordableBuildingsCount,
-    subs: {
-      'hearth.gather': state.pendingChoice !== null,
-      'hearth.roles': unassignedCount > 0,
-      'settlement.works': buildingsVm.some((b) => !b.wonder && b.unlocked && (b.canAfford || b.affordable)),
-      'settlement.wonders': buildingsVm.some((b) => b.wonder && b.unlocked && (b.canAfford || b.affordable)),
-      'settlement.edicts': emptyEdictSlots > 0,
-      'settlement.discoveries': discoveriesVm.some((d) => d.canAfford),
-      'evolution.rung': Boolean(nextRungVm?.eligible),
-      'evolution.jump': timeJumpEligible && (state.rung === 'realm' || state.prestigeCounts[1] === 0),
-      'evolution.legacy': state.pendingBoon !== null,
-      'evolution.deeper': prestigeVm.some((p) => p.eligible),
-    },
+    settlementCount: (levels.settlement?.novel ?? 0) + (levels.settlement?.available ?? 0),
+    subs: Object.fromEntries(Object.keys(levels).filter((k) => k.includes('.')).map((k) => [k, true])),
+    levels,
   };
 
   return {

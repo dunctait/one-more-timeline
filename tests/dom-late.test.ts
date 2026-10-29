@@ -62,6 +62,15 @@ describe('the late-game page', () => {
     expect(Number(text('res-food-current').replace(/K$/, ''))).toBeLessThan(food);
   });
 
+  it('builds when the tap lands on the cost icons inside the button, not only on its edge', () => {
+    const button = $('building-grid').querySelector<HTMLButtonElement>('.btn-build:not([disabled])')!;
+    const id = button.dataset.building!;
+    const before = Number(/×(\d+)/.exec(button.closest('.building-card')!.querySelector('.building-count-chip')!.textContent ?? '')![1]);
+    button.querySelector<HTMLElement>('.bb-cost')!.click();
+    const card = $('building-grid').querySelector(`[data-building="${id}"]`)!.closest('.building-card')!;
+    expect(Number(/×(\d+)/.exec(card.querySelector('.building-count-chip')!.textContent ?? '')![1])).toBe(before + 1);
+  });
+
   it('builds a building from the card button', () => {
     const before = $('building-grid').textContent;
     $('building-grid').querySelector<HTMLButtonElement>('.btn-build:not([disabled])')!.click();

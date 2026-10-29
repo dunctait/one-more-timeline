@@ -10,7 +10,7 @@ interface LayoutInputs {
   /** Progressive disclosure: which gated sub-pages the player has come across. */
   disclosure: Record<string, boolean>;
   /** Which `tab.sub` pages hold work waiting for the player. */
-  badges: Record<string, boolean>;
+  badges: Record<string, { novel: number; available: number } | undefined>;
   /** Pages shown greyed out one rung ahead of opening, keyed `tab.sub`, with when they open. */
   locks: Record<string, string>;
 }
@@ -108,7 +108,13 @@ export function refreshLayout(tab: string, panel: HTMLElement, choose?: string):
       const sub = p.dataset.sub ?? '';
       if (visible.includes(p)) {
         const on = p === current;
-        const badge = inputs.badges[`${tab}.${sub}`] ? '<span class="tab-badge" aria-label="needs attention"></span>' : '';
+        const level = inputs.badges[`${tab}.${sub}`];
+        const novel = level?.novel ?? 0;
+        const open = level?.available ?? 0;
+        // Orange and filled: something NEW can be done. Hollow: more of something already known.
+        const badge = novel + open > 0
+          ? `<span class="tab-badge badge-count ${novel > 0 ? 'badge-novel' : 'badge-open'}" aria-label="${novel > 0 ? `${novel} new` : `${open} available`}">${novel > 0 ? novel : open}</span>`
+          : '';
         cells.push(`<button type="button" role="tab" class="subnav-btn${on ? ' active' : ''}" data-sub="${sub}" aria-selected="${on}" tabindex="${on ? 0 : -1}"><span class="sub-icon" aria-hidden="true">${p.dataset.icon ?? ''}</span><span class="sub-label">${p.dataset.label ?? sub}</span>${badge}</button>`);
         continue;
       }

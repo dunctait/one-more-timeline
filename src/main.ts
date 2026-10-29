@@ -37,6 +37,7 @@ import {
   countNewLogIds,
   formatCompact,
   TimelineViewModel,
+  BadgeLevel,
 } from './ui/view-model.js';
 import { bindLayoutEvents, refreshLayout, selectedSub, setLayoutInputs } from './ui/layout.js';
 
@@ -653,9 +654,21 @@ function renderDevProposals(): void {
     .join('');
 }
 
+/** A filled orange pill for something NEW the player can do; a hollow ring for more of what they already know. */
+function paintBadge(el: HTMLElement, level: BadgeLevel | undefined): void {
+  const novel = level?.novel ?? 0;
+  const open = level?.available ?? 0;
+  el.hidden = novel + open === 0;
+  el.textContent = novel > 0 ? String(novel) : open > 0 ? String(open) : '';
+  el.classList.add('badge-count');
+  el.classList.toggle('badge-novel', novel > 0);
+  el.classList.toggle('badge-open', novel === 0 && open > 0);
+  el.setAttribute('aria-label', novel > 0 ? `${novel} new thing${novel > 1 ? 's' : ''} to do` : `${open} thing${open > 1 ? 's' : ''} to do`);
+}
+
 function render(): void {
   const vm: TimelineViewModel = buildTimelineViewModel(state);
-  setLayoutInputs({ disclosure: { ...vm.disclosure }, badges: vm.tabBadges.subs, locks: vm.locks });
+  setLayoutInputs({ disclosure: { ...vm.disclosure }, badges: vm.tabBadges.levels, locks: vm.locks });
   elGatherHint.textContent = state.features.includes('steady_hands') ? 'Immediate agency · keys 1, 2, 3 · hold to repeat' : 'Immediate agency · keys 1, 2, 3';
 
   // Persistent Status Header
@@ -672,15 +685,9 @@ function render(): void {
   elStatTimelines.textContent = `${vm.header.timelinesCreated}`;
 
   // Keep actionable tab badges live as resources, population, and progression change.
-  elTabBadgeHearth.hidden = !vm.tabBadges.hearth;
-  elTabBadgeHearth.textContent = vm.tabBadges.hearthCount > 1 ? `${vm.tabBadges.hearthCount}` : '';
-  elTabBadgeHearth.classList.toggle('badge-count', vm.tabBadges.hearthCount > 1);
-  elTabBadgeSettlement.hidden = !vm.tabBadges.settlement;
-  elTabBadgeSettlement.textContent = vm.tabBadges.settlementCount > 1 ? `${vm.tabBadges.settlementCount}` : '';
-  elTabBadgeSettlement.classList.toggle('badge-count', vm.tabBadges.settlementCount > 1);
-  elTabBadgeEvolution.hidden = !vm.tabBadges.evolution;
-  elTabBadgeEvolution.textContent = '';
-  elTabBadgeEvolution.classList.remove('badge-count');
+  paintBadge(elTabBadgeHearth, vm.tabBadges.levels.hearth);
+  paintBadge(elTabBadgeSettlement, vm.tabBadges.levels.settlement);
+  paintBadge(elTabBadgeEvolution, vm.tabBadges.levels.evolution);
   elForageYield.textContent = `+${vm.actions.forageYield.toFixed(1)} Food`;
   elActionPacing.textContent = vm.actions.pacing;
 
@@ -1205,8 +1212,9 @@ function setupListeners(): void {
   // Buildings buy buttons delegation
   [elBuildingGrid, elWonderGrid].forEach((grid) =>
     grid.addEventListener('click', (ev) => {
-      const target = ev.target as HTMLElement;
-      if (target.classList.contains('btn-build')) {
+      // The button holds icon and number spans, so a tap usually lands on one of those.
+      const target = (ev.target as HTMLElement).closest<HTMLElement>('.btn-build');
+      if (target && !(target as HTMLButtonElement).disabled) {
         const buildingId = target.getAttribute('data-building') as BuildingId;
         if (buildingId) dispatch({ type: 'BUILD', buildingId });
       }

@@ -2797,3 +2797,25 @@ html[data-text='large'] .subpanel {
   margin: 0.3rem 0 0.1rem;
   font-size: 0.7rem;
 }
+
+/* Notification pills: always a number. Filled orange = something NEW; hollow ring = more of the familiar. */
+.tab-badge.badge-count.badge-open {
+  background: transparent;
+  color: var(--accent-amber);
+  border: 1.5px solid var(--accent-amber);
+  box-shadow: none;
+  line-height: 11px;
+}
+
+.subnav .tab-badge.badge-count {
+  top: 2px;
+  right: calc(50% - 26px);
+  min-width: 13px;
+  height: 13px;
+  line-height: 13px;
+  font-size: 0.54rem;
+}
+
+.subnav .tab-badge.badge-count.badge-open {
+  line-height: 10px;
+}

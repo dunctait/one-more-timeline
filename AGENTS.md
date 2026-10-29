@@ -29,6 +29,7 @@ Feedback Codification Protocol: Whenever user feedback is received or an operati
 - Never allow soft wall fizzles: When an incremental phase culminates, alert the player that prestige is ready rather than letting progress stall into an unexplained bottleneck.
 - Prestige must send back a function: every prestige tier unlocks at least one automation, starting structure, or information feature, never only a percentage buff. Functions must be explained, listed, and switchable.
 - Never punish absence or time: no rate may be negative and no resource may decay; frame scarcity as slower growth, caps, or costs.
+- Quietly notified when it can be done, clearly when it is new: pills always show a number; a filled orange pill means something novel (a first of its kind), a hollow ring means more of the familiar.
 - Badges are for actionable state, not logs: navigation indicators MUST point to attention-required work, not historical or log-only views.
 - Progressive disclosure of complexity: never show a mechanic, currency, tier or preview until the player first comes across it; once met it stays. Hidden mechanics must not be named in goals, banners, badges or header pills.
 - Show only what is unlocked: never render a locked building, wonder, idea or trial; a sub-menu page exactly one rung from opening MAY show greyed out with when it opens, otherwise the cell is blank.

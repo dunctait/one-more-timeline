@@ -57,3 +57,7 @@ Say it the way a board game does: icons and numbers instead of sentences. A buil
 ## Every Jumpback creates a reward
 
 A Jumpback gives more than Insight: it MUST send back something the player can feel in the next timeline. The first three Jumpbacks send back scripted rewards (hold to gather; helping hands that assign newcomers; remembered Edicts). From the fourth on, each Jumpback offers a choice of three lasting boons (Lore Keepers, Grand Foundations, Packed Provisions, Founders, Cartographers) and the player takes one. An offer waits until it is taken, is announced by the banner, and is never lost. Boons are quality-of-life and starting-position functions, never only a percentage.
+
+## Quietly notified when it can be done, clearly notified when it is new
+
+Notification pills always carry a number, on the bottom bar and on the sub-menu. Something the player has never done before (their first Thatched Hut, a new Idea, a rung, the first Jumpback, a boon) is NOVEL and is shown as a filled, eye-catching orange pill. More of something they already know (a second Hut, idle people to assign) is merely AVAILABLE and is shown as a hollow ring, so the familiar never competes with the new. A pill MUST disappear when nothing can be done, and MUST NOT count work that has no decision in it.
