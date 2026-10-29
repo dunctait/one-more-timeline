@@ -2,7 +2,8 @@ import { ACHIEVEMENTS } from '../engine/achievements.js';
 import { DISCOVERIES, legacyMet, legacyNote } from '../engine/discoveries.js';
 import { CHALLENGES, getChallenge } from '../engine/challenges.js';
 import { edictsForSlot } from '../engine/edicts.js';
-import { EVENTS } from '../engine/events.js';
+import { eventScale, getEvent } from '../engine/events.js';
+import type { EventChoice } from '../engine/events.js';
 import { timelineSeed } from '../engine/events.js';
 import { personName } from '../engine/people.js';
 import { RELICS } from '../engine/relics.js';
@@ -59,6 +60,13 @@ import {
   RungId,
   TimelineState,
 } from '../engine/types.js';
+
+export interface EventViewModel {
+  id: string;
+  title: string;
+  text: string;
+  options: Array<{ label: string; chips: Chip[] }>;
+}
 
 export interface RoleViewModel {
   id: RoleId;
@@ -179,6 +187,8 @@ export interface DisclosureViewModel {
   relics: boolean;
   deeper: boolean;
   wonders: boolean;
+  /** The Events page, once the first event has arrived. It stays. */
+  events: boolean;
 }
 
 /** Pages shown greyed out one rung ahead of opening, keyed `tab.sub`, with the words that say when. */
@@ -336,7 +346,6 @@ export interface TimelineViewModel {
   rungProgression: RungProgressionViewModel;
   timeJump: TimeJumpViewModel;
   prestige: PrestigeTierViewModel[];
-  seasons: Array<{ name: string; note: string; current: boolean }>;
   /** A Jumpback boon to choose, if one is on offer. */
   boons: Array<{ id: FeatureId; icon: string; name: string; description: string }>;
   locks: SubLocks;
@@ -355,11 +364,10 @@ export interface TimelineViewModel {
     lockedNote: string;
     status: 'locked' | 'available' | 'active' | 'done';
   }>;
-  decision: {
-    title: string;
-    text: string;
-    options: Array<{ label: string; description: string }>;
-  } | null;
+  /** An urgent event: the timeline is stopped until the player chooses. */
+  urgent: EventViewModel | null;
+  /** Timeless tales waiting on the Events page. */
+  tales: EventViewModel[];
   productionNotes: Array<{ label: string; value: string }>;
   market: {
     unlocked: boolean;
@@ -626,13 +634,37 @@ function buildChallenges(state: TimelineState): TimelineViewModel['challenges'] 
   });
 }
 
-function buildDecision(state: TimelineState): TimelineViewModel['decision'] {
-  const def = state.pendingChoice && EVENTS.find((e) => e.id === state.pendingChoice?.eventId);
-  if (!def?.choices) return null;
+/** What a choice gives and costs, as icons and numbers, using the amounts the player would really see. */
+function effectChips(choice: EventChoice, scale: number): Chip[] {
+  const chips: Chip[] = [];
+  const add = (icon: string, value: number | undefined, name: string, scaled: boolean): void => {
+    if (!value) return;
+    const amount = Math.round(value * (scaled ? scale : 1));
+    const sign = amount < 0 ? '−' : '+';
+    chips.push({
+      icon,
+      text: `${sign}${Math.abs(amount)}`,
+      title: `${amount < 0 ? 'Costs' : 'Gives'} ${Math.abs(amount)} ${name}`,
+      cost: amount < 0,
+    });
+  };
+  add(ICON.food, choice.food, 'Food', true);
+  add(ICON.materials, choice.materials, 'Materials', true);
+  add(ICON.knowledge, choice.knowledge, 'Knowledge', true);
+  add(ICON.stability, choice.stability, 'Stability', false);
+  add(ICON.population, choice.people, 'newcomers', false);
+  return chips;
+}
+
+function buildEvent(state: TimelineState, id: string): EventViewModel | null {
+  const def = getEvent(id);
+  if (!def) return null;
+  const scale = eventScale(rungLevel(state.rung), def.minRung);
   return {
+    id: def.id,
     title: def.title,
     text: def.text,
-    options: def.choices.map((c) => ({ label: c.label, description: c.description })),
+    options: def.choices.map((c) => ({ label: c.label, chips: effectChips(c, scale) })),
   };
 }
 
@@ -1140,6 +1172,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     relics: state.relics.length > 0,
     deeper: prestigeVm.some((p) => p.revealed),
     wonders: buildingsVm.some((b) => b.wonder && b.unlocked) || jumped,
+    events: state.waitingEvents.length > 0 || state.stats.events > 0,
   };
   const gateOf = (rung: RungId): string | null =>
     rungLevel(rung) === rungLevel(state.rung) + 1 ? `Opens at ${RUNGS[rung].name}` : null;
@@ -1214,7 +1247,8 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   tally('settlement.wonders', affordable(true).length, 0);
   tally('settlement.discoveries', discoveriesVm.filter((d) => d.canAfford).length, 0);
   tally('settlement.edicts', emptyEdictSlots, 0);
-  tally('hearth.gather', state.pendingChoice !== null ? 1 : 0, 0);
+  // The first event ever is NEW; later waiting tales are simply available.
+  tally('hearth.events', state.stats.events === 0 ? state.waitingEvents.length : 0, state.stats.events === 0 ? 0 : state.waitingEvents.length);
   tally('hearth.roles', 0, unassignedCount);
   tally('evolution.rung', nextRungVm?.eligible ? 1 : 0, 0);
   const jumpReady = timeJumpEligible && (state.rung === 'realm' || state.prestigeCounts[1] === 0);
@@ -1328,17 +1362,13 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     prestige: prestigeVm,
     boons: boonsVm,
     locks,
-    seasons: (Object.keys(SEASON_PROFILES) as Array<keyof typeof SEASON_PROFILES>).map((name) => ({
-      name,
-      note: SEASON_PROFILES[name].note,
-      current: state.season === name,
-    })),
     disclosure,
     features: featuresVm,
     nextFeatures: buildNextFeatures(state, timeJumpDisclosed, prestigeVm),
     goal,
     challenges: buildChallenges(state),
-    decision: buildDecision(state),
+    urgent: state.pendingChoice ? buildEvent(state, state.pendingChoice.eventId) : null,
+    tales: state.waitingEvents.map((w) => buildEvent(state, w.eventId)).filter((e): e is EventViewModel => e !== null),
     productionNotes: explainProduction(state),
     market: marketVm,
     people: buildPeople(state),

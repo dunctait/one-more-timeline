@@ -137,7 +137,6 @@ const elRoleList = document.getElementById('role-list') as HTMLElement;
 // Tab 2: Settlement
 const elBuildingGrid = document.getElementById('building-grid') as HTMLElement;
 const elWonderGrid = document.getElementById('wonder-grid') as HTMLElement;
-const elSeasonList = document.getElementById('season-list') as HTMLElement;
 
 // Tab 3: Evolution
 const elCurrentRungName = document.getElementById('current-rung-name') as HTMLElement;
@@ -184,10 +183,11 @@ const elPeopleCount = document.getElementById('people-count') as HTMLElement;
 const elMarketList = document.getElementById('market-list') as HTMLElement;
 const elChallengeList = document.getElementById('challenge-list') as HTMLElement;
 const elEdictList = document.getElementById('edict-list') as HTMLElement;
-const elDecisionCard = document.getElementById('decision-card') as HTMLElement;
-const elDecisionTitle = document.getElementById('decision-title') as HTMLElement;
-const elDecisionText = document.getElementById('decision-text') as HTMLElement;
-const elDecisionOptions = document.getElementById('decision-options') as HTMLElement;
+const elEventModal = document.getElementById('event-modal') as HTMLElement;
+const elEventTitle = document.getElementById('event-modal-title') as HTMLElement;
+const elEventText = document.getElementById('event-modal-text') as HTMLElement;
+const elEventOptions = document.getElementById('event-modal-options') as HTMLElement;
+const elEventList = document.getElementById('event-list') as HTMLElement;
 const elGoalCard = document.getElementById('goal-card') as HTMLElement;
 const elGoalTitle = document.getElementById('goal-title') as HTMLElement;
 const elGoalSteps = document.getElementById('goal-steps') as HTMLElement;
@@ -408,6 +408,20 @@ function dismissToast(id?: string): void {
   elToastRegion.replaceChildren();
 }
 
+/** Keeps toasts clear of the banner row, the sub-menu and the bottom bar, whichever of them is on screen. */
+function positionToast(): void {
+  const shell = document.querySelector<HTMLElement>('.app-shell');
+  if (!shell) return;
+  const bottoms = [document.getElementById('ready-banner'), document.getElementById('subnav'), document.querySelector('.tab-nav')];
+  let top = shell.getBoundingClientRect().bottom;
+  for (const el of bottoms) {
+    if (!el || (el as HTMLElement).hidden) continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.height > 0) top = Math.min(top, rect.top);
+  }
+  elToastRegion.style.bottom = `${Math.max(0, shell.getBoundingClientRect().bottom - top) + 8}px`;
+}
+
 function showToast(message: string, options?: Partial<ToastPayload>): void {
   const payload: ToastPayload = {
     id: options?.id ?? `toast_${Date.now()}`,
@@ -466,6 +480,7 @@ function showToast(message: string, options?: Partial<ToastPayload>): void {
 
   toastEl.appendChild(actionsEl);
 
+  positionToast();
   elToastRegion.replaceChildren(toastEl);
 
   if (!payload.persistent) {
@@ -668,6 +683,7 @@ function paintBadge(el: HTMLElement, level: BadgeLevel | undefined): void {
 }
 
 function render(): void {
+  positionToast();
   const vm: TimelineViewModel = buildTimelineViewModel(state);
   setLayoutInputs({ disclosure: { ...vm.disclosure }, badges: vm.tabBadges.levels, locks: vm.locks });
   elGatherHint.textContent = state.features.includes('steady_hands') ? 'Immediate agency · keys 1, 2, 3 · hold to repeat' : 'Immediate agency · keys 1, 2, 3';
@@ -811,10 +827,6 @@ function render(): void {
   };
   elBuildingGrid.innerHTML = buildingHtml(vm.buildings.filter((b) => !b.wonder), 'Reach the Gathering Band to start building.');
   elWonderGrid.innerHTML = buildingHtml(vm.buildings.filter((b) => b.wonder), 'No wonder can be raised yet.');
-  elSeasonList.innerHTML = vm.seasons
-    .map((x) => `<div class="season-row${x.current ? ' current' : ''}"><strong>${escapeHtml(x.name)}${x.current ? ' (now)' : ''}</strong><span>${escapeHtml(x.note)}</span></div>`)
-    .join('');
-
   // Tab 3: Evolution (Rung Progression & Jumpback)
   elCurrentRungName.textContent = vm.rungProgression.currentName;
   elCurrentRungSubtitle.textContent = vm.rungProgression.currentSubtitle;
@@ -887,17 +899,32 @@ function render(): void {
   elBtnSpeed.hidden = !hasDial;
   elBtnSpeed.textContent = `Speed: ${chosenSpeed}x`;
 
-  // Pending choice event
-  elDecisionCard.hidden = vm.decision === null;
-  if (vm.decision) {
-    elDecisionTitle.textContent = `✨ ${vm.decision.title}: a decision awaits`;
-    elDecisionText.textContent = vm.decision.text;
-    elDecisionOptions.innerHTML = vm.decision.options
-      .map(
-        (o, i) => `<button type="button" class="btn-edict" data-choice="${i}"><strong>${escapeHtml(o.label)}</strong><br>${escapeHtml(o.description)}</button>`
-      )
-      .join('');
+  // Events: an urgent one stops the timeline in a modal; tales wait, timeless, on the Events page.
+  const chipHtml = (c: { icon: string; text: string; title: string; cost?: boolean }): string =>
+    `<span class="chip${c.cost ? ' chip-cost' : ' chip-gain'}" title="${escapeHtml(c.title)}"><span aria-hidden="true">${c.icon}</span>${escapeHtml(c.text)}</span>`;
+  const optionHtml = (o: { label: string; chips: Parameters<typeof chipHtml>[0][] }, i: number, eventId: string): string =>
+    `<button type="button" class="btn-event" data-event="${eventId}" data-choice="${i}"><strong>${escapeHtml(o.label)}</strong><span class="event-chips">${o.chips.map(chipHtml).join('')}</span></button>`;
+  const wasOpen = !elEventModal.hidden;
+  elEventModal.hidden = vm.urgent === null;
+  if (vm.urgent) {
+    elEventTitle.textContent = `⚠️ ${vm.urgent.title}`;
+    elEventText.textContent = vm.urgent.text;
+    const urgentId = vm.urgent.id;
+    elEventOptions.style.setProperty('--options', String(vm.urgent.options.length));
+    elEventOptions.innerHTML = vm.urgent.options.map((o, i) => optionHtml(o, i, urgentId)).join('');
+    if (!wasOpen) elEventOptions.querySelector<HTMLButtonElement>('button')?.focus();
   }
+  elEventList.innerHTML = vm.tales.length
+    ? vm.tales
+        .map(
+          (t) => `<div class="event-tale">
+        <strong class="event-tale-title">${escapeHtml(t.title)}</strong>
+        <p class="event-tale-text">${escapeHtml(t.text)}</p>
+        <div class="event-options" style="--options:${t.options.length}">${t.options.map((o, i) => optionHtml(o, i, t.id)).join('')}</div>
+      </div>`
+        )
+        .join('')
+    : '<p class="settings-copy">Nothing waits. Tales arrive now and then and keep until you answer them.</p>';
 
   // Current goal
   elGoalTitle.textContent = `🎯 ${vm.goal.title}`;
@@ -1271,11 +1298,17 @@ function setupListeners(): void {
   elGoalGo.addEventListener('click', () => switchTab(goalTab, goalSub));
   elReadyBannerGo.addEventListener('click', () => switchTab(goalTab, goalSub));
   bindLayoutEvents();
+  window.addEventListener('resize', positionToast);
 
-  elDecisionOptions.addEventListener('click', (event) => {
+  elEventOptions.addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-choice]');
     if (!button) return;
     dispatch({ type: 'RESOLVE_CHOICE', index: Number(button.dataset.choice) });
+  });
+  elEventList.addEventListener('click', (event) => {
+    const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-choice]');
+    if (!button?.dataset.event) return;
+    dispatch({ type: 'RESOLVE_TALE', eventId: button.dataset.event, index: Number(button.dataset.choice) });
   });
 
   elBtnSpeed.addEventListener('click', () => {
@@ -1667,7 +1700,7 @@ function guardInnerHtml(el: HTMLElement): void {
 }
 
 [
-  elChallengeList, elDecisionOptions, elProductionNotes, elMarketList, elThemeList, elRoleList, elBuildingGrid, elWonderGrid, elSeasonList, elNextRungPrerequisites, elTimeJumpBreakdown, elGoalSteps,
+  elChallengeList, elEventOptions, elEventList, elProductionNotes, elMarketList, elThemeList, elRoleList, elBuildingGrid, elWonderGrid, elNextRungPrerequisites, elTimeJumpBreakdown, elGoalSteps,
   elPeopleList, elEdictList, elDiscoveryList, elRelicsList, elRecordsList, elHistoryList,
   elAchievementsList, elLegacyList, elDeepPrestigeList, elChronicleLog,
 ].forEach(guardInnerHtml);

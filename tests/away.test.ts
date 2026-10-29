@@ -25,7 +25,7 @@ describe('conformance', () => {
   it('fastForward equals ticking one step at a time', () => {
     let ticked = executeAction({ ...createInitialState({ seed: 9 }), rung: 'village' }, { type: 'DEV_ADD_RESOURCES', amount: 30 }).state;
     const start = ticked;
-    for (let i = 0; i < 500; i++) ticked = stepTick(ticked);
+    for (let i = 0; i < 500; i++) ticked = stepTick(ticked, { quiet: true });
     expect(fastForward(start, 500).state).toEqual(ticked);
   });
 });

@@ -15,7 +15,7 @@ describe('lifetime stats', () => {
     s = executeAction(s, { type: 'BARTER', from: 'food', to: 'materials', amount: 30 }).state;
     s = stepTick(s);
     s = executeAction(s, { type: 'TICK' }).state;
-    expect(s.stats).toEqual({ ticks: 2, gathers: 2, built: 1, researched: 1, traded: 1 });
+    expect(s.stats).toEqual({ ticks: 2, gathers: 2, built: 1, researched: 1, traded: 1, events: 0 });
     const failed = executeAction(s, { type: 'BUILD', buildingId: 'wonder_of_ages' });
     expect(failed.success).toBe(false);
     expect(failed.state.stats).toEqual(s.stats);
@@ -23,7 +23,7 @@ describe('lifetime stats', () => {
 
   it('survive Jumpbacks and prestige', () => {
     let s: TimelineState = { ...createInitialState(), tick: 40, year: 11 };
-    s = { ...s, stats: { ticks: 500, gathers: 40, built: 12, researched: 3, traded: 2 } };
+    s = { ...s, stats: { ticks: 500, gathers: 40, built: 12, researched: 3, traded: 2, events: 0 } };
     const jumped = executeAction(ripe(s), { type: 'TIME_JUMP' }).state;
     expect(jumped.stats).toEqual(s.stats);
     const epoch = executeAction({ ...s, rung: 'realm', year: 310, insight: 120 }, { type: 'PRESTIGE', tier: 2 }).state;
@@ -34,8 +34,8 @@ describe('lifetime stats', () => {
     const old = { ...createInitialState(), tick: 80, stats: undefined } as unknown as TimelineState;
     expect(normalizeState(old).stats.ticks).toBe(80);
     const bad = { ...createInitialState(), stats: { ticks: 'x', gathers: -4, built: 2.9 } } as unknown as TimelineState;
-    expect(normalizeState(bad).stats).toEqual({ ticks: 0, gathers: 0, built: 2, researched: 0, traded: 0 });
-    const vm = buildTimelineViewModel({ ...createInitialState(), stats: { ticks: 3725, gathers: 9, built: 4, researched: 1, traded: 0 } });
+    expect(normalizeState(bad).stats).toEqual({ ticks: 0, gathers: 0, built: 2, researched: 0, traded: 0, events: 0 });
+    const vm = buildTimelineViewModel({ ...createInitialState(), stats: { ticks: 3725, gathers: 9, built: 4, researched: 1, traded: 0, events: 0 } });
     expect(vm.records.find((r) => r.label === 'Time lived')?.value).toBe('1h 2m');
   });
 
@@ -43,7 +43,7 @@ describe('lifetime stats', () => {
     const { findNewAchievements } = await import('../src/engine/achievements.js');
     const s = createInitialState();
     expect(findNewAchievements(s).map((a) => a.id)).not.toContain('gathers_500');
-    const big = { ...s, stats: { ticks: 7200, gathers: 500, built: 250, researched: 0, traded: 25 } };
+    const big = { ...s, stats: { ticks: 7200, gathers: 500, built: 250, researched: 0, traded: 25, events: 0 } };
     const ids = findNewAchievements(big).map((a) => a.id);
     expect(ids).toEqual(expect.arrayContaining(['gathers_500', 'ticks_7200', 'built_250', 'traded_25']));
   });

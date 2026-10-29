@@ -2,8 +2,8 @@ import { findNewAchievements } from './achievements.js';
 import { getChallenge } from './challenges.js';
 import { DISCOVERIES, discoveryBonus, getDiscovery, legacyMet, legacyNote } from './discoveries.js';
 import { edictBonus, getEdict } from './edicts.js';
-import { EVENTS, rollEvent, scaleGift, seededUnit, timelineSeed } from './events.js';
-import type { EventGift } from './events.js';
+import { EVENTS, eventScale, getEvent, MAX_WAITING_TALES, rollEvent, seededUnit, timelineSeed } from './events.js';
+import type { EventChoice, EventDef } from './events.js';
 import { personName } from './people.js';
 import { getRelic, RELICS, RELIC_CHANCE, relicBonus } from './relics.js';
 import {
@@ -151,8 +151,9 @@ export function createInitialState(options?: {
     history: options?.history ?? [],
     relics,
     pendingChoice: null,
+    waitingEvents: [],
     pendingBoon: options?.pendingBoon ?? null,
-    stats: { ticks: 0, gathers: 0, built: 0, researched: 0, traded: 0 },
+    stats: { ticks: 0, gathers: 0, built: 0, researched: 0, traded: 0, events: 0 },
     challenge: options?.challenge ?? null,
     edicts: features.includes('seasoned_memory') ? { ...(options?.edicts ?? {}) } : {},
     discoveries,
@@ -322,10 +323,52 @@ function withStats(
   return { ...after, stats };
 }
 
-export function stepTick(state: TimelineState): TimelineState {
+/**
+ * One tick. An urgent event stops the timeline until the player answers it. `quiet` (used while the player is away)
+ * lets no urgent event arrive, so absence never leaves a decision that cost them time.
+ */
+export function stepTick(state: TimelineState, options: { quiet?: boolean } = {}): TimelineState {
+  if (state.pendingChoice) return state;
   // Stats are counted inside the tick too (automation), so carry them forward from the result.
-  const next = settleChallenge(stepTickCore(state));
+  const next = settleChallenge(stepTickCore(state, Boolean(options.quiet)));
   return grantAchievements(withStats(next, next, { ticks: 1 }));
+}
+
+/**
+ * Settles one choice of an event. Costs come out of what the player holds (never below zero) and gains stop at the
+ * storage cap; stability and newcomers are only ever added. A relic is sometimes found in the telling.
+ */
+function applyEventChoice(state: TimelineState, def: EventDef, choice: EventChoice): TimelineState {
+  const scale = eventScale(rungLevel(state.rung), def.minRung);
+  const move = (have: number, delta: number | undefined, cap: number): number =>
+    Number(Math.min(cap, Math.max(0, have + (delta ?? 0) * scale)).toFixed(2));
+  const room = Math.max(0, state.population.max - state.population.total);
+  const arrivals = Math.min(choice.people ?? 0, room);
+  const logs: LogEntry[] = [createLog(state.tick, state.year, `${def.title}: you chose "${choice.label}".`, 'milestone')];
+  let relics = state.relics;
+  const tseed = timelineSeed(state.seed, state.timelinesCreated);
+  const pool = RELICS.filter((x) => !x.trophyOf && !relics.includes(x.id) && rungLevel(x.minRung) <= rungLevel(state.rung));
+  if (pool.length > 0 && seededUnit(tseed, state.tick + state.stats.events, 3) < RELIC_CHANCE) {
+    const found = pool[Math.floor(seededUnit(tseed, state.tick + state.stats.events, 4) * pool.length)];
+    relics = [...relics, found.id];
+    logs.unshift(createLog(state.tick, state.year, `${found.icon} Relic found: ${found.name}. ${found.description}`, 'prestige'));
+  }
+  return {
+    ...state,
+    relics,
+    resources: {
+      food: move(state.resources.food, choice.food, state.caps.food),
+      materials: move(state.resources.materials, choice.materials, state.caps.materials),
+      knowledge: move(state.resources.knowledge, choice.knowledge, state.caps.knowledge),
+      stability: Number(Math.min(100, state.resources.stability + (choice.stability ?? 0)).toFixed(2)),
+    },
+    population: {
+      ...state.population,
+      total: state.population.total + arrivals,
+      roles: { ...state.population.roles, unassigned: state.population.roles.unassigned + arrivals },
+    },
+    logs: [...logs, ...state.logs].slice(0, 50),
+  };
 }
 
 export function executeAction(state: TimelineState, action: EngineAction): EngineResult {
@@ -340,13 +383,15 @@ export function executeAction(state: TimelineState, action: EngineAction): Engin
           ? { researched: 1 }
           : action.type === 'BARTER'
             ? { traded: 1 }
-            : {};
+            : action.type === 'RESOLVE_CHOICE' || action.type === 'RESOLVE_TALE'
+              ? { events: 1 }
+              : {};
   // A plain tick already settled challenges, counted stats and granted achievements in stepTick.
   if (action.type === 'TICK') return result;
   return { ...result, state: grantAchievements(settleChallenge(withStats(state, result.state, bump))) };
 }
 
-function stepTickCore(state: TimelineState): TimelineState {
+function stepTickCore(state: TimelineState, quiet: boolean): TimelineState {
   const nextTick = state.tick + 1;
   const nextSeason = SEASONS[nextTick % 4];
   const nextYear = 1 + Math.floor(nextTick / 4);
@@ -377,37 +422,16 @@ function stepTickCore(state: TimelineState): TimelineState {
 
   let nextStability = Math.max(0, Math.min(100, state.resources.stability + rates.stability));
 
-  // Seasonal events are gifts only; they never take anything away.
-  const event = rollEvent(state, nextTick);
+  // Events are decisions, never free gifts: a tale waits on the Events page; an urgent event stops the timeline.
   let pendingChoice = state.pendingChoice;
-  let gift: Required<EventGift> | null = null;
-  if (event) {
-    if (event.def.choices) {
-      // A decision the player never made is settled with its first option, so waiting costs nothing.
-      const stale = pendingChoice && EVENTS.find((e) => e.id === pendingChoice?.eventId);
-      if (stale?.choices) {
-        gift = scaleGift(stale.choices[0], rungLevel(state.rung));
-        newLogs.push(
-          createLog(nextTick, nextYear, `${stale.title}: your people chose "${stale.choices[0].label}" while the decision waited.`, 'milestone')
-        );
-      }
-      pendingChoice = { eventId: event.def.id, tick: nextTick };
-    } else {
-      gift = {
-        food: event.food,
-        materials: event.materials,
-        knowledge: event.knowledge,
-        stability: event.stability,
-        people: event.people,
-      };
-    }
-  }
-  if (gift) {
-    nextFood = Math.min(state.caps.food, nextFood + gift.food);
-    nextMaterials = Math.min(state.caps.materials, nextMaterials + gift.materials);
-    nextKnowledge = Math.min(state.caps.knowledge, nextKnowledge + gift.knowledge);
-    nextStability = Math.min(100, nextStability + gift.stability);
-  }
+  let waitingEvents = state.waitingEvents;
+  const event = rollEvent(state, nextTick, {
+    urgent: !quiet && !pendingChoice,
+    tales: waitingEvents.length < MAX_WAITING_TALES,
+    exclude: waitingEvents.map((w) => w.eventId),
+  });
+  if (event?.kind === 'urgent') pendingChoice = { eventId: event.id, tick: nextTick };
+  if (event?.kind === 'tale') waitingEvents = [...waitingEvents, { eventId: event.id, tick: nextTick }];
 
   let currentTotalPop = state.population.total;
   let currentUnassigned = state.population.roles.unassigned;
@@ -432,38 +456,9 @@ function stepTickCore(state: TimelineState): TimelineState {
     );
   }
 
-  let relics = state.relics;
-  if (event) {
-    const tseed = timelineSeed(state.seed, state.timelinesCreated);
-    const pool = RELICS.filter(
-      (r) => !r.trophyOf && !relics.includes(r.id) && rungLevel(r.minRung) <= rungLevel(state.rung)
-    );
-    if (pool.length > 0 && seededUnit(tseed, nextTick, 3) < RELIC_CHANCE) {
-      const found = pool[Math.floor(seededUnit(tseed, nextTick, 4) * pool.length)];
-      relics = [...relics, found.id];
-      newLogs.push(
-        createLog(nextTick, nextYear, `${found.icon} Relic found: ${found.name}. ${found.description}`, 'prestige')
-      );
-    }
-  }
-
-  if (gift) {
-    const room = Math.max(0, state.population.max - currentTotalPop);
-    const arrivals = Math.min(gift.people, room);
-    currentTotalPop += arrivals;
-    currentUnassigned += arrivals;
-  }
-  if (event) {
-    newLogs.push(
-      createLog(
-        nextTick,
-        nextYear,
-        event.def.choices
-          ? `${event.def.title}: ${event.def.text} A decision awaits on the Hearth.`
-          : `${event.def.title}: ${event.def.text}`,
-        'milestone'
-      )
-    );
+  const relics = state.relics;
+  if (event?.kind === 'urgent') {
+    newLogs.push(createLog(nextTick, nextYear, `${event.title}: ${event.text} The timeline waits for your answer.`, 'milestone'));
   }
 
   // Limit logs to last 50 entries
@@ -477,6 +472,7 @@ function stepTickCore(state: TimelineState): TimelineState {
     furthestYear: nextFurthestYear,
     relics,
     pendingChoice,
+    waitingEvents,
      // Kept at zero for save compatibility; manual actions are intentionally immediate.
      actionCooldown: 0,
     resources: {
@@ -1154,37 +1150,30 @@ function executeActionCore(
     }
 
     case 'RESOLVE_CHOICE': {
-      const def = state.pendingChoice && EVENTS.find((e) => e.id === state.pendingChoice?.eventId);
-      const choice = def?.choices?.[action.index];
+      const def = state.pendingChoice ? getEvent(state.pendingChoice.eventId) : undefined;
+      const choice = def?.choices[action.index];
       if (!def || !choice) {
         return { success: false, state, error: 'There is no decision to make.', events: [] };
       }
-      const g = scaleGift(choice, rungLevel(state.rung));
-      const room = Math.max(0, state.population.max - state.population.total);
-      const arrivals = Math.min(g.people, room);
+      return {
+        success: true,
+        state: { ...applyEventChoice(state, def, choice), pendingChoice: null },
+        events: [`Chose ${choice.label}`],
+      };
+    }
+
+    case 'RESOLVE_TALE': {
+      const waiting = state.waitingEvents.find((w) => w.eventId === action.eventId);
+      const def = waiting ? getEvent(waiting.eventId) : undefined;
+      const choice = def?.choices[action.index];
+      if (!waiting || !def || !choice) {
+        return { success: false, state, error: 'That tale is not waiting.', events: [] };
+      }
       return {
         success: true,
         state: {
-          ...state,
-          pendingChoice: null,
-          resources: {
-            food: Number(Math.min(state.caps.food, state.resources.food + g.food).toFixed(2)),
-            materials: Number(Math.min(state.caps.materials, state.resources.materials + g.materials).toFixed(2)),
-            knowledge: Number(Math.min(state.caps.knowledge, state.resources.knowledge + g.knowledge).toFixed(2)),
-            stability: Number(Math.min(100, state.resources.stability + g.stability).toFixed(2)),
-          },
-          population: {
-            ...state.population,
-            total: state.population.total + arrivals,
-            roles: {
-              ...state.population.roles,
-              unassigned: state.population.roles.unassigned + arrivals,
-            },
-          },
-          logs: [
-            createLog(state.tick, state.year, `${def.title}: you chose "${choice.label}".`, 'milestone'),
-            ...state.logs,
-          ].slice(0, 50),
+          ...applyEventChoice(state, def, choice),
+          waitingEvents: state.waitingEvents.filter((w) => w.eventId !== action.eventId),
         },
         events: [`Chose ${choice.label}`],
       };
@@ -1577,6 +1566,7 @@ export function normalizeState(saved: TimelineState): TimelineState {
       built: Math.floor(asNumber(old.stats?.built)),
       researched: Math.floor(asNumber(old.stats?.researched)),
       traded: Math.floor(asNumber(old.stats?.traded)),
+      events: Math.floor(asNumber(old.stats?.events)),
     },
     // A completed challenge (trophy already owned) does not linger.
     challenge:
@@ -1592,9 +1582,13 @@ export function normalizeState(saved: TimelineState): TimelineState {
       return offered.length > 0 ? offered : null;
     })(),
     pendingChoice:
-      old.pendingChoice && EVENTS.some((e) => e.id === old.pendingChoice?.eventId && e.choices)
+      old.pendingChoice && EVENTS.some((e) => e.id === old.pendingChoice?.eventId && e.kind === 'urgent')
         ? { eventId: old.pendingChoice.eventId, tick: asNumber(old.pendingChoice.tick) }
         : null,
+    waitingEvents: (Array.isArray(old.waitingEvents) ? old.waitingEvents : [])
+      .filter((w, i, all) => !!w && EVENTS.some((e) => e.id === w.eventId && e.kind === 'tale') && all.findIndex((x) => x?.eventId === w.eventId) === i)
+      .slice(0, MAX_WAITING_TALES)
+      .map((w) => ({ eventId: w.eventId, tick: asNumber(w.tick) })),
     discoveries,
     edicts,
     automation: {
@@ -1654,6 +1648,6 @@ export function fastForward(
 ): { state: TimelineState; summary: AwaySummary } {
   const ticks = Math.max(0, Math.min(awayCapTicks(state), Math.floor(requestedTicks)));
   let next = state;
-  for (let i = 0; i < ticks; i++) next = stepTick(next);
+  for (let i = 0; i < ticks; i++) next = stepTick(next, { quiet: true });
   return { state: next, summary: summarizeAway(state, next, ticks) };
 }

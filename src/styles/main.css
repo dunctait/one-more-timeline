@@ -2827,3 +2827,149 @@ html[data-text='large'] .subpanel {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ------------------------------------------------------------------ steady header and events */
+.season-badge {
+  display: inline-block;
+  width: 4.4rem;
+  text-align: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* The banner row sits just above the sub-menu, so the buttons at the top of a page never move. */
+.ready-banner {
+  border-bottom: 0;
+  border-top: 1px solid var(--accent-gold);
+}
+
+.event-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.event-modal[hidden] {
+  display: none !important;
+}
+
+.event-card {
+  width: min(26rem, 100%);
+  border: 1px solid #b45309;
+  border-radius: 10px;
+  background: var(--bg-card);
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.25);
+}
+
+.event-title {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-bright);
+}
+
+.event-text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-main);
+}
+
+.event-note {
+  margin: 0;
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.event-options {
+  display: grid;
+  grid-template-columns: repeat(var(--options, 2), 1fr);
+  gap: 0.3rem;
+}
+
+.event-modal .event-options {
+  grid-template-columns: 1fr;
+}
+
+.btn-event {
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0.3rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: inherit;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.btn-event strong {
+  font-size: 0.7rem;
+}
+
+.btn-event:hover {
+  border-color: var(--accent-gold);
+}
+
+.event-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.2rem;
+}
+
+.chip-cost {
+  color: #fca5a5;
+  border-color: rgba(252, 165, 165, 0.4);
+}
+
+.chip-gain {
+  color: #86efac;
+  border-color: rgba(134, 239, 172, 0.35);
+}
+
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.event-tale {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-surface);
+}
+
+.event-tale-title {
+  font-size: 0.78rem;
+  color: var(--text-bright);
+}
+
+.event-tale-text {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

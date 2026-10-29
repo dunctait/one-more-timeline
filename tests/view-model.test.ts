@@ -241,9 +241,15 @@ describe('UI View Model & Storage', () => {
       state = executeAction(state, { type: 'FORAGE' }).state;
     }
     while (state.year < 10) {
+      if (state.pendingChoice) state = executeAction(state, { type: 'RESOLVE_CHOICE', index: 0 }).state;
       state = executeAction(state, { type: 'TICK' }).state;
     }
 
+    // An urgent event may have cost something along the way; the player tops the stores back up by hand.
+    for (let i = 0; i < 40; i++) {
+      state = executeAction(state, { type: 'SCAVENGE' }).state;
+      state = executeAction(state, { type: 'STUDY' }).state;
+    }
     vm = buildTimelineViewModel(state);
     expect(vm.rungProgression.nextRung?.eligible).toBe(true);
     expect(vm.rungProgression.nextRung?.id).toBe('settlement');

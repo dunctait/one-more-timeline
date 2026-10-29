@@ -15,6 +15,7 @@ function play(state: TimelineState): TimelineState {
     if (r.success) s = r.state;
     return r.success;
   };
+  if (s.pendingChoice) act({ type: 'RESOLVE_CHOICE', index: 0 });
   act({ type: 'FORAGE' });
   act({ type: 'SCAVENGE' });
   act({ type: 'STUDY' });

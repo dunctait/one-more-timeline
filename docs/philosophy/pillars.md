@@ -61,3 +61,11 @@ A Jumpback gives more than Insight: it MUST send back something the player can f
 ## Quietly notified when it can be done, clearly notified when it is new
 
 Notification pills always carry a number, on the bottom bar and on the sub-menu. Something the player has never done before (their first Thatched Hut, a new Idea, a rung, the first Jumpback, a boon) is NOVEL and is shown as a filled, eye-catching orange pill. More of something they already know (a second Hut, idle people to assign) is merely AVAILABLE and is shown as a hollow ring, so the familiar never competes with the new. A pill MUST disappear when nothing can be done, and MUST NOT count work that has no decision in it.
+
+## Nothing moves under the player's thumb
+
+The things a player taps repeatedly MUST stay put. Manual actions sit at the top of their page and never move when something appears or disappears; the header uses fixed widths (the season badge is always the same width); and every "you can now do X" notice lives in a banner row at the bottom, directly above the sub-menu, where it can change without shifting what is above it. Toasts MUST measure what is on screen before they render and sit above the banner row and both menus, never over them, and never on top of one another.
+
+## Events are decisions, in two kinds
+
+Events never hand out free resources. A TALE is timeless: it waits on its own Events page until the player picks it up, is worded so that answering it a year or ten later is just as valid (no "tonight", no deadlines), and gives two or three real choices that trade gains against costs. An URGENT event is time-sensitive and unwelcome: it opens a modal that stops the timeline until the player chooses the lesser evil. About one event in five is urgent. Every option shows its gains and costs as the same icons and numbers used elsewhere (cost in red), costs come out of what the player holds (never below zero) and only because the player chose, urgent events never arrive while the player is away, and nothing is ever taken from stability or people. Events are rare, and no more than four tales wait at once.

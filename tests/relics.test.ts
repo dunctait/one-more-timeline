@@ -6,10 +6,18 @@ import { RELICS, relicBonus } from '../src/engine/relics.js';
 import { calculateTimeJumpInsight } from '../src/engine/rules.js';
 import { TimelineState } from '../src/engine/types.js';
 
+/** Relics turn up in the telling of events, so the player has to pick tales up (and answer urgent ones). */
+function decideEvents(s: TimelineState): TimelineState {
+  let next = s;
+  if (next.pendingChoice) next = executeAction(next, { type: 'RESOLVE_CHOICE', index: 0 }).state;
+  for (const w of next.waitingEvents) next = executeAction(next, { type: 'RESOLVE_TALE', eventId: w.eventId, index: 0 }).state;
+  return next;
+}
+
 describe('relics', () => {
   it('are rare finds that eventually turn up, only from unlocked rungs', () => {
     let s: TimelineState = { ...createInitialState({ seed: 77 }), rung: 'settlement' };
-    for (let i = 0; i < 6000 && s.relics.length === 0; i++) s = stepTick(s);
+    for (let i = 0; i < 60000 && s.relics.length === 0; i++) s = decideEvents(stepTick(s));
     expect(s.relics.length).toBeGreaterThan(0);
     s.relics.forEach((id) => {
       const def = RELICS.find((r) => r.id === id)!;
@@ -20,7 +28,7 @@ describe('relics', () => {
 
   it('are never found twice and never lost by prestige', () => {
     let s: TimelineState = { ...createInitialState({ seed: 5 }), rung: 'realm' };
-    for (let i = 0; i < 20000; i++) s = stepTick(s);
+    for (let i = 0; i < 400000 && s.relics.length < RELICS.filter((r) => !r.trophyOf).length; i++) s = decideEvents(stepTick(s));
     expect(new Set(s.relics).size).toBe(s.relics.length);
     expect(s.relics.length).toBe(RELICS.filter((r) => !r.trophyOf).length);
     const jumped = executeAction(ripe({ ...s, year: 9 }), { type: 'TIME_JUMP' }).state;
@@ -38,7 +46,7 @@ describe('relics', () => {
     expect(createInitialState({ relics: ['ancestor_mask'] }).population.total).toBe(13);
     const ready = { ...base, year: 40, rung: 'village' as const };
     expect(calculateTimeJumpInsight({ ...ready, relics: ['chronometer'] })).toBeGreaterThan(calculateTimeJumpInsight(ready));
-    expect(relicBonus(['bronze_compass'], 'eventChance')).toBeCloseTo(0.1, 5);
+    expect(relicBonus(['bronze_compass'], 'eventChance')).toBeCloseTo(0.5, 5);
   });
 
   it('make events more frequent with the Bronze Compass', () => {
@@ -53,8 +61,8 @@ describe('relics', () => {
 
 describe('timeline variation', () => {
   it('gives each timeline different events from the same base seed', () => {
-    const a = Array.from({ length: 60 }, (_, y) => rollEvent({ seed: 1337, rung: 'realm', timelinesCreated: 0 }, y * 4 + 1)?.def.id ?? '-');
-    const b = Array.from({ length: 60 }, (_, y) => rollEvent({ seed: 1337, rung: 'realm', timelinesCreated: 1 }, y * 4 + 1)?.def.id ?? '-');
+    const a = Array.from({ length: 60 }, (_, y) => rollEvent({ seed: 1337, rung: 'realm', timelinesCreated: 0 }, y * 4 + 1)?.id ?? '-');
+    const b = Array.from({ length: 60 }, (_, y) => rollEvent({ seed: 1337, rung: 'realm', timelinesCreated: 1 }, y * 4 + 1)?.id ?? '-');
     expect(a).not.toEqual(b);
     expect(timelineSeed(1337, 0)).not.toBe(timelineSeed(1337, 1));
   });

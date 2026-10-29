@@ -14,7 +14,7 @@ beforeAll(async () => {
   // A timeline grown enough for the first Jumpback, one tick short of a quiet achievement.
   const state = normalizeState({
     ...ripe(createInitialState()),
-    stats: { ticks: 7199, gathers: 0, built: 0, researched: 0, traded: 0 },
+    stats: { ticks: 7199, gathers: 0, built: 0, researched: 0, traded: 0, events: 0 },
   });
   localStorage.setItem('omt.save.v1', JSON.stringify(state));
   localStorage.setItem('omt.welcomed', 'true');

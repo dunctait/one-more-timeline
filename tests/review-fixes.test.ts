@@ -185,7 +185,7 @@ describe('fifth review fixes', () => {
   });
 
   it('a developer reset is a true reset, lifetime stats included', () => {
-    const s = { ...createInitialState(), stats: { ticks: 9, gathers: 9, built: 9, researched: 9, traded: 9 } };
+    const s = { ...createInitialState(), stats: { ticks: 9, gathers: 9, built: 9, researched: 9, traded: 9, events: 0 } };
     expect(executeAction(s, { type: 'DEV_RESET' }).state.stats.ticks).toBe(0);
   });
 });
@@ -217,7 +217,7 @@ describe('sixth review fixes', () => {
       ...createInitialState(),
       tick: 40,
       year: 11,
-      pendingChoice: { eventId: 'lost_traveller', tick: 37 },
+      pendingChoice: { eventId: 'wolves_at_the_stores', tick: 37 },
       challenge: 'swift_dawn',
       prestigeCounts: { 1: 1, 2: 0, 3: 0, 4: 0 },
     };
@@ -249,8 +249,8 @@ describe('seventh review fixes', () => {
     expect(buildTimelineViewModel(rich).buildings.find((b) => b.id === 'workshop')!.canAfford).toBe(true);
   });
 
-  it('the Hearth badge counts people only, but a waiting decision still lights it', () => {
-    const s: TimelineState = { ...createInitialState(), rung: 'band', pendingChoice: { eventId: 'lost_traveller', tick: 1 } };
+  it('the Hearth badge counts people only, but a waiting tale still lights it', () => {
+    const s: TimelineState = { ...createInitialState(), rung: 'band', waitingEvents: [{ eventId: 'berry_groves', tick: 1 }] };
     s.population.roles = { ...s.population.roles, unassigned: 0, forager: 1 };
     const badges = buildTimelineViewModel(s).tabBadges;
     expect(badges.hearth).toBe(true);

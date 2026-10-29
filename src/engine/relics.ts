@@ -40,7 +40,7 @@ export const RELICS: RelicDef[] = [
   { id: 'ancestor_mask', name: 'Ancestor Mask', icon: '🎭', description: 'Every timeline begins with one more person at the fire.', minRung: 'band', effects: { startPeople: 1 } },
   { id: 'oak_staff', name: 'Oak Staff', icon: '🌳', description: 'Foragers bring in +20% Food.', minRung: 'band', effects: { food: 0.2 } },
   { id: 'iron_chisel', name: 'Iron Chisel', icon: '⛏️', description: 'Builders produce +20% Materials.', minRung: 'settlement', effects: { materials: 0.2 } },
-  { id: 'bronze_compass', name: 'Bronze Compass', icon: '🧭', description: 'Years bring events 10 points more often.', minRung: 'settlement', effects: { eventChance: 0.1 } },
+  { id: 'bronze_compass', name: 'Bronze Compass', icon: '🧭', description: 'Events arrive half again as often.', minRung: 'settlement', effects: { eventChance: 0.5 } },
   { id: 'star_chart', name: 'Star Chart', icon: '🗺️', description: 'Scholars and libraries produce +20% Knowledge.', minRung: 'village', effects: { knowledge: 0.2 } },
   { id: 'cracked_hourglass', name: 'Cracked Hourglass', icon: '⏳', description: 'Your timeline keeps growing 4 hours longer while you are away.', minRung: 'village', effects: { awayHours: 4 } },
   { id: 'chronometer', name: 'Chronometer', icon: '⌚', description: 'Jumpbacks yield +10% more Insight.', minRung: 'town', effects: { insight: 0.1 } },
@@ -54,7 +54,8 @@ export const RELICS: RelicDef[] = [
 ];
 
 /** Chance, per event, that a relic turns up with it (while any remain). */
-export const RELIC_CHANCE = 0.08;
+/** Chance that deciding an event turns up a relic. */
+export const RELIC_CHANCE = 0.2;
 
 export function getRelic(id: string): RelicDef | undefined {
   return RELICS.find((r) => r.id === id);

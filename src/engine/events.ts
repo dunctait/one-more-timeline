@@ -3,135 +3,269 @@ import { relicBonus } from './relics.js';
 import { rungLevel } from './rules.js';
 
 /**
- * Seasonal events are gifts only: they can add resources, stability or
- * people, and can never take anything away ("Number only goes up").
+ * Events are decisions, in two kinds.
+ *
+ * A TALE is timeless: it waits on the Events page until the player picks it up, and its wording never implies a
+ * deadline, so answering it years later is just as valid. Tales weigh gains against each other, or spend one store
+ * to gain another.
+ *
+ * An URGENT event is time-sensitive and (almost always) unwelcome: it stops the timeline until the player chooses
+ * the lesser evil. Costs are shown beforehand, come out of what the player holds (never below zero), and only ever
+ * happen because the player chose, so absence is still safe.
  */
-export interface EventGift {
+export interface EventEffect {
+  /** Positive gains and negative costs, written for a Gathering Band economy and scaled for later rungs. */
   food?: number;
   materials?: number;
   knowledge?: number;
+  /** Stability and newcomers are never scaled, and never taken away. */
   stability?: number;
-  /** Newcomers who settle, if there is room. */
   people?: number;
 }
 
-export interface EventChoice extends EventGift {
+export interface EventChoice extends EventEffect {
   label: string;
-  description: string;
 }
+
+export type EventKind = 'tale' | 'urgent';
 
 export interface EventDef {
   id: string;
+  kind: EventKind;
   title: string;
   text: string;
   minRung: RungId;
-  /** Gift sizes are multiplied by (1 + rung level * 1.5). */
-  food?: number;
-  materials?: number;
-  knowledge?: number;
-  stability?: number;
-  /** Newcomers who settle, if there is room. */
-  people?: number;
-  /** When present, the player picks one gift instead of receiving the default one. */
-  choices?: EventChoice[];
+  choices: EventChoice[];
 }
 
-const BASE_EVENTS: EventDef[] = [
-  { id: 'bountiful_harvest', title: 'Bountiful Harvest', text: 'The wild groves hang heavy with fruit.', minRung: 'hearth', food: 10 },
-  { id: 'driftwood', title: 'Driftwood Haul', text: 'A flood leaves good timber along the riverbank.', minRung: 'hearth', materials: 8 },
-  { id: 'shooting_star', title: 'Shooting Star', text: 'A streak of fire crosses the sky; everyone talks of it for weeks.', minRung: 'hearth', knowledge: 5 },
-  { id: 'lost_traveller', title: 'Lost Traveller', text: 'A weary traveller shares your fire and decides to stay.', minRung: 'band', people: 1, stability: 3 },
-  { id: 'good_omens', title: 'Good Omens', text: 'A rainbow arches over the camp. Spirits lift.', minRung: 'band', stability: 8 },
-  { id: 'rich_ore_vein', title: 'Rich Vein', text: 'Builders stumble on a seam of fine stone.', minRung: 'settlement', materials: 12, knowledge: 2 },
-  { id: 'travelling_sage', title: 'Travelling Sage', text: 'A sage trades stories for a meal and leaves notes behind.', minRung: 'settlement', knowledge: 9 },
-  { id: 'harvest_festival', title: 'Harvest Festival', text: 'Music and feasting last until dawn.', minRung: 'village', food: 8, stability: 10 },
-  { id: 'wandering_family', title: 'Wandering Family', text: 'A family seeking safe walls asks to join you.', minRung: 'village', people: 2 },
-  { id: 'merchant_caravan', title: 'Merchant Caravan', text: 'A caravan gifts samples in hope of future trade.', minRung: 'town', food: 6, materials: 10 },
-  { id: 'scholars_gift', title: "Scholar's Bequest", text: 'A dying scholar leaves a chest of tablets to your library.', minRung: 'town', knowledge: 12 },
-  { id: 'royal_envoy', title: 'Envoy of a Far Realm', text: 'An envoy arrives bearing gifts and good will.', minRung: 'city', food: 10, materials: 10, knowledge: 10 },
-  { id: 'migration', title: 'Great Migration', text: 'Whole clans, drawn by your fame, arrive at the gates.', minRung: 'city', people: 3, stability: 5 },
-  { id: 'warm_spell', title: 'Warm Spell', text: 'An unseasonal warmth makes every task easier.', minRung: 'hearth', stability: 6 },
-  { id: 'fruitful_fishing', title: 'Fruitful Fishing', text: 'The river runs thick with silver fish.', minRung: 'hearth', food: 8 },
-  { id: 'clever_crow', title: 'Clever Crow', text: 'A crow that solves puzzles teaches everyone something.', minRung: 'hearth', knowledge: 4 },
-  { id: 'friendly_dogs', title: 'Friendly Dogs', text: 'A pack of wild dogs adopts the camp and guards it well.', minRung: 'band', stability: 6, people: 1 },
-  { id: 'honey_tree', title: 'Honey Tree', text: 'A hollow oak drips with honey.', minRung: 'band', food: 12 },
-  { id: 'old_quarry', title: 'Old Quarry', text: 'Someone long ago left cut stone behind.', minRung: 'settlement', materials: 14 },
-  { id: 'rainmaker', title: 'Rainmaker', text: 'Rain arrives right on time, and spirits rise with the crops.', minRung: 'settlement', food: 6, stability: 6 },
-  { id: 'storyteller', title: 'Storyteller', text: 'A famous storyteller holds the whole village in thrall.', minRung: 'village', knowledge: 8, stability: 6 },
-  { id: 'trade_fair', title: 'Trade Fair', text: 'Stalls fill the square for three days of bartering.', minRung: 'town', food: 6, materials: 8, stability: 5 },
-  { id: 'grand_parade', title: 'Grand Parade', text: 'Banners, drums and dancing fill the avenues.', minRung: 'city', knowledge: 8, stability: 10 },
-  { id: 'inventors_visit', title: "Inventor's Visit", text: 'A tinkerer shows off marvels and leaves the plans behind.', minRung: 'city', materials: 12, knowledge: 12 },
-  { id: 'golden_harvest', title: 'Golden Harvest', text: 'Every field, orchard and vine is heavy beyond memory.', minRung: 'realm', food: 20, stability: 5 },
-  { id: 'gentle_rain', title: 'Gentle Rain', text: 'A soft rain freshens everything.', minRung: 'hearth', food: 6, stability: 3 },
-  { id: 'crystal_spring', title: 'Crystal Spring', text: 'Someone finds a spring of clear water in the hills.', minRung: 'band', stability: 8, food: 4 },
-  { id: 'comet_year', title: 'Comet Year', text: 'A comet hangs over the camp for a week.', minRung: 'settlement', knowledge: 10 },
-  { id: 'friendly_rivals', title: 'Friendly Rivals', text: 'A neighbouring village sends a delegation.', minRung: 'village', food: 10, materials: 10 },
-  { id: 'travelling_bards', title: 'Travelling Bards', text: 'Songs and stories drift down the road.', minRung: 'village', stability: 10, knowledge: 4 },
-  { id: 'bumper_barley', title: 'Bumper Barley', text: 'The barley stands taller than the farmers.', minRung: 'village', food: 16 },
-  { id: 'old_ruins', title: 'Old Ruins', text: 'Diggers uncover walls from an earlier age.', minRung: 'town', materials: 20 },
-  { id: 'master_mason', title: 'Master Mason', text: 'A famed mason offers a season of advice.', minRung: 'town', materials: 16, knowledge: 4 },
-  { id: 'harbor_fleet', title: 'Harbour Fleet', text: 'A whole fleet puts in to trade.', minRung: 'city', food: 14, materials: 8 },
-  { id: 'great_library_gift', title: 'Great Library Gift', text: 'A distant library copies its best works for you.', minRung: 'city', knowledge: 18 },
-  { id: 'twin_moons', title: 'Twin Moons', text: 'Two moons share the sky and the astronomers weep with joy.', minRung: 'realm', knowledge: 16, stability: 8 },
-  { id: 'imperial_tribute', title: 'Imperial Tribute', text: 'Lesser realms send tribute to your court.', minRung: 'realm', materials: 24, food: 12 },
-  { id: 'astral_alignment', title: 'Astral Alignment', text: 'The heavens align exactly as your astronomers foretold.', minRung: 'realm', knowledge: 20, stability: 10 },
+const TALES: EventDef[] = [
+  {
+    id: 'night_hunters', kind: 'tale', title: 'Night Hunters', minRung: 'band',
+    text: 'Some of the men like to hunt after dark, when the game comes down to the water.',
+    choices: [
+      { label: 'Let them hunt', materials: -6, food: 18 },
+      { label: 'Keep them home', stability: 4 },
+    ],
+  },
+  {
+    id: 'berry_groves', kind: 'tale', title: 'Berry Groves', minRung: 'band',
+    text: 'There are groves where the berries ripen thick every autumn.',
+    choices: [
+      { label: 'Gather them', food: 14 },
+      { label: 'Dry them for later', food: 8, stability: 3 },
+    ],
+  },
+  {
+    id: 'strangers_at_the_fire', kind: 'tale', title: 'Strangers at the Fire', minRung: 'band',
+    text: 'Travellers sometimes come to a warm fire and ask to share it.',
+    choices: [
+      { label: 'Welcome them', people: 1, stability: 2 },
+      { label: 'Trade stories', knowledge: 7 },
+    ],
+  },
+  {
+    id: 'old_songs', kind: 'tale', title: 'The Old Songs', minRung: 'band',
+    text: 'A people keeps its memory in song, and the old songs are never quite finished.',
+    choices: [
+      { label: 'Sing them together', stability: 7 },
+      { label: 'Teach them to the young', knowledge: 6 },
+    ],
+  },
+  {
+    id: 'flint_seam', kind: 'tale', title: 'A Seam of Flint', minRung: 'settlement',
+    text: 'The hills hold seams of fine flint, if someone cares to work them.',
+    choices: [
+      { label: 'Quarry it', materials: 16 },
+      { label: 'Study the strata', knowledge: 10 },
+      { label: 'Work it slowly', materials: 7, knowledge: 5 },
+    ],
+  },
+  {
+    id: 'river_fish', kind: 'tale', title: 'Silver in the River', minRung: 'settlement',
+    text: 'In some years the river runs thick with fish, and a net is all it takes.',
+    choices: [
+      { label: 'Net them', food: 20 },
+      { label: 'Smoke the catch', materials: -5, food: 26 },
+    ],
+  },
+  {
+    id: 'wise_elder', kind: 'tale', title: 'What the Elders Know', minRung: 'settlement',
+    text: 'Elders remember things the young have never heard, and are glad to be asked.',
+    choices: [
+      { label: 'Sit and listen', knowledge: 11 },
+      { label: 'Honour them', stability: 8 },
+    ],
+  },
+  {
+    id: 'harvest_rites', kind: 'tale', title: 'Harvest Rites', minRung: 'village',
+    text: 'A feast after the harvest binds a people together, and the grain is there to be spent.',
+    choices: [
+      { label: 'Hold the feast', food: -14, stability: 12, knowledge: 6 },
+      { label: 'Fill the stores', food: 18 },
+    ],
+  },
+  {
+    id: 'wandering_family', kind: 'tale', title: 'Families on the Road', minRung: 'village',
+    text: 'Families on the road look for safe walls and a place to stay.',
+    choices: [
+      { label: 'Take them in', people: 2 },
+      { label: 'Trade news and tools', materials: 14, knowledge: 4 },
+    ],
+  },
+  {
+    id: 'travelling_bards', kind: 'tale', title: 'Travelling Bards', minRung: 'village',
+    text: 'Bards walk the roads between villages, trading songs for supper.',
+    choices: [
+      { label: 'Feed them well', food: -8, stability: 11 },
+      { label: 'Learn their songs', knowledge: 9 },
+    ],
+  },
+  {
+    id: 'merchant_caravan', kind: 'tale', title: 'Merchant Caravans', minRung: 'town',
+    text: 'Caravans come through walled towns, and will sell whatever there is a wish for.',
+    choices: [
+      { label: 'Buy tools', materials: 24 },
+      { label: 'Buy grain', food: 24 },
+      { label: 'Buy books', knowledge: 18 },
+    ],
+  },
+  {
+    id: 'old_ruins', kind: 'tale', title: 'Old Ruins', minRung: 'town',
+    text: 'Walls from an earlier age lie under the fields, waiting for a spade.',
+    choices: [
+      { label: 'Salvage the stone', materials: 28 },
+      { label: 'Dig carefully', knowledge: 22 },
+    ],
+  },
+  {
+    id: 'master_mason', kind: 'tale', title: 'A Master Mason', minRung: 'town',
+    text: 'There are masons whose advice is worth a season of work, if fed and housed.',
+    choices: [
+      { label: 'Feed and house one', food: -10, materials: 30 },
+      { label: 'Ask only for plans', knowledge: 14 },
+    ],
+  },
+  {
+    id: 'far_envoys', kind: 'tale', title: 'Envoys from Far Realms', minRung: 'city',
+    text: 'Envoys travel far to meet great cities, and always bring something to offer.',
+    choices: [
+      { label: 'Accept their gold', materials: 22, food: 22 },
+      { label: 'Accept their scholars', knowledge: 34 },
+      { label: 'Accept a treaty', stability: 14, knowledge: 12 },
+    ],
+  },
+  {
+    id: 'great_migration', kind: 'tale', title: 'Great Migrations', minRung: 'city',
+    text: 'Whole clans move toward cities that are famous, and ask at the gates.',
+    choices: [
+      { label: 'Welcome everyone', people: 3, stability: 5 },
+      { label: 'Welcome the skilled', people: 1, knowledge: 18, materials: 12 },
+    ],
+  },
+  {
+    id: 'distant_library', kind: 'tale', title: 'A Distant Library', minRung: 'city',
+    text: 'Far libraries will copy their best works for those who send the means.',
+    choices: [
+      { label: 'Send materials', materials: -20, knowledge: 40 },
+      { label: 'Send nothing', stability: 4 },
+    ],
+  },
+  {
+    id: 'astral_alignment', kind: 'tale', title: 'The Alignment', minRung: 'realm',
+    text: 'The heavens align as the astronomers foretold, and will again.',
+    choices: [
+      { label: 'Observe the sky', knowledge: 46 },
+      { label: 'Hold a festival', stability: 14, food: 22 },
+    ],
+  },
+  {
+    id: 'imperial_tribute', kind: 'tale', title: 'Tribute of Lesser Realms', minRung: 'realm',
+    text: 'Lesser realms owe a court like yours tribute, in whatever form is wanted.',
+    choices: [
+      { label: 'Ask for timber', materials: 44 },
+      { label: 'Ask for grain', food: 44 },
+      { label: 'Ask for learned men', knowledge: 36 },
+    ],
+  },
 ];
 
-/**
- * Choice events: pick one gift. If the player is away, the first option is taken
- * on their behalf when the next event arrives. Nothing is ever lost either way.
- */
-const CHOICES: Record<string, EventChoice[]> = {
-  lost_traveller: [
-    { label: 'Welcome them', description: 'They join your people and lift spirits.', people: 1, stability: 3 },
-    { label: 'Trade stories', description: 'They share what they know, then move on.', knowledge: 6 },
-  ],
-  good_omens: [
-    { label: 'Hold a ritual', description: 'A gathering around the fire.', stability: 8 },
-    { label: 'Use the calm', description: 'Forage while the weather holds.', food: 8 },
-  ],
-  rich_ore_vein: [
-    { label: 'Quarry the stone', description: 'Raw materials for your builders.', materials: 14 },
-    { label: 'Study the strata', description: 'The rock tells a story.', knowledge: 10 },
-  ],
-  merchant_caravan: [
-    { label: 'Buy tools', description: 'Good tools for the builders.', materials: 16 },
-    { label: 'Buy grain', description: 'Full sacks for the granary.', food: 16 },
-    { label: 'Buy books', description: 'Tablets and scrolls.', knowledge: 12 },
-  ],
-  royal_envoy: [
-    { label: 'Accept gold', description: 'Materials and food for the realm.', materials: 14, food: 14 },
-    { label: 'Accept scholars', description: 'A delegation of learned guests.', knowledge: 20 },
-    { label: 'Accept a treaty', description: 'Peace on the borders.', stability: 12, knowledge: 8 },
-  ],
-  migration: [
-    { label: 'Welcome everyone', description: 'Open the gates to all who come.', people: 3, stability: 5 },
-    { label: 'Welcome the skilled', description: 'Take only craftspeople and scribes.', people: 1, knowledge: 12, materials: 8 },
-  ],
-  friendly_rivals: [
-    { label: 'Exchange gifts', description: 'Grain and timber change hands.', food: 10, materials: 10 },
-    { label: 'Exchange ideas', description: 'Scholars compare notes for a week.', knowledge: 14 },
-  ],
-  comet_year: [
-    { label: 'Record it', description: 'Astronomers chart every night.', knowledge: 10 },
-    { label: 'Feast under it', description: 'A festival for the whole camp.', stability: 10, food: 6 },
-  ],
-  old_ruins: [
-    { label: 'Salvage the stone', description: 'Cut blocks, ready to use.', materials: 20 },
-    { label: 'Excavate carefully', description: 'Learn who built them.', knowledge: 16 },
-  ],
-  astral_alignment: [
-    { label: 'Observe the sky', description: 'A great leap in understanding.', knowledge: 26 },
-    { label: 'Hold a festival', description: 'The whole realm celebrates.', stability: 14, food: 12 },
-  ],
-};
+const URGENT: EventDef[] = [
+  {
+    id: 'wolves_at_the_stores', kind: 'urgent', title: 'Wolves at the Stores!', minRung: 'band',
+    text: 'Wolves have found the food stores, and every moment they stay costs more.',
+    choices: [
+      { label: 'Drive them off', materials: -8 },
+      { label: 'Let them eat', food: -14 },
+    ],
+  },
+  {
+    id: 'storm_front', kind: 'urgent', title: 'A Storm Is Coming', minRung: 'band',
+    text: 'The sky is black to the west and the roofs are not ready.',
+    choices: [
+      { label: 'Reinforce the roofs', materials: -10 },
+      { label: 'Ride it out', food: -6, knowledge: -5 },
+    ],
+  },
+  {
+    id: 'failing_fields', kind: 'urgent', title: 'The Fields Are Failing', minRung: 'settlement',
+    text: 'Blight has reached the eastern fields, and the harvest will not wait.',
+    choices: [
+      { label: 'Cut and burn the blight', materials: -12 },
+      { label: 'Ration the stores', food: -14 },
+    ],
+  },
+  {
+    id: 'fever_in_the_camp', kind: 'urgent', title: 'Fever in the Camp', minRung: 'settlement',
+    text: 'A fever is moving from hearth to hearth.',
+    choices: [
+      { label: 'Buy herbs with knowledge', knowledge: -10 },
+      { label: 'Nurse the sick with food', food: -14 },
+    ],
+  },
+  {
+    id: 'raiders_on_the_ridge', kind: 'urgent', title: 'Raiders on the Ridge', minRung: 'village',
+    text: 'Armed riders sit on the ridge and send word that they want tribute.',
+    choices: [
+      { label: 'Pay in grain', food: -22 },
+      { label: 'Pay in timber', materials: -18 },
+      { label: 'Dig in and bar the gates', materials: -8, knowledge: -10 },
+    ],
+  },
+  {
+    id: 'fire_in_the_workshops', kind: 'urgent', title: 'Fire in the Workshops!', minRung: 'town',
+    text: 'Flames have caught in the workshops, and the wind is rising.',
+    choices: [
+      { label: 'Fight it with everything', materials: -26 },
+      { label: 'Save the tablets, let the rest burn', materials: -12, knowledge: -16 },
+    ],
+  },
+  {
+    id: 'cracking_hall', kind: 'urgent', title: 'The Great Hall Cracks', minRung: 'city',
+    text: 'The great hall has started to crack along its central beam.',
+    choices: [
+      { label: 'Shore it up', materials: -40 },
+      { label: 'Call the scholars to redraw it', knowledge: -34 },
+    ],
+  },
+];
 
-export const EVENTS: EventDef[] = BASE_EVENTS.map((e) =>
-  CHOICES[e.id] ? { ...e, choices: CHOICES[e.id] } : e
-);
+export const EVENTS: EventDef[] = [...TALES, ...URGENT];
 
-/** Chance that a given year brings an event. */
-export const EVENT_CHANCE = 0.45;
+export function getEvent(id: string): EventDef | undefined {
+  return EVENTS.find((e) => e.id === id);
+}
+
+/** Chances that a given year brings a tale or an urgent event. Tales wait for the player; urgent ones are rare. */
+export const TALE_CHANCE = 0.03;
+export const URGENT_CHANCE = 0.008;
+
+/** At most this many tales wait at once; none arrive while the shelf is full, so nothing piles up. */
+export const MAX_WAITING_TALES = 4;
+
+/** Amounts are written for the rung that introduces an event, and grow by half again for each rung beyond it. */
+export function eventScale(level: number, minRung: RungId): number {
+  return 1 + 0.5 * Math.max(0, level - rungLevel(minRung));
+}
 
 /** Every timeline gets its own variation of the same seed, so no two timelines repeat their events. */
 export function timelineSeed(seed: number, timelinesCreated = 0): number {
@@ -147,48 +281,36 @@ export function seededUnit(seed: number, tick: number, salt = 0): number {
   return h / 4294967296;
 }
 
-export interface RolledEvent {
-  def: EventDef;
-  food: number;
-  materials: number;
-  knowledge: number;
-  stability: number;
-  people: number;
+export interface RollOptions {
+  /** Whether an urgent event may arrive now (never while one is pending or the player is away). */
+  urgent?: boolean;
+  /** Whether a tale may arrive now (never while the shelf is full). */
+  tales?: boolean;
+  /** Tales already waiting, so the same one never queues twice. */
+  exclude?: readonly string[];
 }
 
-/** Events roll once per year, at the start of summer. */
+/** Events roll once per year, at the start of summer. Nothing happens to a hearth nobody has tended. */
 export function rollEvent(
   state: Pick<TimelineState, 'seed' | 'rung'> & Partial<Pick<TimelineState, 'timelinesCreated' | 'relics'>>,
-  tick: number
-): RolledEvent | null {
+  tick: number,
+  options: RollOptions = { urgent: true, tales: true }
+): EventDef | null {
   if (tick % 4 !== 1) return null;
-  // Nothing happens to a hearth nobody has tended: the first Rung is earned by the player's own hands.
-  if (rungLevel(state.rung) < 1) return null;
-  const seed = timelineSeed(state.seed, state.timelinesCreated);
-  const chance = EVENT_CHANCE + relicBonus(state.relics ?? [], 'eventChance');
-  if (seededUnit(seed, tick) >= chance) return null;
   const level = rungLevel(state.rung);
-  const pool = EVENTS.filter((e) => rungLevel(e.minRung) <= level);
-  const def = pool[Math.floor(seededUnit(seed, tick, 1) * pool.length)];
-  const scale = 1 + level * 1.5;
-  return {
-    def,
-    food: (def.food ?? 0) * scale,
-    materials: (def.materials ?? 0) * scale,
-    knowledge: (def.knowledge ?? 0) * scale,
-    stability: def.stability ?? 0,
-    people: def.people ?? 0,
-  };
-}
-
-/** Scales a gift for the rung it is received at (stability and people are not scaled). */
-export function scaleGift(gift: EventGift, rungLevelNow: number): Required<EventGift> {
-  const scale = 1 + rungLevelNow * 1.5;
-  return {
-    food: (gift.food ?? 0) * scale,
-    materials: (gift.materials ?? 0) * scale,
-    knowledge: (gift.knowledge ?? 0) * scale,
-    stability: gift.stability ?? 0,
-    people: gift.people ?? 0,
-  };
+  if (level < 1) return null;
+  const seed = timelineSeed(state.seed, state.timelinesCreated);
+  const more = 1 + relicBonus(state.relics ?? [], 'eventChance');
+  const roll = seededUnit(seed, tick);
+  const urgentEdge = URGENT_CHANCE * more;
+  const taleEdge = urgentEdge + TALE_CHANCE * more;
+  let kind: EventKind | null = null;
+  if (roll < urgentEdge) kind = 'urgent';
+  else if (roll < taleEdge) kind = 'tale';
+  if (!kind || (kind === 'urgent' && !options.urgent) || (kind === 'tale' && !options.tales)) return null;
+  const pool = EVENTS.filter(
+    (e) => e.kind === kind && rungLevel(e.minRung) <= level && !(options.exclude ?? []).includes(e.id)
+  );
+  if (pool.length === 0) return null;
+  return pool[Math.floor(seededUnit(seed, tick, 1) * pool.length)];
 }

@@ -1,54 +1,90 @@
 import { describe, expect, it } from 'vitest';
-import { createInitialState, executeAction, fastForward, stepTick } from '../src/engine/engine.js';
-import { EVENTS } from '../src/engine/events.js';
+import { createInitialState, executeAction, fastForward, normalizeState, stepTick } from '../src/engine/engine.js';
+import { eventScale } from '../src/engine/events.js';
 import { TimelineState } from '../src/engine/types.js';
 import { buildTimelineViewModel } from '../src/ui/view-model.js';
 
-function untilDecision(seed = 11): TimelineState {
-  let s: TimelineState = { ...createInitialState({ seed }), rung: 'realm' };
-  s = { ...s, caps: { food: 500, materials: 500, knowledge: 500 } };
-  for (let i = 0; i < 4000 && !s.pendingChoice; i++) s = stepTick(s);
-  return s;
-}
+const at = (patch: Partial<TimelineState>): TimelineState => ({
+  ...createInitialState({ seed: 11 }),
+  caps: { food: 500, materials: 500, knowledge: 500 },
+  ...patch,
+});
 
-describe('choice events', () => {
-  it('every option is a gift and there are always at least two', () => {
-    for (const e of EVENTS.filter((x) => x.choices)) {
-      expect(e.choices!.length).toBeGreaterThanOrEqual(2);
-      for (const c of e.choices!) {
-        for (const v of [c.food, c.materials, c.knowledge, c.stability, c.people]) expect(v ?? 0).toBeGreaterThanOrEqual(0);
-        expect(c.label.length).toBeGreaterThan(2);
-      }
-    }
+describe('tales: timeless events that wait', () => {
+  it('sit on the shelf until picked up, however long that takes', () => {
+    const s = at({ rung: 'village', waitingEvents: [{ eventId: 'wandering_family', tick: 1 }] });
+    let later = s;
+    for (let i = 0; i < 2000; i++) later = stepTick(later, { quiet: true });
+    expect(later.waitingEvents.some((w) => w.eventId === 'wandering_family')).toBe(true);
+    const r = executeAction(later, { type: 'RESOLVE_TALE', eventId: 'wandering_family', index: 1 });
+    expect(r.success).toBe(true);
+    expect(r.state.waitingEvents.some((w) => w.eventId === 'wandering_family')).toBe(false);
+    expect(r.state.stats.events).toBe(1);
   });
 
-  it('wait for the player and are visible, with an actionable Hearth badge', () => {
-    const s = untilDecision();
-    expect(s.pendingChoice).not.toBeNull();
+  it('pay a shown cost out of what the player holds, never below zero, and gain scaled amounts', () => {
+    const s = at({ rung: 'band', waitingEvents: [{ eventId: 'night_hunters', tick: 1 }] });
+    s.resources = { ...s.resources, materials: 2, food: 10 };
+    const r = executeAction(s, { type: 'RESOLVE_TALE', eventId: 'night_hunters', index: 0 }).state;
+    expect(r.resources.materials).toBe(0);
+    expect(r.resources.food).toBeCloseTo(10 + 18 * eventScale(1, 'band'), 5);
+  });
+
+  it('refuse a tale that is not waiting or a choice that does not exist', () => {
+    const s = at({ rung: 'band', waitingEvents: [{ eventId: 'berry_groves', tick: 1 }] });
+    expect(executeAction(s, { type: 'RESOLVE_TALE', eventId: 'old_songs', index: 0 }).success).toBe(false);
+    expect(executeAction(s, { type: 'RESOLVE_TALE', eventId: 'berry_groves', index: 9 }).success).toBe(false);
+  });
+
+  it('show on the Events page with icon chips, a NEW pill the first time and a ring afterwards', () => {
+    const s = at({ rung: 'band', waitingEvents: [{ eventId: 'night_hunters', tick: 1 }] });
     const vm = buildTimelineViewModel(s);
-    expect(vm.decision?.options.length).toBeGreaterThanOrEqual(2);
-    expect(vm.tabBadges.hearth).toBe(true);
+    expect(vm.disclosure.events).toBe(true);
+    expect(vm.tales[0].options[0].chips.some((c) => c.cost)).toBe(true);
+    expect(vm.tabBadges.levels['hearth.events']).toEqual({ novel: 1, available: 0 });
+    const later = buildTimelineViewModel({ ...s, stats: { ...s.stats, events: 3 } });
+    expect(later.tabBadges.levels['hearth.events']).toEqual({ novel: 0, available: 1 });
+    expect(buildTimelineViewModel(at({ rung: 'band' })).disclosure.events).toBe(false);
   });
 
-  it('apply the chosen gift once and clear the decision', () => {
-    const s = untilDecision();
-    const def = EVENTS.find((e) => e.id === s.pendingChoice!.eventId)!;
-    const before = { ...s.resources };
+  it('survive saving and loading, and drop anything unknown', () => {
+    const s = at({ rung: 'band', waitingEvents: [{ eventId: 'berry_groves', tick: 1 }, { eventId: 'nope', tick: 2 }] });
+    const loaded = normalizeState(JSON.parse(JSON.stringify(s)));
+    expect(loaded.waitingEvents.map((w) => w.eventId)).toEqual(['berry_groves']);
+  });
+});
+
+describe('urgent events: the lesser evil, with the timeline stopped', () => {
+  it('stop the timeline until answered', () => {
+    const s = at({ rung: 'village', pendingChoice: { eventId: 'raiders_on_the_ridge', tick: 5 } });
+    expect(stepTick(s)).toBe(s);
+    expect(fastForward(s, 500).state.tick).toBe(s.tick);
+  });
+
+  it('take the chosen price once, never below zero, and let time run again', () => {
+    const s = at({ rung: 'village', pendingChoice: { eventId: 'raiders_on_the_ridge', tick: 5 } });
+    s.resources = { ...s.resources, food: 10, materials: 100 };
     const r = executeAction(s, { type: 'RESOLVE_CHOICE', index: 0 });
     expect(r.success).toBe(true);
+    expect(r.state.resources.food).toBe(0);
+    expect(r.state.resources.materials).toBe(100);
     expect(r.state.pendingChoice).toBeNull();
-    const c = def.choices![0];
-    if (c.knowledge) expect(r.state.resources.knowledge).toBeGreaterThan(before.knowledge);
-    if (c.food) expect(r.state.resources.food).toBeGreaterThan(before.food);
+    expect(stepTick(r.state).tick).toBe(s.tick + 1);
     expect(executeAction(r.state, { type: 'RESOLVE_CHOICE', index: 0 }).success).toBe(false);
-    expect(executeAction(s, { type: 'RESOLVE_CHOICE', index: 99 }).success).toBe(false);
   });
 
-  it('are settled with the first option if ignored, so absence never costs anything', () => {
-    const start = untilDecision();
-    const away = fastForward(start, 6000).state;
+  it('never arrive while the player is away, so absence costs nothing', () => {
+    const start = at({ rung: 'realm' });
+    start.resources = { ...start.resources, food: 100, materials: 100, knowledge: 100 };
+    const away = fastForward(start, 20000).state;
+    expect(away.pendingChoice).toBeNull();
     expect(away.resources.food).toBeGreaterThanOrEqual(start.resources.food);
-    expect(away.resources.knowledge).toBeGreaterThanOrEqual(start.resources.knowledge);
-    expect(away.logs.concat(start.logs).some((l) => l.text.includes('in your absence')) || away.pendingChoice !== start.pendingChoice).toBe(true);
+    expect(away.resources.materials).toBeGreaterThanOrEqual(start.resources.materials);
+  });
+
+  it('are shown in a modal view-model with priced options', () => {
+    const vm = buildTimelineViewModel(at({ rung: 'village', pendingChoice: { eventId: 'raiders_on_the_ridge', tick: 5 } }));
+    expect(vm.urgent?.options.length).toBe(3);
+    expect(vm.urgent?.options.every((o) => o.chips.some((c) => c.cost))).toBe(true);
   });
 });

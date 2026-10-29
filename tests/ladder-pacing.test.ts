@@ -8,6 +8,7 @@ import { BuildingId, RoleId, TimelineState } from '../src/engine/types.js';
 function play(state: TimelineState): TimelineState {
   let s = state;
   const act = (a: Parameters<typeof executeAction>[1]) => { const r = executeAction(s, a); if (r.success) s = r.state; return r.success; };
+  if (s.pendingChoice) act({ type: 'RESOLVE_CHOICE', index: 0 });
   act({ type: 'FORAGE' }); act({ type: 'SCAVENGE' }); act({ type: 'STUDY' });
   const level = rungLevel(s.rung);
   const wanted: RoleId[] = level >= 3 ? ['forager', 'builder', 'scholar', 'healer'] : level >= 2 ? ['forager', 'builder', 'scholar'] : ['forager', 'builder'];

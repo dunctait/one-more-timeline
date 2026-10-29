@@ -33,6 +33,8 @@ Feedback Codification Protocol: Whenever user feedback is received or an operati
 - Badges are for actionable state, not logs: navigation indicators MUST point to attention-required work, not historical or log-only views.
 - Progressive disclosure of complexity: never show a mechanic, currency, tier or preview until the player first comes across it; once met it stays. Hidden mechanics must not be named in goals, banners, badges or header pills.
 - Only half the people work (rounded down): jobs, not headcount, gate roles; explain it where roles are assigned and never unassign anyone from an old save.
+- Nothing moves under the player's thumb: manual buttons stay at the top, headers use fixed widths, notices live in a bottom banner row above the sub-menu, and toasts measure the screen and sit above all of it.
+- Events are decisions in two kinds: timeless tales that wait on their own page, and rare urgent lesser-evil events that stop the timeline in a modal (about one in five); never free gifts, never time pressure on a tale, costs shown in icons beforehand.
 - Show only what is unlocked: never render a locked building, wonder, idea or trial; a sub-menu page exactly one rung from opening MAY show greyed out with when it opens, otherwise the cell is blank.
 - The first of anything is an event: the first purchase, rung or unlock must be a short earned slog followed by clear relief; do not let players plough through purchases until each feels unimportant.
 - Pages hold a handful: five to ten items on every full page of a paged list; condense cards to icons and numbers (board-game style, `src/ui/icons.ts`) rather than sentences.

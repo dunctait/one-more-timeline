@@ -108,36 +108,12 @@
         </div>
       </header>
 
-      <!-- Toasts float above the page; the banner below is visible on every tab -->
+      <!-- Toasts float above the page, and above the banner row and menus at the bottom -->
       <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
-      <section id="ready-banner" class="ready-banner" aria-label="Ready to act" hidden>
-        <div class="ready-banner-text">
-          <strong id="ready-banner-title"></strong>
-          <span id="ready-banner-steps"></span>
-        </div>
-        <button id="ready-banner-go" class="btn btn-sm" type="button">Go</button>
-      </section>
-
       <main class="tab-viewport">
         <section id="tab-hearth" class="tab-panel active" role="tabpanel" aria-labelledby="tab-btn-hearth">
           <div class="tab-inner">
             <div class="subpanel" data-sub="gather" data-label="Gather" data-icon="🌿">
-              <section id="goal-card" class="section-box goal-card" aria-label="Next goal">
-                <div class="section-header">
-                  <h2 id="goal-title" class="section-title">🎯 Next goal</h2>
-                  <button id="goal-go" class="btn btn-sm" type="button">Go</button>
-                </div>
-                <ul id="goal-steps" class="goal-steps"></ul>
-              </section>
-
-              <section id="decision-card" class="section-box goal-card ready" aria-live="polite" hidden>
-                <div class="section-header">
-                  <h2 id="decision-title" class="section-title">A decision awaits</h2>
-                </div>
-                <p id="decision-text" class="settings-copy"></p>
-                <div id="decision-options" class="edict-options"></div>
-              </section>
-
               <!-- Manual Actions -->
             <section class="section-box">
               <div class="section-header">
@@ -168,6 +144,14 @@
                 </button>
               </div>
             </section>
+
+              <section id="goal-card" class="section-box goal-card" aria-label="Next goal">
+                <div class="section-header">
+                  <h2 id="goal-title" class="section-title">🎯 Next goal</h2>
+                  <button id="goal-go" class="btn btn-sm" type="button">Go</button>
+                </div>
+                <ul id="goal-steps" class="goal-steps"></ul>
+              </section>
 
               <div class="pace-row">
                 <p id="action-pacing" class="action-pacing" aria-live="polite">Manual actions are immediate.</p>
@@ -208,13 +192,16 @@
               </div>
               </section>
             </div>
-            <div class="subpanel" data-sub="seasons" data-label="Seasons" data-icon="🍂" hidden>
-              <section class="section-box">
+            <div class="subpanel" data-sub="events" data-label="Events" data-icon="🎭" data-disclosure="events" hidden>
+              <section class="section-box pager-box">
                 <div class="section-header">
-                  <h2 class="section-title">🍂 The Seasons</h2>
-                  <span class="section-hint">Every season helps something</span>
+                  <h2 class="section-title">🎭 Events</h2>
+                  <span class="section-hint">They keep until you choose</span>
                 </div>
-                <div id="season-list" class="season-list"></div>
+                <div class="pager" data-pager="events">
+                  <div id="event-list" class="pager-items event-list"></div>
+                  <div class="pager-bar" hidden></div>
+                </div>
               </section>
             </div>
           </div>
@@ -576,6 +563,14 @@
       </main>
 
       <!-- Second tier: pages of the chosen section, just above the main bar -->
+      <section id="ready-banner" class="ready-banner" aria-label="Ready to act" hidden>
+        <div class="ready-banner-text">
+          <strong id="ready-banner-title"></strong>
+          <span id="ready-banner-steps"></span>
+        </div>
+        <button id="ready-banner-go" class="btn btn-sm" type="button">Go</button>
+      </section>
+
       <nav id="subnav" class="subnav" role="tablist" aria-label="Pages of this section"></nav>
 
       <!-- Persistent Bottom Tab Navigation Bar -->
@@ -607,6 +602,15 @@
     </div>
 
     <!-- Feature Proposal Modal -->
+    <div id="event-modal" class="event-modal" role="alertdialog" aria-modal="true" aria-labelledby="event-modal-title" hidden>
+      <div class="event-card">
+        <h2 id="event-modal-title" class="event-title"></h2>
+        <p id="event-modal-text" class="event-text"></p>
+        <div id="event-modal-options" class="event-options"></div>
+        <p class="event-note">The timeline is paused until you choose.</p>
+      </div>
+    </div>
+
     <div id="proposal-modal-backdrop" class="modal-backdrop" hidden>
        <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-proposal-title" tabindex="-1">
 

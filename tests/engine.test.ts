@@ -87,6 +87,7 @@ describe('Deterministic Engine', () => {
     }
     // Advance to Year 10
     while (state.year < 10) {
+      if (state.pendingChoice) action({ type: 'RESOLVE_CHOICE', index: 0 });
       tick();
     }
     action({ type: 'ADVANCE_RUNG', rungId: 'settlement' });

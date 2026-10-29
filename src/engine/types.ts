@@ -110,6 +110,8 @@ export interface LifetimeStats {
   built: number;
   researched: number;
   traded: number;
+  /** Events decided, so the Events page stays once the first has been met. */
+  events: number;
 }
 
 export interface TimelineState {
@@ -141,6 +143,8 @@ export interface TimelineState {
   challenge: string | null;
   /** A choice event awaiting the player's pick (resolved automatically if they stay away). */
   pendingChoice: { eventId: string; tick: number } | null;
+  /** Timeless tales waiting on the Events page until the player picks them up. */
+  waitingEvents: Array<{ eventId: string; tick: number }>;
   /** Relics found in events. Permanent: never lost by any reset. */
   relics: string[];
   /** Earned achievement ids. Permanent; each adds Renown production. */
@@ -178,6 +182,7 @@ export type EngineAction =
   | { type: 'START_CHALLENGE'; challengeId: string }
   | { type: 'ABANDON_CHALLENGE' }
   | { type: 'RESOLVE_CHOICE'; index: number }
+  | { type: 'RESOLVE_TALE'; eventId: string; index: number }
   | { type: 'CHOOSE_BOON'; featureId: FeatureId }
   | { type: 'BARTER'; from: TradeableResource; to: TradeableResource; amount: number }
   | { type: 'SET_EDICT'; slot: RungId; edictId: string | null }

@@ -55,6 +55,12 @@ function states(): Array<{ name: string; state: TimelineState }> {
     }),
     rung: 'town',
     pendingBoon: ['lore_keepers', 'founders', 'cartographers'],
+    waitingEvents: [
+      { eventId: 'merchant_caravan', tick: 100 },
+      { eventId: 'old_ruins', tick: 120 },
+      { eventId: 'master_mason', tick: 140 },
+      { eventId: 'harvest_rites', tick: 160 },
+    ],
     tick: 400,
     year: 100,
     resources: { food: 300, materials: 300, knowledge: 200, stability: 100 },
@@ -88,7 +94,15 @@ function states(): Array<{ name: string; state: TimelineState }> {
     resources: { food: 9999, materials: 9999, knowledge: 9999, stability: 100 },
   });
 
+  // An urgent event is a modal that stops the timeline; its card must fit and its buttons must be tappable.
+  const urgentEvent: TimelineState = grown({
+    ...midLate,
+    rung: 'village',
+    pendingChoice: { eventId: 'raiders_on_the_ridge', tick: 101 },
+  });
+
   return [
+    { name: 'urgent event', state: urgentEvent },
     { name: 'fresh', state: fresh },
     { name: 'early band', state: early },
     { name: 'first Jumpback ready', state: village },
@@ -171,6 +185,12 @@ function auditPage(): string[] {
       problems.push(`${describe(el)} clips its text (${el.scrollWidth} > ${el.clientWidth})`);
     }
   });
+  // An urgent event's card is fully on screen.
+  const modal = document.querySelector('#event-modal:not([hidden]) .event-card');
+  if (modal) {
+    const r = modal.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > vh + 1 || r.left < 0 || r.right > vw + 1) problems.push('the urgent event card does not fit the screen');
+  }
   // Locked things are not rendered: lists only ever hold what the player can use.
   if (document.querySelector('.building-card.locked, .discovery.locked')) problems.push('a locked card is rendered');
   // Tap targets.
@@ -236,6 +256,13 @@ describe('every page fits a phone screen with no scrolling', () => {
         page.on('pageerror', (e) => errors.push(e.message));
         await page.goto(baseUrl);
         await page.waitForSelector('.tab-nav');
+        if (name === 'urgent event') {
+          // The modal covers everything by design: check it on its own, then move on.
+          const problems = await page.evaluate(auditPage);
+          problems.filter((p) => p.includes('urgent event') || p.includes('small tap target')).forEach((problem) => findings.push({ where: `${viewport.name} / ${name}`, problem }));
+          await context.close();
+          continue;
+        }
         const tabs = await page.$$eval('.tab-nav-btn', (b) => b.map((x) => (x as HTMLElement).dataset.tab ?? ''));
         for (const tab of tabs) {
           await page.click(`#tab-btn-${tab}`);
@@ -274,3 +301,65 @@ describe('every page fits a phone screen with no scrolling', () => {
     }, 180_000);
   }
 });
+
+describe('toasts keep clear of the menus and the banner', () => {
+  it('floats above the banner row and sub-menu instead of covering them', async (ctx) => {
+    if (!browser) return ctx.skip();
+    const context = await browser.newContext({ viewport: { width: 412, height: 780 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    await context.addInitScript(
+      ({ save }) => {
+        localStorage.setItem('omt.save.v1', save);
+        localStorage.setItem('omt.welcomed', 'true');
+        localStorage.setItem('omt.paused', 'true');
+      },
+      { save: JSON.stringify(states().find((x) => x.name === 'first Jumpback ready')!.state) }
+    );
+    const page = await context.newPage();
+    await page.goto(baseUrl);
+    await page.waitForSelector('.tab-nav');
+    await page.click('#tab-btn-settlement');
+    // Tapping a greyed-out page raises a toast; none should be needed here, so raise one directly.
+    await page.evaluate(() => document.dispatchEvent(new CustomEvent('omt:locked', { detail: 'Opens at the Walled Town' })));
+    await page.waitForSelector('.toast');
+    await page.waitForTimeout(600);
+    const rects = await page.evaluate(() => {
+      const box = (sel: string) => {
+        const el = document.querySelector(sel);
+        if (!el || (el as HTMLElement).hidden) return null;
+        const r = el.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom };
+      };
+      return { toast: box('.toast'), banner: box('#ready-banner'), subnav: box('#subnav'), nav: box('.tab-nav') };
+    });
+    expect(rects.toast).not.toBeNull();
+    expect(rects.banner).not.toBeNull();
+    for (const other of [rects.banner, rects.subnav, rects.nav]) {
+      expect(rects.toast!.bottom, 'toast sits above the bottom stack').toBeLessThanOrEqual(other!.top + 0.5);
+    }
+    await context.close();
+  }, 120_000);
+});
+
+describe('the header does not shift as the seasons roll', () => {
+  it('keeps the season badge one fixed width', async (ctx) => {
+    if (!browser) return ctx.skip();
+    const context = await browser.newContext({ viewport: { width: 360, height: 700 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    await context.addInitScript(() => {
+      localStorage.setItem('omt.welcomed', 'true');
+      localStorage.setItem('omt.paused', 'true');
+    });
+    const page = await context.newPage();
+    await page.goto(baseUrl);
+    await page.waitForSelector('#stat-season');
+    const widths = await page.evaluate(() =>
+      ['Spring', 'Summer', 'Autumn', 'Winter'].map((name) => {
+        const el = document.getElementById('stat-season')!;
+        el.textContent = name;
+        return Math.round(el.getBoundingClientRect().width * 10) / 10;
+      })
+    );
+    expect(new Set(widths).size, `badge widths ${widths.join(', ')}`).toBe(1);
+    await context.close();
+  }, 120_000);
+});
+

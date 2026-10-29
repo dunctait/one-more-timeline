@@ -110,3 +110,7 @@ A ready goal (a rung within reach, the first Jumpback, a prestige tier) MUST be 
 ## Locked things and page sizes
 
 Locked buildings, wonders, Discoveries and trials MUST NOT be rendered. A sub-menu page exactly one rung from opening is shown greyed out and explains when it opens; further pages are blank. Every full page of a paged list holds between five and ten items on a 412 by 780 phone. Population begins at twelve, and only half of the people (rounded down) can hold a role.
+
+## Events
+
+Events are rolled once a year at summer start and never at an untended Solitary Hearth. About 3% of years bring a tale and 0.8% an urgent event. Tales wait (at most four) on the Events page, which appears when the first one arrives and stays; urgent events open a modal and stop the timeline until chosen. Away progress never brings an urgent event. Every choice states its gains and costs beforehand; costs are paid from held resources and never push one below zero. Deciding an event has a chance to turn up a relic.

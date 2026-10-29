@@ -20,6 +20,8 @@ export interface Chip {
   text: string;
   /** Full plain-language reading, for hover and screen readers. */
   title: string;
+  /** A price paid, shown in red, as opposed to a gain. */
+  cost?: boolean;
 }
 
 export type ResourceKey = 'food' | 'materials' | 'knowledge';
