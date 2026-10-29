@@ -24,7 +24,8 @@ describe('the real page, booted', () => {
     expect($('relics-list').children.length).toBeGreaterThan(5);
     expect($('challenge-list').children.length).toBeGreaterThan(3);
     expect($('theme-list').children.length).toBeGreaterThan(3);
-    expect($('deep-prestige-list').children.length).toBe(3);
+    // Later prestige tiers are not shown until the player first comes across them.
+    expect($('deep-prestige-list').children.length).toBe(0);
     expect($('records-list').children.length).toBeGreaterThan(8);
     expect($('production-notes').children.length).toBeGreaterThan(0);
     expect($('people-list').children.length).toBe(1);

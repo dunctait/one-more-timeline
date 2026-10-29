@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ripe } from './helpers.js';
 import { CHALLENGES } from '../src/engine/challenges.js';
 import { DISCOVERIES } from '../src/engine/discoveries.js';
 import { edictsForSlot } from '../src/engine/edicts.js';
@@ -55,7 +56,7 @@ describe('every challenge can be completed', () => {
         insight: 120,
         features: ['ancestral_hands'],
       };
-      let s = executeAction(base, { type: 'START_CHALLENGE', challengeId: c.id }).state;
+      let s = executeAction(ripe(base), { type: 'START_CHALLENGE', challengeId: c.id }).state;
       expect(s.challenge).toBe(c.id);
       for (let i = 0; i < 3000 && s.challenge; i++) s = play(s);
       expect(s.relics, `${c.id} ended at year ${s.year}, rung ${s.rung}`).toContain(c.reward);

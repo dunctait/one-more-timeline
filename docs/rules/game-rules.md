@@ -94,3 +94,15 @@ Any incremental mechanic MUST pass all of these gates before implementation:
 6. The mechanic remains meaningful at small and large values without relying on runaway numbers alone.
 
 The deterministic rules are implemented and tested in `src/engine/`; this document defines the ongoing acceptance bar.
+
+## Time Jump gate
+
+The first Time Jump (and a challenge start, which ends the timeline the same way) MUST require the Dawn Village and Year 30. Until a Time Jump has been offered or performed, the Time Jump, Insight, sent-back functions and challenges MUST NOT appear in the interface.
+
+## Progressive disclosure
+
+The interface MUST reveal a mechanic only once the player has come across it: the Marketplace, Edicts and Discoveries from the rung that opens them, the Time Jump when it first becomes possible, sent-back functions, challenges and past timelines after the first Time Jump, relics when the first is found, and each deeper prestige tier once the previous tier has been performed and the realm is reached or its currency banked. Revealed mechanics stay revealed.
+
+## Banner and quiet toasts
+
+A ready goal (a rung within reach, the first Time Jump, a prestige tier) MUST be shown as a banner visible on every page, with a button to the exact sub-page that holds the action. Achievements and seasonal events MUST NOT raise toasts.

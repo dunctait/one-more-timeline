@@ -847,6 +847,35 @@ export function checkPrestigeTier(
   return { eligible: reasons.length === 0, reasons, gain: calculatePrestigeGain(state, tier) };
 }
 
+/** The first prestige is a milestone, not a reflex: a timeline must have grown before it can collapse. */
+export const TIME_JUMP_MIN_YEAR = 30;
+export const TIME_JUMP_MIN_RUNG: RungId = 'village';
+
+export function checkTimeJump(
+  state: Pick<TimelineState, 'year' | 'rung'>
+): { eligible: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  if (rungLevel(state.rung) < rungLevel(TIME_JUMP_MIN_RUNG)) {
+    reasons.push(`Reach the ${RUNGS[TIME_JUMP_MIN_RUNG].name} (Current: ${RUNGS[state.rung].name})`);
+  }
+  if (state.year < TIME_JUMP_MIN_YEAR) {
+    reasons.push(`Reach Year ${TIME_JUMP_MIN_YEAR} (Current: ${state.year})`);
+  }
+  return { eligible: reasons.length === 0, reasons };
+}
+
+/**
+ * Progressive disclosure: a deeper prestige tier stays out of sight until the player first comes across it,
+ * meaning they have done the tier before it and either reached the realm or banked what it asks for.
+ */
+export function isPrestigeTierRevealed(state: TimelineState, tier: PrestigeTier): boolean {
+  const def = PRESTIGE_TIERS[tier];
+  if (state.prestigeCounts[tier] > 0) return true;
+  const previous = (tier - 1) as 1 | 2 | 3;
+  if (state.prestigeCounts[previous] < 1) return false;
+  return state.rung === FINAL_RUNG || getPrestigeBalance(state, def.requires) >= def.requiresAmount;
+}
+
 /** Which rung a fresh timeline begins on, based on Resonance and Eternity. */
 export function getStartingRung(state: Pick<TimelineState, 'resonance' | 'eternity'>): RungId {
   const level = Math.min(5, state.resonance + state.eternity * 2);

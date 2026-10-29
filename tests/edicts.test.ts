@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ripe } from './helpers.js';
 import { EDICTS, edictsForSlot } from '../src/engine/edicts.js';
 import { createInitialState, executeAction, manualMultiplier, stepTick } from '../src/engine/engine.js';
 import { activeEdicts, calculateNetRates, RUNG_ORDER, SEASON_PROFILES } from '../src/engine/rules.js';
@@ -33,7 +34,7 @@ describe('edicts', () => {
     const base = calculateNetRates(s).materials;
     s = executeAction(s, { type: 'SET_EDICT', slot: 'band', edictId: 'builders_pact' }).state;
     expect(calculateNetRates(s).materials).toBeGreaterThan(base);
-    const jumped = executeAction({ ...s, year: 5 }, { type: 'TIME_JUMP' }).state;
+    const jumped = executeAction(ripe({ ...s, year: 5 }), { type: 'TIME_JUMP' }).state;
     expect(jumped.edicts).toEqual({});
   });
 

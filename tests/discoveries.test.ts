@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ripe } from './helpers.js';
 import { DISCOVERIES } from '../src/engine/discoveries.js';
 import { createInitialState, executeAction, stepTick } from '../src/engine/engine.js';
 import {
@@ -66,7 +67,7 @@ describe('discoveries', () => {
     s = executeAction(s, { type: 'RESEARCH', discoveryId: 'herbal_medicine' }).state;
     const next = stepTick(s);
     expect(next.resources.stability).toBeGreaterThanOrEqual(s.resources.stability);
-    const jumped = executeAction({ ...next, year: 5 }, { type: 'TIME_JUMP' }).state;
+    const jumped = executeAction(ripe({ ...next, year: 5 }), { type: 'TIME_JUMP' }).state;
     expect(jumped.discoveries).toEqual([]);
   });
 });

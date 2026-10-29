@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ripe } from './helpers.js';
 import { createInitialState, executeAction } from '../src/engine/engine.js';
 import { loadGame, isDevMode, saveGame, setDevMode } from '../src/ui/storage.js';
 import {
@@ -6,8 +7,6 @@ import {
   countNewLogIds,
   formatRate,
   getStabilityLabel,
-  PRESTIGE_TOAST_MESSAGE,
-  shouldShowPrestigeToast,
 } from '../src/ui/view-model.js';
 
 describe('UI View Model & Storage', () => {
@@ -157,16 +156,14 @@ describe('UI View Model & Storage', () => {
     expect(ascensionVm.rungProgression.nextRung?.eligible).toBe(true);
     expect(ascensionVm.tabBadges.evolution).toBe(true);
 
-    const prestigeState = createInitialState();
-    prestigeState.year = 3;
+    const prestigeState = ripe(createInitialState());
     const prestigeVm = buildTimelineViewModel(prestigeState);
     expect(prestigeVm.timeJump.eligible).toBe(true);
     expect(prestigeVm.tabBadges.evolution).toBe(true);
   });
 
   it('exposes plain-language Insight benefits and its Time Jump calculation', () => {
-    const state = createInitialState({ insight: 3 });
-    state.year = 4;
+    const state = ripe(createInitialState({ insight: 3 }));
     state.population.total = 8;
     state.resources.knowledge = 80;
 
@@ -258,35 +255,48 @@ describe('UI View Model & Storage', () => {
     expect(chronicle?.unlocked).toBe(true);
   });
 
-  it('evaluates prestige toast eligibility correctly across timeline runs', () => {
-    let state = createInitialState({ seed: 777 });
-    expect(state.year).toBe(1);
-    expect(shouldShowPrestigeToast(state, null)).toBe(false);
+  it('holds the first Time Jump back until the timeline has grown, then offers it as the banner goal', () => {
+    const fresh = createInitialState({ seed: 777 });
+    expect(buildTimelineViewModel(fresh).disclosure.timeJump).toBe(false);
+    expect(executeAction({ ...fresh, year: 5 }, { type: 'TIME_JUMP' }).success).toBe(false);
 
-    state.year = 2;
-    expect(shouldShowPrestigeToast(state, null)).toBe(false);
+    // A late year alone is not enough: the first jump needs a real settlement behind it.
+    const early = { ...fresh, year: 40 };
+    expect(executeAction(early, { type: 'TIME_JUMP' }).success).toBe(false);
+    expect(buildTimelineViewModel(early).timeJump.eligible).toBe(false);
 
-    // Year 3 reached: prestige is ready and toast should fire
-    state.year = 3;
-    expect(shouldShowPrestigeToast(state, null)).toBe(true);
-    expect(PRESTIGE_TOAST_MESSAGE).toContain('Temporal Horizon Reached');
-    expect(PRESTIGE_TOAST_MESSAGE).toContain('Time Jump is now ready in Evolution');
+    const grown = { ...fresh, year: 30, rung: 'village' as const };
+    const vm = buildTimelineViewModel(grown);
+    expect(vm.timeJump.eligible).toBe(true);
+    expect(vm.disclosure.timeJump).toBe(true);
+    expect(vm.goal.ready).toBe(true);
+    expect(vm.goal.title).toContain('Time Jump is ready');
 
-    // Dismissing for this timeline suppresses the toast for this run
-    expect(shouldShowPrestigeToast(state, state.timelineId)).toBe(false);
+    const jumped = executeAction(grown, { type: 'TIME_JUMP' });
+    expect(jumped.success).toBe(true);
+    expect(jumped.state.timelineId).not.toBe(grown.timelineId);
+    // After the first jump the offer is no longer a banner: it is simply always available.
+    const again = buildTimelineViewModel({ ...jumped.state, year: 30, rung: 'village' as const });
+    expect(again.goal.title).not.toContain('Time Jump is ready');
+  });
 
-    // Execute Time Jump to start a new timeline cycle
-    const jumpResult = executeAction(state, { type: 'TIME_JUMP' });
-    expect(jumpResult.success).toBe(true);
-    const nextTimeline = jumpResult.state;
-    expect(nextTimeline.timelineId).not.toBe(state.timelineId);
-    expect(nextTimeline.year).toBe(1);
+  it('keeps later prestige tiers and their spoilers hidden until first encountered', () => {
+    const fresh = createInitialState({ seed: 777 });
+    const vm = buildTimelineViewModel(fresh);
+    expect(vm.prestige.every((p) => !p.revealed)).toBe(true);
+    expect(vm.disclosure.legacy).toBe(false);
+    expect(vm.disclosure.challenges).toBe(false);
+    expect(vm.nextFeatures).toHaveLength(0);
 
-    // In Year 1 of new timeline, toast is not active
-    expect(shouldShowPrestigeToast(nextTimeline, state.timelineId)).toBe(false);
+    const jumped = { ...fresh, prestigeCounts: { ...fresh.prestigeCounts, 1: 1 as number } };
+    const afterJump = buildTimelineViewModel(jumped);
+    expect(afterJump.disclosure.legacy).toBe(true);
+    expect(afterJump.prestige[0].revealed).toBe(false);
+    expect(afterJump.nextFeatures.every((f) => !/Epoch|Paradigm|Ascension/.test(f.condition))).toBe(true);
 
-    // Once Year 3 is reached in the new timeline, toast fires again for the new run
-    nextTimeline.year = 3;
-    expect(shouldShowPrestigeToast(nextTimeline, state.timelineId)).toBe(true);
+    // Reaching the realm after a first jump is when Epoch Shift is first met; Paradigm still waits.
+    const atRealm = buildTimelineViewModel({ ...jumped, rung: 'realm' });
+    expect(atRealm.prestige[0].revealed).toBe(true);
+    expect(atRealm.prestige[1].revealed).toBe(false);
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ripe } from './helpers.js';
 import { createInitialState } from '../src/engine/engine.js';
 import { buildTimelineViewModel } from '../src/ui/view-model.js';
 
@@ -20,7 +21,7 @@ describe('current goal', () => {
 
   it('announces a ready rung and a ready prestige tier', () => {
     const base = createInitialState();
-    const realm = { ...base, rung: 'realm' as const, year: 70, insight: 120 };
+    const realm = { ...base, prestigeCounts: { 1: 1, 2: 0, 3: 0, 4: 0 }, rung: 'realm' as const, year: 70, insight: 120 };
     const vm = buildTimelineViewModel(realm);
     expect(vm.goal.ready).toBe(true);
     expect(vm.goal.title).toContain('Epoch Shift');
@@ -35,11 +36,11 @@ describe('records and history', () => {
     const { executeAction } = await import('../src/engine/engine.js');
     let s = createInitialState();
     for (let i = 0; i < 14; i++) {
-      s = executeAction({ ...s, year: 5 + i }, { type: 'TIME_JUMP' }).state;
+      s = executeAction(ripe({ ...s, year: 30 + i }), { type: 'TIME_JUMP' }).state;
     }
     expect(s.history).toHaveLength(12);
     expect(s.history[0].number).toBe(14);
-    expect(s.history[0].year).toBe(18);
+    expect(s.history[0].year).toBe(43);
     expect(s.history[0].gained).toContain('Insight');
     const vm = buildTimelineViewModel(s);
     expect(vm.history[0].label).toContain('#14 Time Jump');
@@ -59,7 +60,7 @@ describe('dev tools', () => {
 
 describe('goal card follows the tier being worked toward', () => {
   it('points at Paradigm Shift once enough Echoes are banked for it', () => {
-    const base = createInitialState();
+    const base = { ...createInitialState(), prestigeCounts: { 1: 1, 2: 1, 3: 0, 4: 0 } };
     const early = buildTimelineViewModel({ ...base, rung: 'realm', year: 70, echoes: 2 });
     expect(early.goal.title).toContain('Epoch Shift');
     const later = buildTimelineViewModel({ ...base, rung: 'realm', year: 70, echoes: 8 });
@@ -89,7 +90,7 @@ describe('share text', () => {
 
 describe('next functions preview', () => {
   it('lists the closest unearned functions with what earns them', () => {
-    const vm = buildTimelineViewModel(createInitialState());
+    const vm = buildTimelineViewModel(ripe(createInitialState()));
     expect(vm.nextFeatures.length).toBeGreaterThan(0);
     expect(vm.nextFeatures.length).toBeLessThanOrEqual(3);
     expect(vm.nextFeatures[0].name).toBe('Ancestral Hands');

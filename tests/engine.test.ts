@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ripe } from './helpers.js';
 import { createInitialState, executeAction, stepTick } from '../src/engine/engine.js';
 import { BUILDINGS, calculateNetRates, calculateTimeJumpInsight, checkRungPrerequisites, RUNGS } from '../src/engine/rules.js';
 
@@ -206,12 +207,12 @@ describe('Deterministic Engine', () => {
     state.year = 2;
     const prematureJump = executeAction(state, { type: 'TIME_JUMP' });
     expect(prematureJump.success).toBe(false);
-    expect(prematureJump.error).toContain('Year 3');
+    expect(prematureJump.error).toContain('Year 30');
 
-    // Fast-forward to Year 8 with high knowledge
-    state.year = 8;
-    state.furthestYear = 8;
-    state.rung = 'settlement';
+    // Fast-forward to Year 30 in a village with high knowledge
+    state.year = 30;
+    state.furthestYear = 30;
+    state.rung = 'village';
     state.resources.knowledge = 85;
 
     const expectedInsight = calculateTimeJumpInsight(state);
@@ -223,7 +224,7 @@ describe('Deterministic Engine', () => {
     const nextTimeline = jumpRes.state;
     expect(nextTimeline.year).toBe(1);
     expect(nextTimeline.tick).toBe(0);
-    expect(nextTimeline.furthestYear).toBe(8);
+    expect(nextTimeline.furthestYear).toBe(30);
     expect(nextTimeline.timelinesCreated).toBe(1);
     expect(nextTimeline.insight).toBe(expectedInsight);
     expect(nextTimeline.rung).toBe('hearth');

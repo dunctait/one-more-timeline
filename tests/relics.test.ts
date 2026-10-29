@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ripe } from './helpers.js';
 import { awayCapTicks, createInitialState, executeAction, manualMultiplier, stepTick } from '../src/engine/engine.js';
 import { rollEvent, timelineSeed } from '../src/engine/events.js';
 import { RELICS, relicBonus } from '../src/engine/relics.js';
@@ -22,7 +23,7 @@ describe('relics', () => {
     for (let i = 0; i < 20000; i++) s = stepTick(s);
     expect(new Set(s.relics).size).toBe(s.relics.length);
     expect(s.relics.length).toBe(RELICS.filter((r) => !r.trophyOf).length);
-    const jumped = executeAction({ ...s, year: 9 }, { type: 'TIME_JUMP' }).state;
+    const jumped = executeAction(ripe({ ...s, year: 9 }), { type: 'TIME_JUMP' }).state;
     expect(jumped.relics).toEqual(s.relics);
     const epoch = executeAction({ ...s, year: 70, insight: 120 }, { type: 'PRESTIGE', tier: 2 }).state;
     expect(epoch.relics).toEqual(s.relics);

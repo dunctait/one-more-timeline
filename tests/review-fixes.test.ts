@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ripe } from './helpers.js';
 import { createInitialState, executeAction, normalizeState } from '../src/engine/engine.js';
 import { insightStartBonus } from '../src/engine/rules.js';
 import { TimelineState } from '../src/engine/types.js';
@@ -26,8 +27,8 @@ describe('navigation badges point at attention-required work', () => {
 
   it('flag Time Jump for a first jump or the climax, not forever', () => {
     const base: TimelineState = { ...createInitialState(), tick: 40, year: 11 };
-    expect(buildTimelineViewModel(base).tabBadges.evolution).toBe(true);
-    const veteran: TimelineState = { ...base, prestigeCounts: { 1: 3, 2: 0, 3: 0, 4: 0 } };
+    expect(buildTimelineViewModel(ripe(base)).tabBadges.evolution).toBe(true);
+    const veteran: TimelineState = { ...ripe(base), prestigeCounts: { 1: 3, 2: 0, 3: 0, 4: 0 } };
     expect(buildTimelineViewModel(veteran).tabBadges.evolution).toBe(false);
     expect(buildTimelineViewModel({ ...veteran, rung: 'realm' }).tabBadges.evolution).toBe(true);
   });
@@ -100,16 +101,16 @@ describe('third review fixes', () => {
 
   it('refuses a challenge the starting head start would complete instantly', () => {
     const base: TimelineState = { ...createInitialState(), prestigeCounts: { 1: 2, 2: 0, 3: 0, 4: 0 }, resonance: 3, tick: 40, year: 11 };
-    const r = executeAction(base, { type: 'START_CHALLENGE', challengeId: 'lone_hearth' });
+    const r = executeAction(ripe(base), { type: 'START_CHALLENGE', challengeId: 'lone_hearth' });
     expect(r.success).toBe(false);
     expect(r.error).toContain('head start');
     expect(buildTimelineViewModel(base).challenges.find((c) => c.id === 'lone_hearth')?.status).toBe('locked');
-    expect(executeAction(base, { type: 'START_CHALLENGE', challengeId: 'quiet_scholars' }).success).toBe(true);
+    expect(executeAction(ripe(base), { type: 'START_CHALLENGE', challengeId: 'quiet_scholars' }).success).toBe(true);
   });
 
   it('pays out the Insight of the ended run when a challenge begins', () => {
     const base: TimelineState = { ...createInitialState(), prestigeCounts: { 1: 1, 2: 0, 3: 0, 4: 0 }, rung: 'village', tick: 80, year: 21 };
-    const r = executeAction(base, { type: 'START_CHALLENGE', challengeId: 'swift_dawn' });
+    const r = executeAction(ripe(base), { type: 'START_CHALLENGE', challengeId: 'swift_dawn' });
     expect(r.success).toBe(true);
     expect(r.state.insight).toBeGreaterThan(0);
   });
@@ -126,7 +127,7 @@ describe('fourth review fixes', () => {
     const early: TimelineState = { ...createInitialState(), prestigeCounts: { 1: 1, 2: 0, 3: 0, 4: 0 } };
     expect(executeAction(early, { type: 'START_CHALLENGE', challengeId: 'swift_dawn' }).success).toBe(false);
     const ready: TimelineState = { ...early, tick: 40, year: 11 };
-    const r = executeAction(ready, { type: 'START_CHALLENGE', challengeId: 'swift_dawn' });
+    const r = executeAction(ripe(ready), { type: 'START_CHALLENGE', challengeId: 'swift_dawn' });
     expect(r.success).toBe(true);
     expect(r.state.prestigeCounts[1]).toBe(2);
     expect(r.state.history[0].gained).toContain('challenge');
@@ -220,7 +221,7 @@ describe('sixth review fixes', () => {
       challenge: 'swift_dawn',
       prestigeCounts: { 1: 1, 2: 0, 3: 0, 4: 0 },
     };
-    const jumped = executeAction(base, { type: 'TIME_JUMP' }).state;
+    const jumped = executeAction(ripe(base), { type: 'TIME_JUMP' }).state;
     expect(jumped.logs.some((l) => l.text.includes('went unanswered'))).toBe(true);
     expect(jumped.logs.some((l) => l.text.includes('ended with the timeline'))).toBe(true);
     expect(jumped.pendingChoice).toBeNull();
@@ -228,7 +229,7 @@ describe('sixth review fixes', () => {
   });
 
   it('Time Jump copy never promises more than the +50% Insight cap', async () => {
-    const vm = buildTimelineViewModel({ ...createInitialState(), tick: 40, year: 11, insight: 80 });
+    const vm = buildTimelineViewModel(ripe({ ...createInitialState(), tick: 40, year: 11, insight: 80 }));
     expect(vm.timeJump.projectedGain).toContain('max +50%');
     expect(vm.timeJump.confirmationText).toContain('+50%');
     expect(vm.timeJump.confirmationText).not.toContain('+90%');
@@ -238,7 +239,7 @@ describe('sixth review fixes', () => {
 describe('seventh review fixes', () => {
   it('a challenge-banned building is never shown as affordable', () => {
     const cold = executeAction(
-      { ...createInitialState(), tick: 40, year: 11, prestigeCounts: { 1: 1, 2: 0, 3: 0, 4: 0 } },
+      ripe({ ...createInitialState(), tick: 40, year: 11, prestigeCounts: { 1: 1, 2: 0, 3: 0, 4: 0 } }),
       { type: 'START_CHALLENGE', challengeId: 'cold_resolve' }
     ).state;
     const rich: TimelineState = { ...cold, rung: 'settlement', caps: { food: 200, materials: 200, knowledge: 200 } };

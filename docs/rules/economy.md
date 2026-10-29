@@ -14,11 +14,11 @@ Per-tick resource rates MUST NOT be negative. Upkeep such as feeding the populat
 
 ## Prestige ladder
 
-Prestige is a ladder of four tiers. Each tier resets everything below it, banks one permanent currency, and sends back a function. Tiers 2 to 4 are available only while the final rung (Sovereign Realm) stands, so each is the climax of a run and the toast and Evolution badge MUST announce it.
+Prestige is a ladder of four tiers. Each tier resets everything below it, banks one permanent currency, and sends back a function. Tiers 2 to 4 are available only while the final rung (Sovereign Realm) stands, so each is the climax of a run and the banner and Evolution badge MUST announce it. A tier stays hidden until the player first comes across it: it appears once the tier before it has been performed and the player has reached the realm or banked what the tier asks for.
 
 | Tier | Name | Requires | Gain | Currency effect | Functions sent back |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Time Jump | Year 3 | Insight from year, rung, population, knowledge | +1% production each (the bonus stops at +50%, but further Insight still counts toward Epoch Shift), starting reserves of up to +20 Food and +15 Materials | Ancestral Hands (1st): newcomers auto-assigned |
+| 1 | Time Jump | Dawn Village and Year 30 | Insight from year, rung, population, knowledge | +1% production each (the bonus stops at +50%, but further Insight still counts toward Epoch Shift), starting reserves of up to +20 Food and +15 Materials | Ancestral Hands (1st): newcomers auto-assigned |
 | 2 | Epoch Shift | Realm, Year 60, 120 Insight | 1 + 1 per 120 Insight | Echoes: +10% production each | Rising Tide (1st): rungs advance automatically; Inherited Foundations (2nd): start with Hut, Granary, Workshop |
 | 3 | Paradigm Shift | Realm, Year 120, 8 Echoes | 1 + 1 per 8 Echoes | Resonance: x1.25 production each; timelines start higher up the rungs | Temporal Foresight (1st): previews every tier's gain |
 | 4 | Ascension | Realm, Year 240, 6 Resonance | 1 + 1 per 6 Resonance | Eternity Marks: x2 production each; each also starts timelines two rungs higher (head starts stop at Trade City) | The Steward (1st): builds the cheapest affordable building each tick |

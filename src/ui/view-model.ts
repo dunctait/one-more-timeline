@@ -21,6 +21,8 @@ import {
   calculatePrestigeGain,
   calculateTimeJumpInsight,
   checkPrestigeTier,
+  checkTimeJump,
+  isPrestigeTierRevealed,
   checkRungPrerequisites,
   FEATURES,
   FEATURE_IDS,
@@ -149,8 +151,21 @@ export interface FeatureViewModel extends SendsBackViewModel {
   enabled: boolean;
 }
 
+export interface DisclosureViewModel {
+  timeJump: boolean;
+  legacy: boolean;
+  challenges: boolean;
+  market: boolean;
+  edicts: boolean;
+  discoveries: boolean;
+  relics: boolean;
+  deeper: boolean;
+}
+
 export interface PrestigeTierViewModel {
   tier: PrestigeTier;
+  /** Progressive disclosure: false until the player first comes across this tier. */
+  revealed: boolean;
   name: string;
   icon: string;
   actionLabel: string;
@@ -187,6 +202,8 @@ export interface GoalViewModel {
   steps: string[];
   /** Tab where the player can act on the goal. */
   tab: 'hearth' | 'settlement' | 'evolution';
+  /** Sub-page of that tab where the goal can be acted on. */
+  sub: string;
   ready: boolean;
 }
 
@@ -218,6 +235,8 @@ export interface TabBadgesViewModel {
   chronicle: boolean;
   hearthCount: number;
   settlementCount: number;
+  /** Which sub-page of each tab holds the waiting work, keyed `tab.sub`. */
+  subs: Record<string, boolean>;
 }
 
 export interface TimelineViewModel {
@@ -283,6 +302,8 @@ export interface TimelineViewModel {
   rungProgression: RungProgressionViewModel;
   timeJump: TimeJumpViewModel;
   prestige: PrestigeTierViewModel[];
+  /** Progressive disclosure: later mechanics stay out of sight until the player first comes across them. */
+  disclosure: DisclosureViewModel;
   features: FeatureViewModel[];
   nextFeatures: Array<{ icon: string; name: string; condition: string; description: string }>;
   goal: GoalViewModel;
@@ -327,16 +348,6 @@ export interface TimelineViewModel {
   };
   tabBadges: TabBadgesViewModel;
   logs: LogEntry[];
-}
-
-export const PRESTIGE_TOAST_MESSAGE =
-  '🌀 Temporal Horizon Reached: The timeline has reached its zenith! Time Jump is now ready in Evolution to collapse this timeline into enduring Insight.';
-
-export function shouldShowPrestigeToast(
-  state: TimelineState,
-  dismissedTimelineId: string | null
-): boolean {
-  return state.year >= 3 && dismissedTimelineId !== state.timelineId;
 }
 
 export function countNewLogIds(
@@ -407,14 +418,26 @@ function estimateTicks(
 function buildGoal(
   state: TimelineState,
   nextRung: RungProgressionViewModel['nextRung'],
-  prestige: PrestigeTierViewModel[]
+  prestige: PrestigeTierViewModel[],
+  firstJumpReady: boolean
 ): GoalViewModel {
+  if (firstJumpReady) {
+    return {
+      title: 'Time Jump is ready',
+      steps: ['Your timeline has grown enough to collapse into lasting Insight, and to send a function back. Open Evolution to read what it does.'],
+      tab: 'evolution',
+      sub: 'jump',
+      ready: true,
+    };
+  }
+  prestige = prestige.filter((p) => p.revealed);
   if (nextRung) {
     if (nextRung.eligible) {
       return {
         title: `${nextRung.name} is within reach`,
         steps: ['Every requirement is met. Open Evolution to advance.'],
         tab: 'evolution',
+        sub: 'rung',
         ready: true,
       };
     }
@@ -434,6 +457,7 @@ function buildGoal(
       title: `Next: ${nextRung.name}`,
       steps,
       tab: needsBuilding ? 'settlement' : 'hearth',
+      sub: needsBuilding ? 'works' : 'gather',
       ready: false,
     };
   }
@@ -443,7 +467,17 @@ function buildGoal(
       title: `${ready.name} is ready`,
       steps: [`Earn ${ready.currencyName} in Evolution. ${ready.resets}`],
       tab: 'evolution',
+      sub: 'deeper',
       ready: true,
+    };
+  }
+  if (prestige.length === 0) {
+    return {
+      title: 'Your realm stands',
+      steps: ['Keep building. Time Jumps are always on offer in Evolution.'],
+      tab: 'evolution',
+      sub: 'jump',
+      ready: false,
     };
   }
   // The tier being worked toward: the lowest whose currency has not yet unlocked the next tier.
@@ -457,6 +491,7 @@ function buildGoal(
     title: `Your realm stands. Next: ${nearest.name}`,
     steps: missing.length ? missing.concat(['Time Jumps bank Insight.']) : ['Open Evolution.'],
     tab: 'evolution',
+    sub: 'deeper',
     ready: false,
   };
 }
@@ -556,10 +591,14 @@ function buildPeople(state: TimelineState): Array<{ name: string; role: string }
 
 /** The closest functions not yet earned, with exactly what earns them. */
 function buildNextFeatures(
-  state: TimelineState
+  state: TimelineState,
+  timeJumpDisclosed: boolean,
+  tiers: PrestigeTierViewModel[]
 ): Array<{ icon: string; name: string; condition: string; description: string }> {
+  const visible = (tier: 1 | 2 | 3 | 4): boolean =>
+    tier === 1 ? timeJumpDisclosed : Boolean(tiers.find((t) => t.tier === tier)?.revealed);
   return FEATURE_IDS.map((id) => FEATURES[id])
-    .filter((f) => !hasFeature(state, f.id))
+    .filter((f) => !hasFeature(state, f.id) && visible(f.tier))
     .map((f) => ({ f, remaining: f.onCount - state.prestigeCounts[f.tier] }))
     .filter(({ remaining }) => remaining > 0)
     .sort((a, b) => a.remaining - b.remaining || a.f.tier - b.f.tier)
@@ -622,6 +661,7 @@ function buildPrestigeTierViewModel(state: TimelineState, tier: PrestigeTier): P
 
   return {
     tier,
+    revealed: isPrestigeTierRevealed(state, tier),
     name: def.name,
     icon: def.icon,
     actionLabel: def.actionLabel,
@@ -831,7 +871,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   }
 
   // Time Jump & Insight Benefits
-  const timeJumpEligible = state.year >= 3;
+  const timeJumpEligible = checkTimeJump(state).eligible;
   const projectedInsight = calculateTimeJumpInsight(state);
 
   const yearComponent = Math.floor(Math.sqrt(state.year));
@@ -848,7 +888,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
 
   const projectedGain = timeJumpEligible
     ? `+${projectedInsight} Insight (production bonus becomes +${Math.min(nextTotalInsight, 50)}%, max +50%; starts with +${nextBonus.food} Food, +${nextBonus.materials} Materials)`
-    : `+0 Insight (Endure until at least Year 3 to harvest Insight)`;
+    : `+0 Insight (not yet available)`;
 
   const startingBonus = `+2 Food and +1 Materials per Insight at the dawn of each new timeline, up to +20 Food and +15 Materials (currently +${curBonus.food} Food, +${curBonus.materials} Materials; next timeline +${nextBonus.food} Food, +${nextBonus.materials} Materials)`;
 
@@ -900,7 +940,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
           state.furthestYear,
           state.year
         )}) and grants +${projectedInsight} permanent Insight (production bonus becomes +${Math.min(nextTotalInsight, 50)}%, max +50%; starts with +${nextBonus.food} Food, +${nextBonus.materials} Materials).`
-      : 'The timeline is too fragile to yield Insight. Endure until at least Year 3 to collapse this timeline into enduring Insight.',
+      : `The timeline is not ready to collapse into Insight yet. ${checkTimeJump(state).reasons.join('. ')}.`,
     currentInsight: state.insight,
     currentMultiplier,
     projectedGain,
@@ -920,6 +960,8 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   }
 
   const prestigeVm = PRESTIGE_TIER_ORDER.map((tier) => buildPrestigeTierViewModel(state, tier));
+  const jumped = state.prestigeCounts[1] > 0;
+  const timeJumpDisclosed = jumped || timeJumpEligible;
   const featuresVm: FeatureViewModel[] = FEATURE_IDS.filter((id) => hasFeature(state, id)).map(
     (id) => ({
       ...toSendsBack(FEATURES[id]),
@@ -966,7 +1008,20 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     };
   });
 
-  const goal = buildGoal(state, nextRungVm, prestigeVm);
+  const marketVm = buildMarket(state);
+  const disclosure: DisclosureViewModel = {
+    timeJump: timeJumpDisclosed,
+    // Everything a Time Jump brings back stays hidden until the first one has happened.
+    legacy: jumped,
+    challenges: jumped,
+    // Earlier systems stay visible once the player has jumped past the rung that introduced them.
+    market: marketVm.unlocked || jumped,
+    edicts: rungLevel(state.rung) >= 1 || jumped,
+    discoveries: discoveriesVm.some((d) => d.unlocked) || jumped,
+    relics: state.relics.length > 0,
+    deeper: prestigeVm.some((p) => p.revealed),
+  };
+  const goal = buildGoal(state, nextRungVm, prestigeVm, timeJumpDisclosed && !jumped && timeJumpEligible);
   const activeChallenge = state.challenge ? CHALLENGES.find((c) => c.id === state.challenge) : undefined;
   if (activeChallenge) {
     goal.title = `${activeChallenge.icon} Challenge: ${activeChallenge.name}`;
@@ -1011,6 +1066,16 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     chronicle: false,
     hearthCount: unassignedCount,
     settlementCount: affordableBuildingsCount,
+    subs: {
+      'hearth.gather': state.pendingChoice !== null,
+      'hearth.roles': unassignedCount > 0,
+      'settlement.works': buildingsVm.some((b) => b.unlocked && (b.canAfford || b.affordable)),
+      'settlement.edicts': emptyEdictSlots > 0,
+      'settlement.discoveries': discoveriesVm.some((d) => d.canAfford),
+      'evolution.rung': Boolean(nextRungVm?.eligible),
+      'evolution.jump': timeJumpEligible && (state.rung === 'realm' || state.prestigeCounts[1] === 0),
+      'evolution.deeper': prestigeVm.some((p) => p.eligible),
+    },
   };
 
   return {
@@ -1088,13 +1153,14 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     },
     timeJump: timeJumpVm,
     prestige: prestigeVm,
+    disclosure,
     features: featuresVm,
-    nextFeatures: buildNextFeatures(state),
+    nextFeatures: buildNextFeatures(state, timeJumpDisclosed, prestigeVm),
     goal,
     challenges: buildChallenges(state),
     decision: buildDecision(state),
     productionNotes: explainProduction(state),
-    market: buildMarket(state),
+    market: marketVm,
     people: buildPeople(state),
     relics: {
       found: state.relics.length,

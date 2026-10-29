@@ -36,10 +36,9 @@ import {
   buildTimelineViewModel,
   countNewLogIds,
   formatCompact,
-  PRESTIGE_TOAST_MESSAGE,
-  shouldShowPrestigeToast,
   TimelineViewModel,
 } from './ui/view-model.js';
+import { bindLayoutEvents, refreshLayout, selectedSub, setLayoutInputs } from './ui/layout.js';
 
 // Application state
 let state: TimelineState = loadGame() ?? createInitialState();
@@ -79,28 +78,6 @@ function loadSeenUnlocks(): Set<string> {
 }
 const seenUnlocks = loadSeenUnlocks();
 
-const prestigeSeenKey = 'omt.seenPrestigeTimeline';
-function loadPrestigeDismissedTimelineId(): string | null {
-  try {
-    return localStorage.getItem(prestigeSeenKey);
-  } catch {
-    return null;
-  }
-}
-
-function savePrestigeDismissedTimelineId(timelineId: string | null): void {
-  try {
-    if (timelineId) {
-      localStorage.setItem(prestigeSeenKey, timelineId);
-    } else {
-      localStorage.removeItem(prestigeSeenKey);
-    }
-  } catch {
-    // Ignore storage errors
-  }
-}
-
-let prestigeDismissedTimelineId: string | null = loadPrestigeDismissedTimelineId();
 
 interface ToastPayload {
   id: string;
@@ -211,6 +188,11 @@ const elGoalTitle = document.getElementById('goal-title') as HTMLElement;
 const elGoalSteps = document.getElementById('goal-steps') as HTMLElement;
 const elGoalGo = document.getElementById('goal-go') as HTMLButtonElement;
 let goalTab: 'hearth' | 'settlement' | 'evolution' = 'hearth';
+let goalSub = 'gather';
+const elReadyBanner = document.getElementById('ready-banner') as HTMLElement;
+const elReadyBannerTitle = document.getElementById('ready-banner-title') as HTMLElement;
+const elReadyBannerSteps = document.getElementById('ready-banner-steps') as HTMLElement;
+const elReadyBannerGo = document.getElementById('ready-banner-go') as HTMLButtonElement;
 const elRelicsList = document.getElementById('relics-list') as HTMLElement;
 const elRelicsSummary = document.getElementById('relics-summary') as HTMLElement;
 const elBtnCopySummary = document.getElementById('btn-copy-summary') as HTMLButtonElement;
@@ -269,7 +251,7 @@ const tabPanels: Record<TabId, HTMLElement> = {
   settings: document.getElementById('tab-settings') as HTMLElement,
 };
 
-function switchTab(target: TabId): void {
+function switchTab(target: TabId, sub?: string): void {
   activeTab = target;
   (Object.keys(tabButtons) as TabId[]).forEach((tab) => {
     const btn = tabButtons[tab];
@@ -289,6 +271,7 @@ function switchTab(target: TabId): void {
     }
   });
 
+  refreshLayout(target, tabPanels[target], sub);
   if (target === 'chronicle') {
     seenLogIds = new Set(state.logs.map((log) => log.id));
   }
@@ -412,18 +395,12 @@ function dismissToast(id?: string): void {
   if (id && activeToast && activeToast.id !== id) {
     return;
   }
-  if (activeToast?.id === 'prestige') {
-    prestigeDismissedTimelineId = state.timelineId;
-    savePrestigeDismissedTimelineId(state.timelineId);
-  }
   activeToast = null;
   if (toastTimer) {
     clearTimeout(toastTimer);
     toastTimer = null;
   }
   elToastRegion.replaceChildren();
-
-  checkAndTriggerPrestigeToast();
 }
 
 function showToast(message: string, options?: Partial<ToastPayload>): void {
@@ -435,11 +412,6 @@ function showToast(message: string, options?: Partial<ToastPayload>): void {
     onAction: options?.onAction,
     persistent: options?.persistent ?? false,
   };
-
-  // Direct feedback for something the player just did always shows; only ambient toasts yield to the reminder.
-  if (activeToast?.id === 'prestige' && payload.type === 'info') {
-    return;
-  }
 
   activeToast = payload;
   if (toastTimer) {
@@ -498,46 +470,6 @@ function showToast(message: string, options?: Partial<ToastPayload>): void {
   }
 }
 
-const announcedDeepTiers = new Set<string>();
-
-function checkDeepPrestigeToast(): void {
-  const readyTier = PRESTIGE_TIER_ORDER.filter((tier) => checkPrestigeTier(state, tier).eligible).pop();
-  if (!readyTier) return;
-  const def = PRESTIGE_TIERS[readyTier];
-  const ready = { tier: readyTier, icon: def.icon, name: def.name, currencyName: def.currencyName };
-  const key = `${state.timelineId}:${ready.tier}`;
-  if (announcedDeepTiers.has(key)) return;
-  announcedDeepTiers.add(key);
-  showToast(`${ready.icon} ${ready.name} is ready! Your realm has reached its zenith. Open Evolution to earn ${ready.currencyName}.`, {
-    id: `deep-${ready.tier}`,
-    type: 'prestige',
-    actionLabel: 'View in Evolution',
-    onAction: () => switchTab('evolution'),
-    persistent: true,
-  });
-}
-
-function checkAndTriggerPrestigeToast(): void {
-  // The welcome-back summary is shown to completion before reminders return.
-  if (activeToast?.id === 'away') return;
-  checkDeepPrestigeToast();
-  // A deeper prestige announcement outranks the basic Time Jump reminder.
-  if (activeToast?.id.startsWith('deep-')) return;
-  if (shouldShowPrestigeToast(state, prestigeDismissedTimelineId)) {
-    if (!activeToast || activeToast.id !== 'prestige') {
-      showToast(PRESTIGE_TOAST_MESSAGE, {
-        id: 'prestige',
-        type: 'prestige',
-        actionLabel: 'View in Evolution',
-        onAction: () => {
-          switchTab('evolution');
-        },
-        persistent: true,
-      });
-    }
-  }
-}
-
 function checkForProgressionFeedback(previousState: TimelineState, nextState: TimelineState): void {
   if (previousState.rung !== nextState.rung) {
     const rungDef = RUNGS[nextState.rung];
@@ -567,21 +499,7 @@ function checkForProgressionFeedback(previousState: TimelineState, nextState: Ti
       return;
     }
   }
-
-  const previousLogIds = new Set(previousState.logs.map((log) => log.id));
-  const newMilestones = nextState.logs.filter(
-    (log) => !previousLogIds.has(log.id) && log.type === 'milestone'
-  );
-  const newestMilestone = newMilestones[0];
-  if (newestMilestone && !seenUnlocks.has(newestMilestone.id)) {
-    showToast(newestMilestone.text, {
-      id: newestMilestone.id,
-      type: 'milestone',
-      persistent: false,
-    });
-    seenUnlocks.add(newestMilestone.id);
-    rememberSeenUnlocks();
-  }
+  // Achievements and events are quiet: they live in the Chronicle, never in a toast.
 }
 
 /** A short ceremony: the tier's line, and the names of any functions just sent back. */
@@ -620,7 +538,6 @@ function dispatch(action: EngineAction): void {
     // A reset is not a rung being reached; only genuine advancement earns that toast.
     const resets = ['TIME_JUMP', 'PRESTIGE', 'START_CHALLENGE', 'DEV_RESET'].includes(action.type);
     if (!resets) checkForProgressionFeedback(previousState, state);
-    checkAndTriggerPrestigeToast();
     persistState();
     checkForNewLogs();
     render();
@@ -645,7 +562,6 @@ function handleTick(): void {
   const previousState = state;
   state = stepTick(state);
   checkForProgressionFeedback(previousState, state);
-  checkAndTriggerPrestigeToast();
   // Writing the whole save every second is wasteful on a phone; every 5 ticks plus page-leave is enough.
   if (state.tick % 5 === 0) persistState();
   checkForNewLogs();
@@ -732,6 +648,7 @@ function renderDevProposals(): void {
 
 function render(): void {
   const vm: TimelineViewModel = buildTimelineViewModel(state);
+  setLayoutInputs({ disclosure: { ...vm.disclosure }, badges: vm.tabBadges.subs });
 
   // Persistent Status Header
   elStatYear.textContent = `Year ${vm.header.year}`;
@@ -741,6 +658,8 @@ function render(): void {
   elStatRung.textContent = vm.header.rungName;
   elStatFurthest.textContent = `Yr ${vm.header.furthestYear}`;
   elStatInsight.textContent = `${vm.header.insight}`;
+  // Insight is not mentioned until the first Time Jump has been met.
+  elStatInsightPill.hidden = !vm.disclosure.timeJump;
   elStatInsightPill.title = `${vm.timeJump.breakdown.whatIsInsight} Current effect: ${vm.timeJump.currentMultiplier}. ${vm.timeJump.breakdown.startingBonus}`;
   elStatTimelines.textContent = `${vm.header.timelinesCreated}`;
 
@@ -937,7 +856,6 @@ function render(): void {
       <p class="time-jump-concept-callout">${escapeHtml(vm.timeJump.breakdown.whatIsInsight)}</p>
       <ul class="time-jump-stat-list">
         <li><span class="time-jump-stat-label">Current production</span><span class="time-jump-stat-val highlight">${escapeHtml(vm.timeJump.currentMultiplier)}</span></li>
-        <li><span class="time-jump-stat-label">Current starting reserves</span><span class="time-jump-stat-val">+${vm.timeJump.breakdown.currentStartingFood} Food, +${vm.timeJump.breakdown.currentStartingMaterials} Materials</span></li>
       </ul>
     </div>
     <div class="time-jump-card-section">
@@ -946,11 +864,7 @@ function render(): void {
         <li><span class="time-jump-stat-label">Projected gain</span><span class="time-jump-stat-val highlight">${escapeHtml(vm.timeJump.projectedGain)}</span></li>
         <li><span class="time-jump-stat-label">Next timeline reserves</span><span class="time-jump-stat-val">+${vm.timeJump.breakdown.nextStartingFood} Food, +${vm.timeJump.breakdown.nextStartingMaterials} Materials</span></li>
       </ul>
-      <p class="time-jump-concept-callout">${escapeHtml(vm.timeJump.breakdown.formulaExplanation)}</p>
       ${vm.timeJump.sendsBack.map((f) => `<p class="deep-sends-back">${f.icon} Sends back: <strong>${escapeHtml(f.name)}</strong> — ${escapeHtml(f.description)}</p>`).join('')}
-      <div class="time-jump-calc-grid">
-        ${vm.timeJump.breakdown.calculationDetails.map((item) => `<div class="time-jump-calc-chip" title="${escapeHtml(item.description)}"><span class="time-jump-calc-name">${escapeHtml(item.name)}</span><span class="time-jump-calc-val">+${item.value}</span></div>`).join('')}
-      </div>
     </div>
   `;
   elBtnTimeJump.disabled = !vm.timeJump.eligible;
@@ -979,6 +893,15 @@ function render(): void {
   elGoalGo.textContent = vm.goal.tab === 'hearth' ? 'Keep gathering' : 'Go';
   elGoalGo.hidden = vm.goal.tab === 'hearth';
   goalTab = vm.goal.tab;
+  goalSub = vm.goal.sub;
+  // A ready goal rises to the banner, which every tab shows; the card is for steps still to take.
+  elGoalCard.hidden = vm.goal.ready;
+  elReadyBanner.hidden = !vm.goal.ready;
+  if (vm.goal.ready) {
+    elReadyBannerTitle.textContent = `🎯 ${vm.goal.title}`;
+    elReadyBannerSteps.textContent = vm.goal.steps[0] ?? '';
+    elReadyBannerGo.hidden = activeTab === vm.goal.tab && selectedSub(activeTab) === vm.goal.sub;
+  }
 
   // Where production comes from
   elProductionNotes.innerHTML = vm.productionNotes
@@ -1133,6 +1056,7 @@ function render(): void {
 
   // Deeper prestige tiers
   elDeepPrestigeList.innerHTML = vm.prestige
+    .filter((p) => p.revealed)
     .map((p) => {
       const sends = p.sendsBack
         .map((f) => `<p class="deep-sends-back">${f.icon} Sends back: <strong>${escapeHtml(f.name)}</strong> — ${escapeHtml(f.description)}</p>`)
@@ -1176,6 +1100,9 @@ function render(): void {
       `;
     })
     .join('');
+
+  // Everything shown is fitted to the screen after the content is in place.
+  refreshLayout(activeTab, tabPanels[activeTab]);
 }
 
 function escapeHtml(str: string): string {
@@ -1305,7 +1232,9 @@ function setupListeners(): void {
     });
   });
 
-  elGoalGo.addEventListener('click', () => switchTab(goalTab));
+  elGoalGo.addEventListener('click', () => switchTab(goalTab, goalSub));
+  elReadyBannerGo.addEventListener('click', () => switchTab(goalTab, goalSub));
+  bindLayoutEvents();
 
   elDecisionOptions.addEventListener('click', (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-choice]');
@@ -1348,7 +1277,7 @@ function setupListeners(): void {
     if (!entry || !entry.eligible) return;
     if (confirm(entry.confirmationText)) {
       dispatch({ type: 'PRESTIGE', tier });
-      switchTab('hearth');
+      switchTab('hearth', 'gather');
     }
   });
 
@@ -1358,7 +1287,7 @@ function setupListeners(): void {
     if (start) {
       if (confirm('Begin this challenge? Your current timeline ends (paying out the Insight a Time Jump would) and a new one starts with every permanent bonus intact.')) {
         dispatch({ type: 'START_CHALLENGE', challengeId: start.dataset.challengeStart as string });
-        switchTab('hearth');
+        switchTab('hearth', 'gather');
       }
       return;
     }
@@ -1405,7 +1334,7 @@ function setupListeners(): void {
     const confirmed = confirm(vm.timeJump.confirmationText);
     if (confirmed) {
       dispatch({ type: 'TIME_JUMP' });
-      switchTab('hearth');
+      switchTab('hearth', 'gather');
     }
   });
 
@@ -1483,11 +1412,10 @@ function setupListeners(): void {
     }
     if (!confirm('Replace your current timeline with this save? This cannot be undone.')) return;
     state = imported;
-    prestigeDismissedTimelineId = null;
     persistState();
     lastThemeAchievementCount = -1;
     elSaveString.value = '';
-    switchTab('hearth');
+    switchTab('hearth', 'gather');
     render();
     showToast('Save imported.', { id: 'import', type: 'feedback' });
   });
@@ -1501,11 +1429,9 @@ function setupListeners(): void {
     const confirmed = confirm('Erase EVERYTHING? This deletes all progress: Insight, Echoes, Resonance, Eternity Marks, relics, trophies, achievements, functions, records and statistics. It cannot be undone. Tip: copy your save string from Export first.');
     if (confirmed) {
       clearGame();
-      savePrestigeDismissedTimelineId(null);
-      prestigeDismissedTimelineId = null;
-      dismissToast();
+        dismissToast();
       state = createInitialState();
-      switchTab('hearth');
+      switchTab('hearth', 'gather');
       render();
     }
   });
@@ -1586,11 +1512,9 @@ function setupListeners(): void {
     const confirmed = confirm('Clear game save and reset to Year 1?');
     if (confirmed) {
       clearGame();
-      savePrestigeDismissedTimelineId(null);
-      prestigeDismissedTimelineId = null;
-      dismissToast();
+        dismissToast();
       state = createInitialState();
-      switchTab('hearth');
+      switchTab('hearth', 'gather');
       render();
     }
   });
@@ -1713,7 +1637,6 @@ setupListeners();
 switchTab(activeTab); // sets the roving tab stop and panel visibility
 updatePauseButton();
 render();
-checkAndTriggerPrestigeToast();
 const startupStorageNotice = consumeStorageNotice();
 if (startupStorageNotice) showStorageMessage(startupStorageNotice);
 applyDisplayPrefs();

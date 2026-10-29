@@ -30,6 +30,9 @@ Feedback Codification Protocol: Whenever user feedback is received or an operati
 - Prestige must send back a function: every prestige tier unlocks at least one automation, starting structure, or information feature, never only a percentage buff. Functions must be explained, listed, and switchable.
 - Never punish absence or time: no rate may be negative and no resource may decay; frame scarcity as slower growth, caps, or costs.
 - Badges are for actionable state, not logs: navigation indicators MUST point to attention-required work, not historical or log-only views.
+- Progressive disclosure of complexity: never show a mechanic, currency, tier or preview until the player first comes across it; once met it stays. Hidden mechanics must not be named in goals, banners, badges or header pills.
+- Everything fits on one screen: navigation is two-tier (bottom bar plus a sub-menu), every page fits a phone viewport (412x780, and 360x700 where possible) with no scrolling, and long lists are paged to fit rather than scrolled.
+- Quiet by default: toasts are only for the result of something the player just did. Achievements and events are never toasts, and anything the player must act on is a banner every page shows.
 - Game currencies need plain-language mechanical explanations: explain what a currency changes now, what it changes next run, and how it is earned where it first appears.
 
 ## Verification and ergonomics
@@ -37,5 +40,7 @@ Feedback Codification Protocol: Whenever user feedback is received or an operati
 Engine changes MUST keep `tests/fuzz.test.ts` (random play across every action, checking invariants such as no negative or non-finite numbers, storage caps, and roles summing to population) and `tests/ladder-pacing.test.ts` passing; raise the fuzz run count locally when changing the engine.
 
 UI wiring MUST be covered by the jsdom page tests (`tests/dom.test.ts`, `tests/dom-late.test.ts`, `tests/dom-away.test.ts`, plus the random-click `tests/dom-fuzz.test.ts`), which boot the real `index.html` and `src/main.ts` and drive them through complete journeys.
+
+Layout MUST be verified in a real browser engine: `tests/mobile-fit.test.ts` drives the system Chrome at phone sizes through every main section and sub-page in several game states, and fails on any overflow, clipping, scrollbar or small tap target. CI sets `OMT_REQUIRE_BROWSER=1` so a missing browser fails instead of skipping. Any new page, list or card MUST pass it.
 
 CI passing is not proof of game feel or mobile layout ergonomics; tests must exercise complete-state journeys and mobile viewport geometry.

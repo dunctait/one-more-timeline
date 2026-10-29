@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ripe } from './helpers.js';
 import { ACHIEVEMENTS } from '../src/engine/achievements.js';
 import { createInitialState, executeAction, stepTick } from '../src/engine/engine.js';
 import { getProductionMultiplier } from '../src/engine/rules.js';
@@ -27,7 +28,7 @@ describe('achievements', () => {
     s = { ...s, rung: 'village', tick: 40, year: 11, furthestYear: 11 };
     s = stepTick(s);
     const earned = [...s.achievements];
-    const jumped = executeAction(s, { type: 'TIME_JUMP' }).state;
+    const jumped = executeAction(ripe(s), { type: 'TIME_JUMP' }).state;
     earned.forEach((id) => expect(jumped.achievements).toContain(id));
     expect(jumped.achievements).toContain('first_jump');
   });

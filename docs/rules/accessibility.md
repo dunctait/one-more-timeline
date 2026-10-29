@@ -21,3 +21,7 @@ Sound MUST be optional, off by default, and never the only channel for any game 
 The client MUST honour the system reduced-motion preference and offer a manual reduced-motion switch and a larger-text switch in Settings. Both choices MUST persist locally and MUST NOT affect game rules.
 
 Compliance is a target; the playable client implements the switches above and keyboard-reachable controls, but a full audit has not been completed.
+
+## One screen, no scrolling
+
+Every page of the interface MUST fit the visible screen of a phone of about 412 by 780 CSS pixels, and SHOULD still fit 360 by 700, with no page scroll, no inner scrollbars, no clipped content and no sideways overflow. Long lists MUST be split into pages (with previous and next buttons of at least 44 by 44 CSS pixels) sized from what is measured. The one exception is the Larger Text setting, which MAY let a page scroll so text can be bigger, and developer tools. This is enforced by `tests/mobile-fit.test.ts`, which measures every page in a real browser engine across several game states.

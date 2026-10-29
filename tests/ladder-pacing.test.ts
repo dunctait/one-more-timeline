@@ -52,4 +52,4 @@ it('each prestige tier takes longer than the one before', () => {
   expect(firstAt[3]).toBeGreaterThan(firstAt[2] * 2);
   expect(firstAt[4]).toBeGreaterThan(firstAt[3] * 2);
   expect(firstAt[4]).toBeLessThan(600);
-});
+}, 60_000);

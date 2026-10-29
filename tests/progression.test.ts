@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ripe } from './helpers.js';
 import { createInitialState, executeAction, stepTick } from '../src/engine/engine.js';
 import {
   BUILDINGS,
@@ -198,7 +199,7 @@ describe('prestige tiers and sent-back functions', () => {
   });
 
   it('the first Time Jump sends back Ancestral Hands, which assigns newcomers on its own', () => {
-    const jump = executeAction({ ...createInitialState(), year: 5 }, { type: 'TIME_JUMP' });
+    const jump = executeAction(ripe({ ...createInitialState(), year: 5 }), { type: 'TIME_JUMP' });
     expect(jump.state.features).toContain('ancestral_hands');
     let s: TimelineState = { ...jump.state, rung: 'band' };
     s = { ...s, population: { ...s.population, total: 3, roles: { ...s.population.roles, unassigned: 3 } } };
@@ -230,7 +231,7 @@ describe('prestige tiers and sent-back functions', () => {
 });
 
 describe('later sent-back functions', () => {
-  const jump = (s: TimelineState): TimelineState => executeAction({ ...s, year: 5, tick: 16 }, { type: 'TIME_JUMP' }).state;
+  const jump = (s: TimelineState): TimelineState => executeAction(ripe({ ...s, year: 5, tick: 16 }), { type: 'TIME_JUMP' }).state;
   const atRealm = (patch: Partial<TimelineState> = {}): TimelineState => ({
     ...createInitialState(),
     rung: 'realm',
@@ -343,7 +344,7 @@ describe('Chrono Dial', () => {
 describe('deeper sent-back functions', () => {
   const jumpN = (s: TimelineState, n: number): TimelineState => {
     let cur = s;
-    for (let i = 0; i < n; i++) cur = executeAction({ ...cur, year: 9, tick: 32 }, { type: 'TIME_JUMP' }).state;
+    for (let i = 0; i < n; i++) cur = executeAction(ripe({ ...cur, year: 9, tick: 32 }), { type: 'TIME_JUMP' }).state;
     return cur;
   };
 

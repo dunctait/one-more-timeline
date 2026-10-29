@@ -108,43 +108,38 @@
         </div>
       </header>
 
-      <!-- Active Tab Viewport -->
+      <!-- Toasts float above the page; the banner below is visible on every tab -->
       <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+      <section id="ready-banner" class="ready-banner" aria-label="Ready to act" hidden>
+        <div class="ready-banner-text">
+          <strong id="ready-banner-title"></strong>
+          <span id="ready-banner-steps"></span>
+        </div>
+        <button id="ready-banner-go" class="btn btn-sm" type="button">Go</button>
+      </section>
 
       <main class="tab-viewport">
-        <!-- TAB 1: HEARTH -->
         <section id="tab-hearth" class="tab-panel active" role="tabpanel" aria-labelledby="tab-btn-hearth">
+          <nav class="subnav" role="tablist" aria-label="Hearth sections" hidden></nav>
           <div class="tab-inner">
-            <section id="goal-card" class="section-box goal-card" aria-label="Next goal">
-              <div class="section-header">
-                <h2 id="goal-title" class="section-title">🎯 Next goal</h2>
-                <button id="goal-go" class="btn btn-sm" type="button">Go</button>
-              </div>
-              <ul id="goal-steps" class="goal-steps"></ul>
-            </section>
+            <div class="subpanel" data-sub="gather" data-label="Gather" data-icon="🌿">
+              <section id="goal-card" class="section-box goal-card" aria-label="Next goal">
+                <div class="section-header">
+                  <h2 id="goal-title" class="section-title">🎯 Next goal</h2>
+                  <button id="goal-go" class="btn btn-sm" type="button">Go</button>
+                </div>
+                <ul id="goal-steps" class="goal-steps"></ul>
+              </section>
 
-            <section id="decision-card" class="section-box goal-card ready" aria-live="polite" hidden>
-              <div class="section-header">
-                <h2 id="decision-title" class="section-title">A decision awaits</h2>
-              </div>
-              <p id="decision-text" class="settings-copy"></p>
-              <div id="decision-options" class="edict-options"></div>
-            </section>
+              <section id="decision-card" class="section-box goal-card ready" aria-live="polite" hidden>
+                <div class="section-header">
+                  <h2 id="decision-title" class="section-title">A decision awaits</h2>
+                </div>
+                <p id="decision-text" class="settings-copy"></p>
+                <div id="decision-options" class="edict-options"></div>
+              </section>
 
-            <section class="hearth-intro" aria-labelledby="hearth-intro-title">
-              <div>
-                <p class="eyebrow">A small flame. One more season.</p>
-                <h1 id="hearth-intro-title">Tend the hearth.</h1>
-                 <p class="hearth-intro-copy">Gather as quickly as you like, or pause to plan. Food, materials, and knowledge open the next rung.</p>
-               </div>
-               <div class="action-pacing-controls">
-                 <p id="action-pacing" class="action-pacing" aria-live="polite">Manual actions are immediate.</p>
-                <button id="btn-pause" class="btn btn-sm" type="button" aria-pressed="false">Pause timeline</button>
-                <button id="btn-speed" class="btn btn-sm" type="button" hidden>Speed: 1x</button>
-              </div>
-            </section>
-
-            <!-- Manual Actions -->
+              <!-- Manual Actions -->
             <section class="section-box">
               <div class="section-header">
                 <h2 class="section-title">⚡ Manual Gathering</h2>
@@ -175,200 +170,252 @@
               </div>
             </section>
 
-            <!-- Community Roles -->
-            <section class="section-box">
-              <div class="section-header">
-                <h2 class="section-title">👥 Community Roles</h2>
-                <span class="section-hint">Assign unallocated population</span>
+              <div class="pace-row">
+                <p id="action-pacing" class="action-pacing" aria-live="polite">Manual actions are immediate.</p>
+                <button id="btn-pause" class="btn btn-sm" type="button" aria-pressed="false">Pause timeline</button>
+                <button id="btn-speed" class="btn btn-sm" type="button" hidden>Speed: 1x</button>
               </div>
-              <div id="role-list" class="role-list">
-                <!-- Injected by ViewModel -->
-              </div>
-            </section>
-
-            <section class="section-box">
-              <div class="section-header">
-                <h2 class="section-title">🧑‍🤝‍🧑 Your People</h2>
-                <span id="people-count" class="section-hint"></span>
-              </div>
-              <ul id="people-list" class="people-list"></ul>
-            </section>
-
-            <details class="section-box production-box">
-              <summary class="section-title">📈 Where production comes from</summary>
-              <ul id="production-notes" class="production-notes"></ul>
-            </details>
-          </div>
-        </section>
-
-        <!-- TAB 2: SETTLEMENT -->
-        <section id="tab-settlement" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-settlement" hidden>
-          <div class="tab-inner">
-            <nav class="jump-bar" aria-label="Jump to a section">
-              <button type="button" class="btn btn-sm" data-jump="building-grid">Works</button>
-              <button type="button" class="btn btn-sm" data-jump="market-list">Market</button>
-              <button type="button" class="btn btn-sm" data-jump="edict-list">Edicts</button>
-              <button type="button" class="btn btn-sm" data-jump="discovery-list">Discoveries</button>
-            </nav>
-            <section class="section-box">
-              <div class="section-header">
-                <h2 class="section-title">🏛️ Works &amp; Architecture</h2>
-                <span class="section-hint">Permanent capacity expansions</span>
-              </div>
-              <div id="building-grid" class="building-grid">
-                <!-- Injected by ViewModel -->
-              </div>
-            </section>
-
-            <section class="section-box">
-              <div class="section-header">
-                <h2 class="section-title">⚖️ Marketplace</h2>
-                <span class="section-hint">Turn spare stores into what you need</span>
-              </div>
-              <div id="market-list" class="market-list"></div>
-            </section>
-
-            <section class="section-box">
-              <div class="section-header">
-                <h2 class="section-title">📜 Edicts</h2>
-                <span class="section-hint">Free to change any time</span>
-              </div>
-              <div id="edict-list" class="edict-list"></div>
-            </section>
-
-            <section class="section-box">
-              <div class="section-header">
-                <h2 class="section-title">🔬 Discoveries</h2>
-                <span class="section-hint">Spend Knowledge; rediscovered each timeline</span>
-              </div>
-              <div id="discovery-list" class="discovery-list"></div>
-            </section>
-          </div>
-        </section>
-
-        <!-- TAB 3: EVOLUTION -->
-        <section id="tab-evolution" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-evolution" hidden>
-          <div class="tab-inner">
-            <!-- Current Rung Info -->
-            <section class="section-box rung-banner-box">
-              <div class="rung-meta-tag">Civilization Stage</div>
-              <h2 id="current-rung-name" class="current-rung-title">Solitary Hearth</h2>
-              <p id="current-rung-subtitle" class="current-rung-sub">The fragile flame in the dawn.</p>
-              <p id="current-rung-desc" class="current-rung-body">
-                A single campfire against the primordial cold. Forage wild roots and ponder the sky.
-              </p>
-            </section>
-
-            <!-- Next Rung Ascension -->
-            <section class="section-box">
-              <div class="section-header">
-                <h2 class="section-title">🌟 Next Rung Requirements</h2>
-                <span class="section-hint">Rung milestone</span>
-              </div>
-              <div id="next-rung-container" class="next-rung-container">
-                <div class="next-rung-content">
-                  <div class="next-rung-heading">
-                    <span id="next-rung-label" class="next-rung-label"></span>
-                    <span id="next-rung-subtitle" class="next-rung-subtitle"></span>
-                  </div>
-                  <div id="next-rung-prerequisites" class="prereq-grid"></div>
-                  <button id="btn-advance-rung" class="btn-ascend" type="button" disabled></button>
+            </div>
+            <div class="subpanel" data-sub="roles" data-label="Roles" data-icon="👥" hidden>
+              <section class="section-box ">
+                <div class="section-header">
+                  <h2 class="section-title">👥 Community Roles</h2>
+                  <span class="section-hint">Assign unallocated population</span>
                 </div>
-              </div>
-            </section>
-
-            <!-- Time Jump Prestige -->
-            <section class="section-box time-jump-box">
-              <div class="section-header">
-                <h2 class="section-title" style="color: var(--accent-gold);">🌀 Time Jump (Prestige)</h2>
-                <span id="insight-badge" class="insight-badge">+0 Insight</span>
-              </div>
-              <div id="time-jump-content" class="time-jump-content">
-                <p id="time-jump-desc" class="time-jump-text">
-                  Endure until at least Year 3 to collapse this timeline into enduring Insight.
-                </p>
-                <div id="time-jump-breakdown" class="time-jump-breakdown"></div>
-              </div>
-              <button id="btn-time-jump" class="btn btn-timejump" disabled>
-                Initiate Time Jump
-              </button>
-            </section>
-
-            <!-- Legacy functions sent back through time -->
-            <section id="legacy-functions-box" class="section-box legacy-box">
-              <div class="section-header">
-                <h2 class="section-title">🕰️ Sent Back Through Time</h2>
-                <span class="section-hint">Permanent functions</span>
-              </div>
-              <div id="legacy-functions-list" class="legacy-list"></div>
-              <h3 class="records-sub">Next to be sent back</h3>
-              <ul id="next-functions-list" class="history-list"></ul>
-            </section>
-
-            <section class="section-box">
-              <div class="section-header">
-                <h2 class="section-title">🏁 Challenges</h2>
-                <span class="section-hint">Optional. Trophies are permanent.</span>
-              </div>
-              <p class="settings-copy">A challenge begins a new timeline with every permanent bonus intact. Completing one earns a trophy relic forever. Failing or abandoning one costs nothing.</p>
-              <div id="challenge-list" class="edict-list"></div>
-            </section>
-
-            <!-- Deeper prestige tiers -->
-            <div id="deep-prestige-list" class="deep-prestige-list"></div>
-          </div>
-        </section>
-
-        <!-- TAB 4: CHRONICLE -->
-        <section id="tab-chronicle" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-chronicle" hidden>
-          <div class="tab-inner chronicle-inner">
-            <section class="section-box">
-              <div class="section-header">
-                <h2 class="section-title">📊 Records</h2>
-                <span class="section-hint">Never reset</span>
-              </div>
-              <dl id="records-list" class="records-list"></dl>
-              <button id="btn-copy-summary" class="btn btn-sm" type="button">📋 Copy summary</button>
-              <h3 class="records-sub">Past timelines</h3>
-              <ul id="history-list" class="history-list"></ul>
-            </section>
-
-            <section class="section-box">
-              <div class="section-header">
-                <h2 class="section-title">🏺 Relics</h2>
-                <span id="relics-summary" class="section-hint"></span>
-              </div>
-              <p class="settings-copy">Rare finds from seasonal events. Relics are never lost and send back small functions.</p>
-              <div id="relics-list" class="achievements-list"></div>
-            </section>
-
-            <section class="section-box achievements-box">
-              <div class="section-header">
-                <h2 class="section-title">🏅 Achievements</h2>
-                <span id="achievements-summary" class="section-hint"></span>
-              </div>
-              <p class="settings-copy">Each achievement permanently adds +1% production (Renown) and is never lost.</p>
-              <div id="achievements-list" class="achievements-list"></div>
-            </section>
-            <div class="jump-bar" role="group" aria-label="Filter the chronicle">
-              <button type="button" class="btn btn-sm" data-chronicle-filter="all" aria-pressed="true">All</button>
-              <button type="button" class="btn btn-sm" data-chronicle-filter="milestones" aria-pressed="false">Milestones</button>
-              <button type="button" class="btn btn-sm" data-chronicle-filter="quiet" aria-pressed="false">Quiet days</button>
+                <div id="role-list" class="role-list"></div>
+              </section>
             </div>
-            <div class="chronicle-header-bar">
-              <h2 class="section-title">📜 Chronicle of the Timeline</h2>
-              <span class="section-hint">Historical beats</span>
+            <div class="subpanel" data-sub="people" data-label="People" data-icon="🧑‍🤝‍🧑" hidden>
+              <section class="section-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">🧑‍🤝‍🧑 Your People</h2>
+                  <span id="people-count" class="section-hint"></span>
+                </div>
+                <div class="pager" data-pager="people">
+                <div id="people-list" class="pager-items people-list"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+              </section>
             </div>
-            <div id="chronicle-log" class="chronicle-log-scroll" role="log" aria-live="off" aria-label="Chronicle of the timeline">
-              <!-- Injected by ViewModel -->
+            <div class="subpanel" data-sub="sources" data-label="Sources" data-icon="📈" hidden>
+              <section class="section-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">📈 Where production comes from</h2>
+                  
+                </div>
+                <div class="pager" data-pager="sources">
+                <div id="production-notes" class="pager-items production-notes"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+              </section>
             </div>
           </div>
         </section>
 
-        <!-- TAB 5: SETTINGS -->
-        <section id="tab-settings" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-settings" hidden>
+        <section id="tab-settlement" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-settlement" hidden>
+          <nav class="subnav" role="tablist" aria-label="Settlement sections" hidden></nav>
           <div class="tab-inner">
-            <!-- Game Management -->
+            <div class="subpanel" data-sub="works" data-label="Works" data-icon="🏛️">
+              <section class="section-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">🏛️ Works &amp; Architecture</h2>
+                  <span class="section-hint">Permanent expansions</span>
+                </div>
+                <div class="pager" data-pager="works">
+                <div id="building-grid" class="pager-items building-grid"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="market" data-label="Market" data-icon="⚖️" data-disclosure="market" hidden>
+              <section class="section-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">⚖️ Marketplace</h2>
+                  <span class="section-hint">Spare stores into what you need</span>
+                </div>
+                <div class="pager" data-pager="market">
+                <div id="market-list" class="pager-items market-list"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="edicts" data-label="Edicts" data-icon="📜" data-disclosure="edicts" hidden>
+              <section class="section-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">📜 Edicts</h2>
+                  <span class="section-hint">Free to change any time</span>
+                </div>
+                <div class="pager" data-pager="edicts">
+                <div id="edict-list" class="pager-items edict-list"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="discoveries" data-label="Ideas" data-icon="🔬" data-disclosure="discoveries" hidden>
+              <section class="section-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">🔬 Discoveries</h2>
+                  <span class="section-hint">Spend Knowledge</span>
+                </div>
+                <div class="pager" data-pager="discoveries">
+                <div id="discovery-list" class="pager-items discovery-list"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-evolution" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-evolution" hidden>
+          <nav class="subnav" role="tablist" aria-label="Evolution sections" hidden></nav>
+          <div class="tab-inner">
+            <div class="subpanel" data-sub="rung" data-label="Rung" data-icon="🌟">
+              <section class="section-box rung-banner-box">
+                <div class="rung-meta-tag">Civilization Stage</div>
+                <h2 id="current-rung-name" class="current-rung-title">Solitary Hearth</h2>
+                <p id="current-rung-subtitle" class="current-rung-sub">The fragile flame in the dawn.</p>
+                <p id="current-rung-desc" class="current-rung-body"></p>
+              </section>
+              <section class="section-box">
+                <div class="section-header">
+                  <h2 class="section-title">🌟 Next Rung Requirements</h2>
+                  <span class="section-hint">Rung milestone</span>
+                </div>
+                <div id="next-rung-container" class="next-rung-container">
+                  <div class="next-rung-content">
+                    <div class="next-rung-heading">
+                      <span id="next-rung-label" class="next-rung-label"></span>
+                      <span id="next-rung-subtitle" class="next-rung-subtitle"></span>
+                    </div>
+                    <div id="next-rung-prerequisites" class="prereq-grid"></div>
+                    <button id="btn-advance-rung" class="btn-ascend" type="button" disabled></button>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="jump" data-label="Time Jump" data-icon="🌀" data-disclosure="timeJump" hidden>
+              <section class="section-box time-jump-box">
+                <div class="section-header">
+                  <h2 class="section-title" style="color: var(--accent-gold);">🌀 Time Jump</h2>
+                  <span id="insight-badge" class="insight-badge">+0 Insight</span>
+                </div>
+                <div id="time-jump-content" class="time-jump-content">
+                  <p id="time-jump-desc" class="time-jump-text"></p>
+                  <div id="time-jump-breakdown" class="time-jump-breakdown"></div>
+                </div>
+                <button id="btn-time-jump" class="btn btn-timejump" disabled>Initiate Time Jump</button>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="legacy" data-label="Sent back" data-icon="🕰️" data-disclosure="legacy" hidden>
+              <section id="legacy-functions-box" class="section-box legacy-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">🕰️ Sent Back Through Time</h2>
+                  <span class="section-hint">Permanent functions</span>
+                </div>
+                <div class="pager" data-pager="legacy">
+                <div id="legacy-functions-list" class="pager-items legacy-list"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+                <h3 class="records-sub">Next to be sent back</h3>
+                <ul id="next-functions-list" class="history-list"></ul>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="trials" data-label="Trials" data-icon="🏁" data-disclosure="challenges" hidden>
+              <section class="section-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">🏁 Challenges</h2>
+                  <span class="section-hint">Optional. Trophies are permanent.</span>
+                </div>
+                <p class="settings-copy">A challenge begins a new timeline with every permanent bonus intact. Failing or abandoning one costs nothing.</p>
+                <div class="pager" data-pager="challenges">
+                <div id="challenge-list" class="pager-items edict-list"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="deeper" data-label="Deeper" data-icon="🔮" data-disclosure="deeper" hidden>
+              <div class="pager pager-flat" data-pager="deeper">
+                <div id="deep-prestige-list" class="pager-items deep-prestige-list"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-chronicle" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-chronicle" hidden>
+          <nav class="subnav" role="tablist" aria-label="Chronicle sections" hidden></nav>
+          <div class="tab-inner">
+            <div class="subpanel" data-sub="log" data-label="Log" data-icon="📜">
+              <div class="jump-bar" role="group" aria-label="Filter the chronicle">
+                <button type="button" class="btn btn-sm" data-chronicle-filter="all" aria-pressed="true">All</button>
+                <button type="button" class="btn btn-sm" data-chronicle-filter="milestones" aria-pressed="false">Milestones</button>
+                <button type="button" class="btn btn-sm" data-chronicle-filter="quiet" aria-pressed="false">Quiet days</button>
+              </div>
+              <section class="section-box pager-box">
+                <div class="pager" data-pager="log">
+                  <div id="chronicle-log" class="pager-items chronicle-log" role="log" aria-live="off" aria-label="Chronicle of the timeline"></div>
+                  <div class="pager-bar" hidden></div>
+                </div>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="records" data-label="Records" data-icon="📊" hidden>
+              <section class="section-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">📊 Records</h2>
+                  <span class="section-hint">Never reset</span>
+                </div>
+                <div class="pager" data-pager="records">
+                <div id="records-list" class="pager-items records-list"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+                <button id="btn-copy-summary" class="btn btn-sm" type="button">📋 Copy summary</button>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="history" data-label="Past" data-icon="🕰️" data-disclosure="legacy" hidden>
+              <section class="section-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">🕰️ Past timelines</h2>
+                  
+                </div>
+                <div class="pager" data-pager="history">
+                <div id="history-list" class="pager-items history-list"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="relics" data-label="Relics" data-icon="🏺" data-disclosure="relics" hidden>
+              <section class="section-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">🏺 Relics</h2>
+                  <span id="relics-summary" class="section-hint"></span>
+                </div>
+                <div class="pager" data-pager="relics">
+                <div id="relics-list" class="pager-items achievements-list"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="marks" data-label="Marks" data-icon="🏅" hidden>
+              <section class="section-box achievements-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">🏅 Achievements</h2>
+                  <span id="achievements-summary" class="section-hint"></span>
+                </div>
+                <p class="settings-copy">Each adds +1% production (Renown), never lost.</p>
+                <div class="pager" data-pager="marks">
+                <div id="achievements-list" class="pager-items achievements-list"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-settings" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-settings" hidden>
+          <nav class="subnav" role="tablist" aria-label="Settings sections" hidden></nav>
+          <div class="tab-inner">
+            <div class="subpanel" data-sub="save" data-label="Save" data-icon="💾">
+              <!-- Game Management -->
             <section class="section-box">
               <div class="section-header">
                 <h2 class="section-title">💾 Game State &amp; Saves</h2>
@@ -388,23 +435,9 @@
                 <button id="btn-import-save" class="btn btn-sm">📥 Import</button>
               </div>
             </section>
-
-            <!-- How it works -->
-            <details class="section-box">
-              <summary class="section-title" style="min-height:44px;display:flex;align-items:center;cursor:pointer;">📖 How it works</summary>
-              <ul class="settings-copy guide-list">
-                <li><strong>Numbers only go up.</strong> Nothing decays, starves or runs out while you are away. You can leave at any time.</li>
-                <li><strong>Gather and assign.</strong> Forage, scavenge and study by hand (keys 1, 2, 3; hold to repeat). Assign people to roles as they unlock.</li>
-                <li><strong>Rungs.</strong> Meet a rung's requirements in Evolution to advance. Each rung unlocks buildings, edicts, discoveries and more.</li>
-                <li><strong>Settlement.</strong> Build for capacity and production, research Discoveries, choose Edicts (free to swap), and trade spare stores at the Marketplace.</li>
-                <li><strong>Time Jump.</strong> From Year 3 you can collapse a timeline into permanent Insight. Deeper tiers (Epoch Shift, Paradigm Shift, Ascension) open at the Sovereign Realm.</li>
-                <li><strong>Sent back.</strong> Every prestige tier sends back functions such as auto-assign or a speed dial. Find them under Evolution.</li>
-                <li><strong>Collect.</strong> Relics turn up in events, challenges award trophies, achievements add Renown and unlock themes.</li>
-                <li><strong>Why is a rate that number?</strong> Open "Where production comes from" on the Hearth.</li>
-              </ul>
-            </details>
-
-            <!-- Display -->
+            </div>
+            <div class="subpanel" data-sub="display" data-label="Display" data-icon="👁️" hidden>
+              <!-- Display -->
             <section class="section-box">
               <div class="section-header">
                 <h2 class="section-title">👁️ Display</h2>
@@ -419,8 +452,25 @@
               <p class="settings-copy">Earn achievements to unlock new looks. Themes are cosmetic only.</p>
               <div id="theme-list" class="settings-actions-row"></div>
             </section>
-
-            <!-- Feature Proposals -->
+            </div>
+            <div class="subpanel" data-sub="guide" data-label="Guide" data-icon="📖" hidden>
+              <section class="section-box ">
+                <div class="section-header">
+                  <h2 class="section-title">📖 How it works</h2>
+                  
+                </div>
+                <ul class="settings-copy guide-list">
+                  <li><strong>Numbers only go up.</strong> Nothing decays, starves or runs out while you are away.</li>
+                  <li><strong>Gather and assign.</strong> Forage, scavenge and study by hand (keys 1, 2, 3; hold to repeat). Assign people as roles unlock.</li>
+                  <li><strong>Rungs.</strong> Meet a rung's requirements in Evolution to advance. Each opens new things to do.</li>
+                  <li><strong>Settlement.</strong> Build, research, issue edicts and trade as those open up.</li>
+                  <li><strong>Why is a rate that number?</strong> Hearth, then Sources.</li>
+                  <li><strong>New things appear when you reach them.</strong> Nothing is ever lost.</li>
+                </ul>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="more" data-label="More" data-icon="🛠️" hidden>
+              <!-- Feature Proposals -->
             <section class="section-box">
               <div class="section-header">
                 <h2 class="section-title">💡 Community &amp; Governance</h2>
@@ -497,6 +547,7 @@
                 <pre id="dev-raw-state" class="dev-raw-state"></pre>
               </details>
             </section>
+            </div>
           </div>
         </section>
       </main>

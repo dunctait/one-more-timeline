@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ripe } from './helpers.js';
 import { createInitialState, executeAction, normalizeState, stepTick } from '../src/engine/engine.js';
 import { TimelineState } from '../src/engine/types.js';
 import { buildTimelineViewModel } from '../src/ui/view-model.js';
@@ -23,7 +24,7 @@ describe('lifetime stats', () => {
   it('survive Time Jumps and prestige', () => {
     let s: TimelineState = { ...createInitialState(), tick: 40, year: 11 };
     s = { ...s, stats: { ticks: 500, gathers: 40, built: 12, researched: 3, traded: 2 } };
-    const jumped = executeAction(s, { type: 'TIME_JUMP' }).state;
+    const jumped = executeAction(ripe(s), { type: 'TIME_JUMP' }).state;
     expect(jumped.stats).toEqual(s.stats);
     const epoch = executeAction({ ...s, rung: 'realm', year: 70, insight: 120 }, { type: 'PRESTIGE', tier: 2 }).state;
     expect(epoch.stats).toEqual(s.stats);

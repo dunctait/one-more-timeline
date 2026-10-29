@@ -14,6 +14,7 @@ import {
   calculateCaps,
   calculatePrestigeGain,
   checkPrestigeTier,
+  checkTimeJump,
   createEmptyBuildings,
   getStartingRung,
   insightStartBonus,
@@ -899,11 +900,12 @@ function executeActionCore(
     }
 
     case 'TIME_JUMP': {
-      if (state.year < 3) {
+      const jumpCheck = checkTimeJump(state);
+      if (!jumpCheck.eligible) {
         return {
           success: false,
           state,
-          error: 'The timeline must persist until at least Year 3 before a Time Jump can be achieved.',
+          error: `Not yet: ${jumpCheck.reasons.join('; ')}.`,
           events: [],
         };
       }
@@ -1164,11 +1166,12 @@ function executeActionCore(
           events: [],
         };
       }
-      if (state.year < 3) {
+      const startCheck = checkTimeJump(state);
+      if (!startCheck.eligible) {
         return {
           success: false,
           state,
-          error: 'Let the timeline reach Year 3 first: beginning a challenge ends it like a Time Jump.',
+          error: `Beginning a challenge ends this timeline like a Time Jump, so it must be ready first: ${startCheck.reasons.join('; ')}.`,
           events: [],
         };
       }
