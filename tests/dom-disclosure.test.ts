@@ -46,12 +46,15 @@ describe('progressive disclosure, the banner and a quiet bottom of the screen', 
   });
 
   it('shows a two-tier menu, and only the sub-pages the player has met', () => {
-    const labels = [...document.querySelectorAll('#tab-evolution .subnav-btn')].map((b) => b.textContent?.trim());
+    const labels = [...document.querySelectorAll('#subnav .subnav-btn')].map((b) => b.textContent?.trim());
     expect(labels.some((l) => l?.includes('Time Jump'))).toBe(true);
     expect(labels.some((l) => l?.includes('Sent back'))).toBe(false);
     expect(labels.some((l) => l?.includes('Trials'))).toBe(false);
     expect(labels.some((l) => l?.includes('Deeper'))).toBe(false);
     expect(sub('evolution', 'deeper').hidden).toBe(true);
+    // The sub-menu always has five cells, blank where a page has not been met yet.
+    expect(document.querySelectorAll('#subnav > *')).toHaveLength(5);
+    expect(document.querySelectorAll('#subnav .subnav-blank').length).toBeGreaterThan(0);
     // Only one sub-page of a tab is ever shown.
     const shown = [...document.querySelectorAll<HTMLElement>('#tab-evolution .subpanel')].filter((p) => !p.hidden);
     expect(shown).toHaveLength(1);

@@ -134,6 +134,8 @@ const elRoleList = document.getElementById('role-list') as HTMLElement;
 
 // Tab 2: Settlement
 const elBuildingGrid = document.getElementById('building-grid') as HTMLElement;
+const elWonderGrid = document.getElementById('wonder-grid') as HTMLElement;
+const elSeasonList = document.getElementById('season-list') as HTMLElement;
 
 // Tab 3: Evolution
 const elCurrentRungName = document.getElementById('current-rung-name') as HTMLElement;
@@ -765,7 +767,8 @@ function render(): void {
     .join('');
 
   // Tab 2: Buildings
-  elBuildingGrid.innerHTML = vm.buildings
+  const buildingHtml = (list: typeof vm.buildings): string =>
+    list
     .map((b) => {
       if (!b.unlocked) {
         return `
@@ -800,6 +803,11 @@ function render(): void {
         </div>
       `;
     })
+    .join('');
+  elBuildingGrid.innerHTML = buildingHtml(vm.buildings.filter((b) => !b.wonder));
+  elWonderGrid.innerHTML = buildingHtml(vm.buildings.filter((b) => b.wonder));
+  elSeasonList.innerHTML = vm.seasons
+    .map((x) => `<div class="season-row${x.current ? ' current' : ''}"><strong>${escapeHtml(x.name)}${x.current ? ' (now)' : ''}</strong><span>${escapeHtml(x.note)}</span></div>`)
     .join('');
 
   // Tab 3: Evolution (Rung Progression & Time Jump)
@@ -1180,13 +1188,15 @@ function setupListeners(): void {
   });
 
   // Buildings buy buttons delegation
-  elBuildingGrid.addEventListener('click', (ev) => {
-    const target = ev.target as HTMLElement;
-    if (target.classList.contains('btn-build')) {
-      const buildingId = target.getAttribute('data-building') as BuildingId;
-      if (buildingId) dispatch({ type: 'BUILD', buildingId });
-    }
-  });
+  [elBuildingGrid, elWonderGrid].forEach((grid) =>
+    grid.addEventListener('click', (ev) => {
+      const target = ev.target as HTMLElement;
+      if (target.classList.contains('btn-build')) {
+        const buildingId = target.getAttribute('data-building') as BuildingId;
+        if (buildingId) dispatch({ type: 'BUILD', buildingId });
+      }
+    })
+  );
 
   // Advance Rung: the button is stable across renders, so clicks remain attached during ticks.
   elBtnAdvanceRung.addEventListener('click', () => {
@@ -1626,7 +1636,7 @@ function guardInnerHtml(el: HTMLElement): void {
 }
 
 [
-  elChallengeList, elDecisionOptions, elProductionNotes, elMarketList, elThemeList, elRoleList, elBuildingGrid, elNextRungPrerequisites, elTimeJumpBreakdown, elGoalSteps,
+  elChallengeList, elDecisionOptions, elProductionNotes, elMarketList, elThemeList, elRoleList, elBuildingGrid, elWonderGrid, elSeasonList, elNextRungPrerequisites, elTimeJumpBreakdown, elGoalSteps,
   elPeopleList, elEdictList, elDiscoveryList, elRelicsList, elRecordsList, elHistoryList,
   elAchievementsList, elLegacyList, elDeepPrestigeList, elChronicleLog,
 ].forEach(guardInnerHtml);

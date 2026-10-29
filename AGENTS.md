@@ -31,9 +31,13 @@ Feedback Codification Protocol: Whenever user feedback is received or an operati
 - Never punish absence or time: no rate may be negative and no resource may decay; frame scarcity as slower growth, caps, or costs.
 - Badges are for actionable state, not logs: navigation indicators MUST point to attention-required work, not historical or log-only views.
 - Progressive disclosure of complexity: never show a mechanic, currency, tier or preview until the player first comes across it; once met it stays. Hidden mechanics must not be named in goals, banners, badges or header pills.
-- Everything fits on one screen: navigation is two-tier (bottom bar plus a sub-menu), every page fits a phone viewport (412x780, and 360x700 where possible) with no scrolling, and long lists are paged to fit rather than scrolled.
+- Everything fits on one screen: navigation is two-tier (bottom bar plus a sub-menu directly above it, five pages per section, blank cells for pages not yet met), every page fits a phone viewport (412x780, and 360x700 where possible) with no scrolling, and long lists are paged to fit rather than scrolled.
 - Quiet by default: toasts are only for the result of something the player just did. Achievements and events are never toasts, and anything the player must act on is a banner every page shows.
 - Game currencies need plain-language mechanical explanations: explain what a currency changes now, what it changes next run, and how it is earned where it first appears.
+
+## Delivery
+
+Once a change is complete and validated (type check, tests including `tests/mobile-fit.test.ts`, and a clean build), commit it and push it to `main` without waiting to be asked. Unvalidated or half-finished work MUST NOT be pushed. This repository's owner has standing approval for this, which overrides any general "wait for direction after a push" habit.
 
 ## Verification and ergonomics
 

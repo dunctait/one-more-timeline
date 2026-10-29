@@ -257,6 +257,9 @@ export const BUILDINGS: Record<BuildingId, BuildingDef> = { ...CORE_BUILDINGS, .
 
 export const BUILDING_IDS = Object.keys(BUILDINGS) as BuildingId[];
 
+/** Wonders are limited to one per timeline and get a page of their own. */
+export const WONDER_IDS = new Set<string>(Object.keys(WONDERS));
+
 export function createEmptyBuildings(): BuildingsMap {
   return Object.fromEntries(BUILDING_IDS.map((id) => [id, 0])) as BuildingsMap;
 }

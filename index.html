@@ -120,7 +120,6 @@
 
       <main class="tab-viewport">
         <section id="tab-hearth" class="tab-panel active" role="tabpanel" aria-labelledby="tab-btn-hearth">
-          <nav class="subnav" role="tablist" aria-label="Hearth sections" hidden></nav>
           <div class="tab-inner">
             <div class="subpanel" data-sub="gather" data-label="Gather" data-icon="🌿">
               <section id="goal-card" class="section-box goal-card" aria-label="Next goal">
@@ -209,11 +208,19 @@
               </div>
               </section>
             </div>
+            <div class="subpanel" data-sub="seasons" data-label="Seasons" data-icon="🍂" hidden>
+              <section class="section-box">
+                <div class="section-header">
+                  <h2 class="section-title">🍂 The Seasons</h2>
+                  <span class="section-hint">Every season helps something</span>
+                </div>
+                <div id="season-list" class="season-list"></div>
+              </section>
+            </div>
           </div>
         </section>
 
         <section id="tab-settlement" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-settlement" hidden>
-          <nav class="subnav" role="tablist" aria-label="Settlement sections" hidden></nav>
           <div class="tab-inner">
             <div class="subpanel" data-sub="works" data-label="Works" data-icon="🏛️">
               <section class="section-box pager-box">
@@ -223,6 +230,18 @@
                 </div>
                 <div class="pager" data-pager="works">
                 <div id="building-grid" class="pager-items building-grid"></div>
+                <div class="pager-bar" hidden></div>
+              </div>
+              </section>
+            </div>
+            <div class="subpanel" data-sub="wonders" data-label="Wonders" data-icon="🗿" data-disclosure="wonders" hidden>
+              <section class="section-box pager-box">
+                <div class="section-header">
+                  <h2 class="section-title">🗿 Wonders</h2>
+                  <span class="section-hint">One of each; they lift everything</span>
+                </div>
+                <div class="pager" data-pager="wonders">
+                <div id="wonder-grid" class="pager-items building-grid"></div>
                 <div class="pager-bar" hidden></div>
               </div>
               </section>
@@ -267,7 +286,6 @@
         </section>
 
         <section id="tab-evolution" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-evolution" hidden>
-          <nav class="subnav" role="tablist" aria-label="Evolution sections" hidden></nav>
           <div class="tab-inner">
             <div class="subpanel" data-sub="rung" data-label="Rung" data-icon="🌟">
               <section class="section-box rung-banner-box">
@@ -343,7 +361,6 @@
         </section>
 
         <section id="tab-chronicle" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-chronicle" hidden>
-          <nav class="subnav" role="tablist" aria-label="Chronicle sections" hidden></nav>
           <div class="tab-inner">
             <div class="subpanel" data-sub="log" data-label="Log" data-icon="📜">
               <div class="jump-bar" role="group" aria-label="Filter the chronicle">
@@ -412,7 +429,6 @@
         </section>
 
         <section id="tab-settings" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-settings" hidden>
-          <nav class="subnav" role="tablist" aria-label="Settings sections" hidden></nav>
           <div class="tab-inner">
             <div class="subpanel" data-sub="save" data-label="Save" data-icon="💾">
               <!-- Game Management -->
@@ -448,10 +464,17 @@
                 <button id="btn-reduce-motion" class="btn btn-sm" aria-pressed="false">🎞️ Reduce Motion: Off</button>
                 <button id="btn-sound" class="btn btn-sm" aria-pressed="false">🔈 Sound: Off</button>
               </div>
-              <h3 class="records-sub">Themes</h3>
-              <p class="settings-copy">Earn achievements to unlock new looks. Themes are cosmetic only.</p>
-              <div id="theme-list" class="settings-actions-row"></div>
             </section>
+            </div>
+            <div class="subpanel" data-sub="themes" data-label="Themes" data-icon="🎨" hidden>
+              <section class="section-box">
+                <div class="section-header">
+                  <h2 class="section-title">🎨 Themes</h2>
+                  <span class="section-hint">Cosmetic only</span>
+                </div>
+                <p class="settings-copy">Earn achievements to unlock new looks.</p>
+                <div id="theme-list" class="settings-actions-row"></div>
+              </section>
             </div>
             <div class="subpanel" data-sub="guide" data-label="Guide" data-icon="📖" hidden>
               <section class="section-box ">
@@ -551,6 +574,9 @@
           </div>
         </section>
       </main>
+
+      <!-- Second tier: pages of the chosen section, just above the main bar -->
+      <nav id="subnav" class="subnav" role="tablist" aria-label="Pages of this section"></nav>
 
       <!-- Persistent Bottom Tab Navigation Bar -->
       <nav class="tab-nav" role="tablist" aria-label="Game Sections">

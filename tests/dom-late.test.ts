@@ -41,7 +41,9 @@ describe('the late-game page', () => {
     expect($('market-list').querySelectorAll('.market-row').length, 'market rows').toBe(6);
     expect($('market-list').querySelectorAll('.btn-trade:not([disabled])').length, 'enabled trades').toBeGreaterThan(0);
     expect($('discovery-list').querySelectorAll('.btn-research:not([disabled])').length).toBeGreaterThan(0);
-    expect($('building-grid').querySelectorAll('.building-gains').length).toBe(19);
+    expect(
+      $('building-grid').querySelectorAll('.building-gains').length + $('wonder-grid').querySelectorAll('.building-gains').length
+    ).toBe(19);
   });
 
   it('issues an edict with one click and reflects it', () => {

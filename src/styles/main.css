@@ -2483,3 +2483,79 @@ html[data-text='large'] .subpanel {
     overflow: hidden;
   }
 }
+
+/* ==========================================================================
+   SUB-MENU: a smaller twin of the bottom bar, sitting just above it.
+   Always five cells wide so it lines up with the main bar; pages not yet met
+   are blank cells (they reveal nothing).
+   ========================================================================== */
+.subnav {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  padding: 0;
+  height: 44px;
+  background: #090c10;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 0;
+}
+
+.subnav-btn {
+  border: 0;
+  border-top: 2px solid transparent;
+  border-bottom: 0;
+  min-height: 44px;
+  background: transparent;
+}
+
+.subnav-btn.active {
+  color: var(--accent-amber);
+  border-top-color: var(--accent-amber);
+  border-bottom-color: transparent;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.sub-icon {
+  font-size: 0.8rem;
+}
+
+.sub-label {
+  font-size: 0.58rem;
+  letter-spacing: 0.02em;
+}
+
+.subnav-blank {
+  border-top: 2px solid transparent;
+  border-left: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.subnav .tab-badge {
+  top: 4px;
+  right: calc(50% - 20px);
+}
+
+.season-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.season-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.season-row strong {
+  color: var(--text-bright);
+}
+
+.season-row.current {
+  border-color: var(--accent-amber);
+}

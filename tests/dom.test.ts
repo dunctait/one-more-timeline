@@ -18,7 +18,9 @@ describe('the real page, booted', () => {
   it('renders every tab with content on first load', () => {
     expect(text('goal-title')).toContain('Gathering Band');
     expect(text('stat-year')).toBe('Year 1');
-    expect($('building-grid').children.length).toBe(19);
+    // Works and Wonders are separate pages: 14 plus 5.
+    expect($('building-grid').children.length + $('wonder-grid').children.length).toBe(19);
+    expect($('wonder-grid').children.length).toBe(5);
     expect($('discovery-list').children.length).toBeGreaterThan(10);
     expect($('achievements-list').children.length).toBeGreaterThan(20);
     expect($('relics-list').children.length).toBeGreaterThan(5);

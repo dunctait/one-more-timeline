@@ -128,6 +128,9 @@ function auditPage(): string[] {
 
   const nav = document.querySelector('.tab-nav')?.getBoundingClientRect();
   if (!nav || nav.bottom > vh + 1) problems.push('bottom navigation is not fully on screen');
+  const subnav = document.querySelector('#subnav')?.getBoundingClientRect();
+  if (!subnav || !nav || subnav.bottom > nav.top + 1) problems.push('sub-menu is not sitting just above the bottom bar');
+  if (document.querySelectorAll('#subnav > *').length !== 5) problems.push('sub-menu does not have exactly five cells');
 
   const panel = document.querySelector('.tab-panel.active');
   const sub = panel?.querySelector('.subpanel:not([hidden])');
@@ -233,10 +236,10 @@ describe('every page fits a phone screen with no scrolling', () => {
         const tabs = await page.$$eval('.tab-nav-btn', (b) => b.map((x) => (x as HTMLElement).dataset.tab ?? ''));
         for (const tab of tabs) {
           await page.click(`#tab-btn-${tab}`);
-          const subs = await page.$$eval(`#tab-${tab} .subnav:not([hidden]) .subnav-btn`, (b) => b.map((x) => (x as HTMLElement).dataset.sub ?? ''));
+          const subs = await page.$$eval(`#subnav .subnav-btn`, (b) => b.map((x) => (x as HTMLElement).dataset.sub ?? ''));
           const pages = subs.length ? subs : [''];
           for (const sub of pages) {
-            if (sub) await page.click(`#tab-${tab} .subnav:not([hidden]) .subnav-btn[data-sub="${sub}"]`);
+            if (sub) await page.click(`#subnav .subnav-btn[data-sub="${sub}"]`);
             // Page through every list too: each page of a list must fit.
             let guard = 0;
             for (;;) {

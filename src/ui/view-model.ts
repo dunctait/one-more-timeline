@@ -39,6 +39,7 @@ import {
   RUNG_ORDER,
   rungLevel,
   SEASON_PROFILES,
+  WONDER_IDS,
 } from '../engine/rules.js';
 import {
   AutomationKey,
@@ -76,6 +77,8 @@ export interface BuildingViewModel {
   affordable: boolean;
   /** A wonder that already stands. */
   maxed: boolean;
+  /** Wonders live on their own page. */
+  wonder: boolean;
   /** What one more would add, with the player's real multipliers applied. */
   gains: string[];
 }
@@ -160,6 +163,7 @@ export interface DisclosureViewModel {
   discoveries: boolean;
   relics: boolean;
   deeper: boolean;
+  wonders: boolean;
 }
 
 export interface PrestigeTierViewModel {
@@ -302,6 +306,7 @@ export interface TimelineViewModel {
   rungProgression: RungProgressionViewModel;
   timeJump: TimeJumpViewModel;
   prestige: PrestigeTierViewModel[];
+  seasons: Array<{ name: string; note: string; current: boolean }>;
   /** Progressive disclosure: later mechanics stay out of sight until the player first comes across them. */
   disclosure: DisclosureViewModel;
   features: FeatureViewModel[];
@@ -780,6 +785,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
 
     return {
       id: bId,
+      wonder: WONDER_IDS.has(bId),
       name: def.name,
       description: def.description,
       count,
@@ -1020,6 +1026,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     discoveries: discoveriesVm.some((d) => d.unlocked) || jumped,
     relics: state.relics.length > 0,
     deeper: prestigeVm.some((p) => p.revealed),
+    wonders: buildingsVm.some((b) => b.wonder && b.unlocked) || jumped,
   };
   const goal = buildGoal(state, nextRungVm, prestigeVm, timeJumpDisclosed && !jumped && timeJumpEligible);
   const activeChallenge = state.challenge ? CHALLENGES.find((c) => c.id === state.challenge) : undefined;
@@ -1069,7 +1076,8 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     subs: {
       'hearth.gather': state.pendingChoice !== null,
       'hearth.roles': unassignedCount > 0,
-      'settlement.works': buildingsVm.some((b) => b.unlocked && (b.canAfford || b.affordable)),
+      'settlement.works': buildingsVm.some((b) => !b.wonder && b.unlocked && (b.canAfford || b.affordable)),
+      'settlement.wonders': buildingsVm.some((b) => b.wonder && b.unlocked && (b.canAfford || b.affordable)),
       'settlement.edicts': emptyEdictSlots > 0,
       'settlement.discoveries': discoveriesVm.some((d) => d.canAfford),
       'evolution.rung': Boolean(nextRungVm?.eligible),
@@ -1153,6 +1161,11 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     },
     timeJump: timeJumpVm,
     prestige: prestigeVm,
+    seasons: (Object.keys(SEASON_PROFILES) as Array<keyof typeof SEASON_PROFILES>).map((name) => ({
+      name,
+      note: SEASON_PROFILES[name].note,
+      current: state.season === name,
+    })),
     disclosure,
     features: featuresVm,
     nextFeatures: buildNextFeatures(state, timeJumpDisclosed, prestigeVm),

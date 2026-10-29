@@ -17,6 +17,9 @@ let inputs: LayoutInputs = { disclosure: {}, badges: {} };
 const selected: Record<string, string> = {};
 const pageOf = new Map<string, number>();
 
+/** Every section has this many pages, so the sub-menu always looks like a smaller twin of the bottom bar. */
+export const SUBNAV_SLOTS = 5;
+
 export function setLayoutInputs(next: LayoutInputs): void {
   inputs = next;
 }
@@ -93,17 +96,18 @@ export function refreshLayout(tab: string, panel: HTMLElement, choose?: string):
   selected[tab] = current?.dataset.sub ?? '';
   subs.forEach((p) => (p.hidden = p !== current));
 
-  const nav = panel.querySelector<HTMLElement>('.subnav');
+  const nav = document.getElementById('subnav');
   if (nav) {
-    nav.hidden = visible.length < 2;
-    const html = visible
-      .map((p) => {
-        const sub = p.dataset.sub ?? '';
-        const on = p === current;
-        const badge = inputs.badges[`${tab}.${sub}`] ? '<span class="tab-badge" aria-label="needs attention"></span>' : '';
-        return `<button type="button" role="tab" class="subnav-btn${on ? ' active' : ''}" data-sub="${sub}" aria-selected="${on}" tabindex="${on ? 0 : -1}"><span class="sub-icon" aria-hidden="true">${p.dataset.icon ?? ''}</span><span class="sub-label">${p.dataset.label ?? sub}</span>${badge}</button>`;
-      })
-      .join('');
+    nav.dataset.tab = tab;
+    const cells = visible.map((p) => {
+      const sub = p.dataset.sub ?? '';
+      const on = p === current;
+      const badge = inputs.badges[`${tab}.${sub}`] ? '<span class="tab-badge" aria-label="needs attention"></span>' : '';
+      return `<button type="button" role="tab" class="subnav-btn${on ? ' active' : ''}" data-sub="${sub}" aria-selected="${on}" tabindex="${on ? 0 : -1}"><span class="sub-icon" aria-hidden="true">${p.dataset.icon ?? ''}</span><span class="sub-label">${p.dataset.label ?? sub}</span>${badge}</button>`;
+    });
+    // The row always keeps its full width, so pages appearing later never shift the layout.
+    while (cells.length < SUBNAV_SLOTS) cells.push('<span class="subnav-blank" aria-hidden="true"></span>');
+    const html = cells.join('');
     if (nav.dataset.sig !== html) {
       nav.innerHTML = html;
       nav.dataset.sig = html;
@@ -112,9 +116,10 @@ export function refreshLayout(tab: string, panel: HTMLElement, choose?: string):
   if (current) layoutPagers(current);
 }
 
-function tabOf(el: Element): { tab: string; panel: HTMLElement } | null {
-  const panel = el.closest<HTMLElement>('.tab-panel');
-  return panel ? { tab: panel.id.replace('tab-', ''), panel } : null;
+function subnavTab(el: Element): { tab: string; panel: HTMLElement } | null {
+  const tab = el.closest<HTMLElement>('#subnav')?.dataset.tab;
+  const panel = tab ? document.getElementById(`tab-${tab}`) : null;
+  return tab && panel ? { tab, panel } : null;
 }
 
 /** Wires sub-menu taps, arrow keys and page buttons once for the whole document. */
@@ -124,7 +129,7 @@ export function bindLayoutEvents(): void {
     if (!target) return;
     const subBtn = target.closest<HTMLElement>('.subnav-btn');
     if (subBtn) {
-      const where = tabOf(subBtn);
+      const where = subnavTab(subBtn);
       if (where) refreshLayout(where.tab, where.panel, subBtn.dataset.sub);
       return;
     }
@@ -142,7 +147,7 @@ export function bindLayoutEvents(): void {
     const target = event.target instanceof Element ? event.target : null;
     const subBtn = target?.closest<HTMLElement>('.subnav-btn');
     if (!subBtn || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-    const where = tabOf(subBtn);
+    const where = subnavTab(subBtn);
     if (!where) return;
     const buttons = Array.from(subBtn.parentElement?.querySelectorAll<HTMLElement>('.subnav-btn') ?? []);
     const index = buttons.indexOf(subBtn);
@@ -152,7 +157,7 @@ export function bindLayoutEvents(): void {
       : (index + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length;
     event.preventDefault();
     refreshLayout(where.tab, where.panel, buttons[next].dataset.sub);
-    where.panel.querySelector<HTMLElement>('.subnav-btn.active')?.focus();
+    document.querySelector<HTMLElement>('#subnav .subnav-btn.active')?.focus();
   });
 
   // Window size (rotation, a browser bar appearing) changes how much fits.
