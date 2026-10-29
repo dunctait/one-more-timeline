@@ -162,6 +162,8 @@ export function rollEvent(
   tick: number
 ): RolledEvent | null {
   if (tick % 4 !== 1) return null;
+  // Nothing happens to a hearth nobody has tended: the first Rung is earned by the player's own hands.
+  if (rungLevel(state.rung) < 1) return null;
   const seed = timelineSeed(state.seed, state.timelinesCreated);
   const chance = EVENT_CHANCE + relicBonus(state.relics ?? [], 'eventChance');
   if (seededUnit(seed, tick) >= chance) return null;

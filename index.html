@@ -142,7 +142,7 @@
             <section class="section-box">
               <div class="section-header">
                 <h2 class="section-title">⚡ Manual Gathering</h2>
-                <span class="section-hint">Immediate agency · keys 1, 2, 3 · hold to repeat</span>
+                <span id="gather-hint" class="section-hint">Immediate agency · keys 1, 2, 3</span>
               </div>
               <div class="manual-actions-grid">
                 <button id="btn-forage" aria-keyshortcuts="1" class="action-btn action-forage" title="Forage roots and berries. Winter yield is lower.">
@@ -311,17 +311,17 @@
                 </div>
               </section>
             </div>
-            <div class="subpanel" data-sub="jump" data-label="Time Jump" data-icon="🌀" data-disclosure="timeJump" hidden>
+            <div class="subpanel" data-sub="jump" data-label="Jumpback" data-icon="🌀" data-disclosure="timeJump" hidden>
               <section class="section-box time-jump-box">
                 <div class="section-header">
-                  <h2 class="section-title" style="color: var(--accent-gold);">🌀 Time Jump</h2>
+                  <h2 class="section-title" style="color: var(--accent-gold);">🌀 Jumpback</h2>
                   <span id="insight-badge" class="insight-badge">+0 Insight</span>
                 </div>
                 <div id="time-jump-content" class="time-jump-content">
                   <p id="time-jump-desc" class="time-jump-text"></p>
                   <div id="time-jump-breakdown" class="time-jump-breakdown"></div>
                 </div>
-                <button id="btn-time-jump" class="btn btn-timejump" disabled>Initiate Time Jump</button>
+                <button id="btn-time-jump" class="btn btn-timejump" disabled>Initiate Jumpback</button>
               </section>
             </div>
             <div class="subpanel" data-sub="legacy" data-label="Sent back" data-icon="🕰️" data-disclosure="legacy" hidden>
@@ -484,7 +484,7 @@
                 </div>
                 <ul class="settings-copy guide-list">
                   <li><strong>Numbers only go up.</strong> Nothing decays, starves or runs out while you are away.</li>
-                  <li><strong>Gather and assign.</strong> Forage, scavenge and study by hand (keys 1, 2, 3; hold to repeat). Assign people as roles unlock.</li>
+                  <li><strong>Gather and assign.</strong> Forage, scavenge and study by hand (keys 1, 2, 3). Assign people as roles unlock.</li>
                   <li><strong>Rungs.</strong> Meet a rung's requirements in Evolution to advance. Each opens new things to do.</li>
                   <li><strong>Settlement.</strong> Build, research, issue edicts and trade as those open up.</li>
                   <li><strong>Why is a rate that number?</strong> Hearth, then Sources.</li>

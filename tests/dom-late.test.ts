@@ -15,16 +15,16 @@ beforeAll(async () => {
   const s: TimelineState = {
     ...createInitialState(),
     rung: 'realm',
-    tick: 280,
-    year: 71,
-    furthestYear: 71,
+    tick: 1600,
+    year: 401,
+    furthestYear: 401,
     insight: 130,
     prestigeCounts: { 1: 3, 2: 0, 3: 0, 4: 0 },
-    features: ['ancestral_hands'],
-    caps: { food: 800, materials: 800, knowledge: 800 },
-    resources: { food: 200, materials: 150, knowledge: 150, stability: 80 },
+    features: ['steady_hands', 'ancestral_hands'],
+    caps: { food: 3000, materials: 3000, knowledge: 3000 },
+    resources: { food: 500, materials: 500, knowledge: 500, stability: 80 },
   };
-  s.population = { total: 6, max: 30, roles: { unassigned: 0, forager: 2, builder: 2, scholar: 2, healer: 0 } };
+  s.population = { total: 24, max: 40, roles: { unassigned: 0, forager: 8, builder: 8, scholar: 8, healer: 0 } };
   localStorage.setItem('omt.save.v1', JSON.stringify(s));
   localStorage.setItem('omt.welcomed', 'true');
   localStorage.setItem('omt.lastSeen', String(Date.now()));
@@ -42,7 +42,7 @@ describe('the late-game page', () => {
     expect($('market-list').querySelectorAll('.btn-trade:not([disabled])').length, 'enabled trades').toBeGreaterThan(0);
     expect($('discovery-list').querySelectorAll('.btn-research:not([disabled])').length).toBeGreaterThan(0);
     expect(
-      $('building-grid').querySelectorAll('.building-gains').length + $('wonder-grid').querySelectorAll('.building-gains').length
+      $('building-grid').querySelectorAll('.building-card').length + $('wonder-grid').querySelectorAll('.building-card').length
     ).toBe(19);
   });
 

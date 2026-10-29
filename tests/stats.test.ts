@@ -6,8 +6,8 @@ import { buildTimelineViewModel } from '../src/ui/view-model.js';
 
 describe('lifetime stats', () => {
   it('count time, gathers, builds, research and trades, and only ever go up', () => {
-    let s: TimelineState = { ...createInitialState(), rung: 'town', caps: { food: 80, materials: 75, knowledge: 120 } };
-    s.resources = { ...s.resources, food: 70, materials: 30, knowledge: 100 };
+    let s: TimelineState = { ...createInitialState(), rung: 'town', caps: { food: 200, materials: 200, knowledge: 200 } };
+    s.resources = { ...s.resources, food: 100, materials: 60, knowledge: 100 };
     s = executeAction(s, { type: 'FORAGE' }).state;
     s = executeAction(s, { type: 'STUDY' }).state;
     s = executeAction(s, { type: 'BUILD', buildingId: 'hut' }).state;
@@ -21,12 +21,12 @@ describe('lifetime stats', () => {
     expect(failed.state.stats).toEqual(s.stats);
   });
 
-  it('survive Time Jumps and prestige', () => {
+  it('survive Jumpbacks and prestige', () => {
     let s: TimelineState = { ...createInitialState(), tick: 40, year: 11 };
     s = { ...s, stats: { ticks: 500, gathers: 40, built: 12, researched: 3, traded: 2 } };
     const jumped = executeAction(ripe(s), { type: 'TIME_JUMP' }).state;
     expect(jumped.stats).toEqual(s.stats);
-    const epoch = executeAction({ ...s, rung: 'realm', year: 70, insight: 120 }, { type: 'PRESTIGE', tier: 2 }).state;
+    const epoch = executeAction({ ...s, rung: 'realm', year: 310, insight: 120 }, { type: 'PRESTIGE', tier: 2 }).state;
     expect(epoch.stats).toEqual(s.stats);
   });
 

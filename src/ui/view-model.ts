@@ -6,6 +6,7 @@ import { EVENTS } from '../engine/events.js';
 import { timelineSeed } from '../engine/events.js';
 import { personName } from '../engine/people.js';
 import { RELICS } from '../engine/relics.js';
+import { Chip, ICON } from './icons.js';
 import { manualMultiplier } from '../engine/engine.js';
 import {
   describeBuildingGain,
@@ -14,6 +15,9 @@ import {
   barterRatio,
   BARTER_BASE_RATIOS,
   BUILDINGS,
+  BOON_FIRST_JUMPBACK,
+  BOON_OFFERS,
+  productionFactors,
   marketRungFor,
   discoveryCost,
   calculateNetRates,
@@ -81,6 +85,14 @@ export interface BuildingViewModel {
   wonder: boolean;
   /** What one more would add, with the player's real multipliers applied. */
   gains: string[];
+  /** One short line of flavour: the card's whole prose. */
+  flavour: string;
+  /** What one more adds, as icons and numbers. */
+  chips: Chip[];
+  /** The price as icons and numbers, flagging what is still short. */
+  costChips: Array<{ icon: string; amount: number; short: boolean }>;
+  /** Cartographers: how long until it can be afforded. */
+  eta: string | null;
 }
 
 export interface RungPrerequisiteItem {
@@ -165,6 +177,9 @@ export interface DisclosureViewModel {
   deeper: boolean;
   wonders: boolean;
 }
+
+/** Pages shown greyed out one rung ahead of opening, keyed `tab.sub`, with the words that say when. */
+export type SubLocks = Record<string, string>;
 
 export interface PrestigeTierViewModel {
   tier: PrestigeTier;
@@ -307,6 +322,9 @@ export interface TimelineViewModel {
   timeJump: TimeJumpViewModel;
   prestige: PrestigeTierViewModel[];
   seasons: Array<{ name: string; note: string; current: boolean }>;
+  /** A Jumpback boon to choose, if one is on offer. */
+  boons: Array<{ id: FeatureId; icon: string; name: string; description: string }>;
+  locks: SubLocks;
   /** Progressive disclosure: later mechanics stay out of sight until the player first comes across them. */
   disclosure: DisclosureViewModel;
   features: FeatureViewModel[];
@@ -420,15 +438,80 @@ function estimateTicks(
   return `about ${formatDuration((required - state.resources[key]) / rate)}`;
 }
 
+/** A card's whole prose is its first sentence; the numbers are shown as icons instead. */
+function flavourOf(description: string): string {
+  const text = description.replace(/^WONDER \(one per timeline\)\.\s*/, '');
+  const end = text.indexOf('. ');
+  return end === -1 ? text.replace(/\.$/, '.') : text.slice(0, end + 1);
+}
+
+const rateText = (n: number): string => (Math.round(n * 100) / 100).toString();
+
+/** What one more of a building adds, as icons and numbers (the player's real multipliers applied). */
+function buildingChips(state: TimelineState, id: BuildingId): Chip[] {
+  const e = BUILDINGS[id].effects;
+  const f = productionFactors(state);
+  const chips: Chip[] = [];
+  const add = (icon: string, text: string, title: string): void => {
+    chips.push({ icon, text, title });
+  };
+  if (e.popMax) add(ICON.population, `+${e.popMax}`, `+${e.popMax} max population`);
+  if (e.foodCap) add(`${ICON.storage}${ICON.food}`, `+${e.foodCap}`, `+${e.foodCap} Food storage`);
+  if (e.materialsCap) add(`${ICON.storage}${ICON.materials}`, `+${e.materialsCap}`, `+${e.materialsCap} Materials storage`);
+  if (e.knowledgeCap) add(`${ICON.storage}${ICON.knowledge}`, `+${e.knowledgeCap}`, `+${e.knowledgeCap} Knowledge storage`);
+  if (e.food) add(ICON.food, `+${rateText(e.food * f.food)}/t`, `+${rateText(e.food * f.food)} Food per tick`);
+  if (e.materials) add(ICON.materials, `+${rateText(e.materials * f.materials)}/t`, `+${rateText(e.materials * f.materials)} Materials per tick`);
+  if (e.knowledge) add(ICON.knowledge, `+${rateText(e.knowledge * f.knowledge)}/t`, `+${rateText(e.knowledge * f.knowledge)} Knowledge per tick`);
+  if (e.builderYield) add(`${ICON.builder}${ICON.materials}`, `+${rateText(e.builderYield * f.materials)}/t`, `Each Builder makes +${rateText(e.builderYield * f.materials)} Materials per tick`);
+  if (e.stability) add(ICON.stability, `+${rateText(e.stability)}/t`, `+${rateText(e.stability)} Stability per tick`);
+  if (e.allProduction) add(ICON.everything, `+${Math.round(e.allProduction * 100)}%`, `+${Math.round(e.allProduction * 100)}% to all production`);
+  return chips;
+}
+
+function costChipsOf(
+  state: TimelineState,
+  cost: { materials: number; food: number; knowledge: number }
+): Array<{ icon: string; amount: number; short: boolean }> {
+  const parts: Array<{ icon: string; amount: number; have: number }> = [
+    { icon: ICON.materials, amount: cost.materials, have: state.resources.materials },
+    { icon: ICON.food, amount: cost.food, have: state.resources.food },
+    { icon: ICON.knowledge, amount: cost.knowledge, have: state.resources.knowledge },
+  ];
+  return parts.filter((p) => p.amount > 0).map((p) => ({ icon: p.icon, amount: p.amount, short: p.have < p.amount }));
+}
+
+/** Time until every part of a price is in hand, from the current net rates. */
+function etaFor(state: TimelineState, cost: { materials: number; food: number; knowledge: number }): string | null {
+  const rates = calculateNetRates(state);
+  let worst = 0;
+  for (const key of ['materials', 'food', 'knowledge'] as const) {
+    const missing = cost[key] - state.resources[key];
+    if (missing <= 0) continue;
+    if (cost[key] > state.caps[key]) return 'needs more storage';
+    if (rates[key] <= 0) return 'gather by hand';
+    worst = Math.max(worst, missing / rates[key]);
+  }
+  return worst > 0 ? formatDuration(worst) : null;
+}
+
 function buildGoal(
   state: TimelineState,
   nextRung: RungProgressionViewModel['nextRung'],
   prestige: PrestigeTierViewModel[],
   firstJumpReady: boolean
 ): GoalViewModel {
+  if (state.pendingBoon) {
+    return {
+      title: 'Choose a boon',
+      steps: ['Your Jumpback sent something back. Pick one of the boons on offer: it stays with you for good.'],
+      tab: 'evolution',
+      sub: 'legacy',
+      ready: true,
+    };
+  }
   if (firstJumpReady) {
     return {
-      title: 'Time Jump is ready',
+      title: 'Jumpback is ready',
       steps: ['Your timeline has grown enough to collapse into lasting Insight, and to send a function back. Open Evolution to read what it does.'],
       tab: 'evolution',
       sub: 'jump',
@@ -479,7 +562,7 @@ function buildGoal(
   if (prestige.length === 0) {
     return {
       title: 'Your realm stands',
-      steps: ['Keep building. Time Jumps are always on offer in Evolution.'],
+      steps: ['Keep building. Jumpbacks are always on offer in Evolution.'],
       tab: 'evolution',
       sub: 'jump',
       ready: false,
@@ -494,7 +577,7 @@ function buildGoal(
   const missing = nearest.items.filter((i) => !i.met).map((i) => `${i.name}: ${i.current}/${i.required}`);
   return {
     title: `Your realm stands. Next: ${nearest.name}`,
-    steps: missing.length ? missing.concat(['Time Jumps bank Insight.']) : ['Open Evolution.'],
+    steps: missing.length ? missing.concat(['Jumpbacks bank Insight.']) : ['Open Evolution.'],
     tab: 'evolution',
     sub: 'deeper',
     ready: false,
@@ -520,7 +603,7 @@ function buildChallenges(state: TimelineState): TimelineViewModel['challenges'] 
       goal: `Reach ${RUNGS[c.goalRung].name}${c.maxYear ? ` before Year ${c.maxYear + 1}` : ''}`,
       lockedNote:
         state.prestigeCounts[1] < 1
-          ? 'Opens after your first Time Jump'
+          ? 'Opens after your first Jumpback'
           : 'Your head start already passes this goal',
       reward: `${trophy?.icon ?? ''} ${trophy?.name ?? c.reward}: ${trophy?.description ?? ''}`,
       status,
@@ -569,7 +652,7 @@ function buildMarket(state: TimelineState): TimelineViewModel['market'] {
 export function buildShareText(state: TimelineState): string {
   const parts = [
     `Furthest year ${state.furthestYear}`,
-    `${state.prestigeCounts[1]} Time Jumps`,
+    `${state.prestigeCounts[1]} Jumpbacks`,
     state.prestigeCounts[2] > 0 ? `${state.prestigeCounts[2]} Epoch Shifts` : null,
     state.prestigeCounts[3] > 0 ? `${state.prestigeCounts[3]} Paradigm Shifts` : null,
     state.prestigeCounts[4] > 0 ? `${state.prestigeCounts[4]} Ascensions` : null,
@@ -603,8 +686,8 @@ function buildNextFeatures(
   const visible = (tier: 1 | 2 | 3 | 4): boolean =>
     tier === 1 ? timeJumpDisclosed : Boolean(tiers.find((t) => t.tier === tier)?.revealed);
   return FEATURE_IDS.map((id) => FEATURES[id])
-    .filter((f) => !hasFeature(state, f.id) && visible(f.tier))
-    .map((f) => ({ f, remaining: f.onCount - state.prestigeCounts[f.tier] }))
+    .filter((f) => !hasFeature(state, f.id) && visible(f.tier) && f.onCount !== undefined)
+    .map((f) => ({ f, remaining: (f.onCount ?? 0) - state.prestigeCounts[f.tier] }))
     .filter(({ remaining }) => remaining > 0)
     .sort((a, b) => a.remaining - b.remaining || a.f.tier - b.f.tier)
     .slice(0, 3)
@@ -617,7 +700,7 @@ function buildNextFeatures(
 }
 
 const PRESTIGE_LABELS: Record<1 | 2 | 3 | 4, string> = {
-  1: 'Time Jump',
+  1: 'Jumpback',
   2: 'Epoch Shift',
   3: 'Paradigm Shift',
   4: 'Ascension',
@@ -797,6 +880,10 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       affordable: canAfford,
       maxed,
       gains: describeBuildingGain(state, bId),
+      flavour: flavourOf(def.description),
+      chips: buildingChips(state, bId),
+      costChips: costChipsOf(state, cost),
+      eta: hasFeature(state, 'cartographers') && !canAfford && !maxed && unlocked ? etaFor(state, cost) : null,
     };
   });
 
@@ -876,7 +963,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     };
   }
 
-  // Time Jump & Insight Benefits
+  // Jumpback & Insight Benefits
   const timeJumpEligible = checkTimeJump(state).eligible;
   const projectedInsight = calculateTimeJumpInsight(state);
 
@@ -936,7 +1023,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     ],
   };
 
-  const confirmationText = `Initiate Time Jump?\n\nThis will collapse the current timeline into permanent cosmic memory:\n• Gain: +${projectedInsight} permanent Insight\n• Production bonus from Insight becomes +${Math.min(nextTotalInsight, 50)}% (it stops growing at +50%; extra Insight still counts toward Epoch Shift)\n• Next dawn reserves: Starts with +${nextBonus.food} Food, +${nextBonus.materials} Materials\n• Retains Furthest Year record (${Math.max(state.furthestYear, state.year)})\n\nAre you ready to awaken in a new dawn?`;
+  const confirmationText = `Initiate Jumpback?\n\nThis will collapse the current timeline into permanent cosmic memory:\n• Gain: +${projectedInsight} permanent Insight\n• Production bonus from Insight becomes +${Math.min(nextTotalInsight, 50)}% (it stops growing at +50%; extra Insight still counts toward Epoch Shift)\n• Next dawn reserves: Starts with +${nextBonus.food} Food, +${nextBonus.materials} Materials\n• Retains Furthest Year record (${Math.max(state.furthestYear, state.year)})\n\nAre you ready to awaken in a new dawn?`;
 
   const timeJumpVm: TimeJumpViewModel = {
     eligible: timeJumpEligible,
@@ -958,6 +1045,17 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   };
 
   timeJumpVm.sendsBack = featuresEarned(1, state.prestigeCounts[1] + 1).map(toSendsBack);
+  if (state.prestigeCounts[1] + 1 >= BOON_FIRST_JUMPBACK) {
+    const left = FEATURE_IDS.filter((id) => FEATURES[id].boon && !state.features.includes(id)).length;
+    if (left > 0) {
+      timeJumpVm.sendsBack.push({
+        id: 'steady_hands',
+        icon: '🎁',
+        name: `A boon of your choice`,
+        description: `Pick 1 of ${Math.min(BOON_OFFERS, left)} lasting helpers.`,
+      });
+    }
+  }
   if (timeJumpVm.sendsBack.length > 0 && timeJumpEligible) {
     timeJumpVm.confirmationText = timeJumpVm.confirmationText.replace(
       '\n\nAre you ready',
@@ -1017,7 +1115,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   const marketVm = buildMarket(state);
   const disclosure: DisclosureViewModel = {
     timeJump: timeJumpDisclosed,
-    // Everything a Time Jump brings back stays hidden until the first one has happened.
+    // Everything a Jumpback brings back stays hidden until the first one has happened.
     legacy: jumped,
     challenges: jumped,
     // Earlier systems stay visible once the player has jumped past the rung that introduced them.
@@ -1028,6 +1126,28 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     deeper: prestigeVm.some((p) => p.revealed),
     wonders: buildingsVm.some((b) => b.wonder && b.unlocked) || jumped,
   };
+  const gateOf = (rung: RungId): string | null =>
+    rungLevel(rung) === rungLevel(state.rung) + 1 ? `Opens at ${RUNGS[rung].name}` : null;
+  const firstDiscovery = DISCOVERIES.reduce((a, b) => (rungLevel(a.minRung) <= rungLevel(b.minRung) ? a : b)).minRung;
+  const firstWonder = (Object.keys(BUILDINGS) as BuildingId[])
+    .filter((id) => WONDER_IDS.has(id))
+    .map((id) => BUILDINGS[id].unlockedAt)
+    .reduce((a, b) => (rungLevel(a) <= rungLevel(b) ? a : b));
+  const locks: SubLocks = {};
+  const lock = (key: string, open: boolean, rung: RungId): void => {
+    const note = gateOf(rung);
+    if (!open && note) locks[key] = note;
+  };
+  lock('settlement.market', disclosure.market, marketRungFor(state));
+  lock('settlement.edicts', disclosure.edicts, 'band');
+  lock('settlement.discoveries', disclosure.discoveries, firstDiscovery);
+  lock('settlement.wonders', disclosure.wonders, firstWonder);
+  const boonsVm = (state.pendingBoon ?? []).map((id) => ({
+    id,
+    icon: FEATURES[id].icon,
+    name: FEATURES[id].name,
+    description: FEATURES[id].description,
+  }));
   const goal = buildGoal(state, nextRungVm, prestigeVm, timeJumpDisclosed && !jumped && timeJumpEligible);
   const activeChallenge = state.challenge ? CHALLENGES.find((c) => c.id === state.challenge) : undefined;
   if (activeChallenge) {
@@ -1062,14 +1182,14 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   const evolutionReady = Boolean(
     nextRungVm?.eligible ||
       prestigeVm.some((p) => p.eligible) ||
-      // Time Jump is always on offer after Year 3; only flag it for a first jump or at the climax.
+      // Jumpback is always on offer after Year 3; only flag it for a first jump or at the climax.
       (timeJumpEligible && (state.rung === 'realm' || state.prestigeCounts[1] === 0))
   );
 
   const tabBadges: TabBadgesViewModel = {
     hearth: unassignedCount > 0 || state.pendingChoice !== null,
     settlement: affordableBuildingsCount > 0,
-    evolution: evolutionReady,
+    evolution: evolutionReady || state.pendingBoon !== null,
     chronicle: false,
     hearthCount: unassignedCount,
     settlementCount: affordableBuildingsCount,
@@ -1082,6 +1202,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       'settlement.discoveries': discoveriesVm.some((d) => d.canAfford),
       'evolution.rung': Boolean(nextRungVm?.eligible),
       'evolution.jump': timeJumpEligible && (state.rung === 'realm' || state.prestigeCounts[1] === 0),
+      'evolution.legacy': state.pendingBoon !== null,
       'evolution.deeper': prestigeVm.some((p) => p.eligible),
     },
   };
@@ -1161,6 +1282,8 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     },
     timeJump: timeJumpVm,
     prestige: prestigeVm,
+    boons: boonsVm,
+    locks,
     seasons: (Object.keys(SEASON_PROFILES) as Array<keyof typeof SEASON_PROFILES>).map((name) => ({
       name,
       note: SEASON_PROFILES[name].note,
@@ -1192,7 +1315,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     records: [
       { label: 'Furthest year', value: `${state.furthestYear}` },
       { label: 'Timelines begun', value: `${state.timelinesCreated + 1}` },
-      { label: 'Time Jumps', value: `${state.prestigeCounts[1]}` },
+      { label: 'Jumpbacks', value: `${state.prestigeCounts[1]}` },
       { label: 'Epoch Shifts', value: `${state.prestigeCounts[2]}` },
       { label: 'Paradigm Shifts', value: `${state.prestigeCounts[3]}` },
       { label: 'Ascensions', value: `${state.prestigeCounts[4]}` },

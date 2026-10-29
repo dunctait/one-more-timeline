@@ -25,7 +25,7 @@ describe('relics', () => {
     expect(s.relics.length).toBe(RELICS.filter((r) => !r.trophyOf).length);
     const jumped = executeAction(ripe({ ...s, year: 9 }), { type: 'TIME_JUMP' }).state;
     expect(jumped.relics).toEqual(s.relics);
-    const epoch = executeAction({ ...s, year: 70, insight: 120 }, { type: 'PRESTIGE', tier: 2 }).state;
+    const epoch = executeAction({ ...s, year: 310, insight: 120 }, { type: 'PRESTIGE', tier: 2 }).state;
     expect(epoch.relics).toEqual(s.relics);
   });
 
@@ -34,8 +34,8 @@ describe('relics', () => {
     expect(awayCapTicks({ ...base, relics: ['cracked_hourglass'] })).toBe(12 * 3600);
     expect(manualMultiplier({ ...base, relics: ['whetstone'] })).toBeCloseTo(1.25, 5);
     const withBag = createInitialState({ relics: ['seed_bag'] });
-    expect(withBag.resources.food).toBe(createInitialState().resources.food + 18);
-    expect(createInitialState({ relics: ['ancestor_mask'] }).population.total).toBe(2);
+    expect(withBag.resources.food).toBe(createInitialState().resources.food + 20);
+    expect(createInitialState({ relics: ['ancestor_mask'] }).population.total).toBe(13);
     const ready = { ...base, year: 40, rung: 'village' as const };
     expect(calculateTimeJumpInsight({ ...ready, relics: ['chronometer'] })).toBeGreaterThan(calculateTimeJumpInsight(ready));
     expect(relicBonus(['bronze_compass'], 'eventChance')).toBeCloseTo(0.1, 5);

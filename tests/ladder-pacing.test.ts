@@ -35,21 +35,21 @@ it('each prestige tier takes longer than the one before', () => {
   const seen = new Set<string>();
   const firstAt: Record<number, number> = {};
   const stamp = (label: string) => { if (!seen.has(label)) { seen.add(label); log.push(`${label} @${Math.round(total / 60)}min`); } };
-  for (let guard = 0; guard < 600 && s.eternity < 2 && total < 60 * 60 * 12; guard++) {
+  for (let guard = 0; guard < 600 && s.eternity < 2 && total < 60 * 60 * 80; guard++) {
     let ticks = 0;
     while (s.rung !== 'realm' && ticks < 5000) { s = play(s); ticks++; total++; }
     // Patient: if heading for a deeper tier, wait at the realm for its Year requirement.
     const goal = s.resonance >= 6 ? 4 : s.echoes >= 8 ? 3 : 2;
-    const wantYear = goal === 4 ? 240 : goal === 3 ? 120 : 60;
-    for (let i = 0; i < 2400 && (i < 60 || s.year < wantYear); i++) { s = play(s); total++; }
+    const wantYear = goal === 4 ? 440 : goal === 3 ? 360 : 300;
+    for (let i = 0; i < 4000 && (i < 60 || s.year < wantYear); i++) { s = play(s); total++; }
     let tier: 0 | 2 | 3 | 4 = 0;
     for (const t of [4, 3, 2] as const) if (checkPrestigeTier(s, t).eligible) { tier = t; break; }
     if (tier) { s = executeAction(s, { type: 'PRESTIGE', tier }).state; firstAt[tier] ??= total / 60; stamp(`tier${tier}#${s.prestigeCounts[tier]} E${s.echoes} R${s.resonance} Et${s.eternity}`); }
     else { s = executeAction(s, { type: 'TIME_JUMP' }).state; stamp(`jump#${s.prestigeCounts[1]} ins${s.insight}`); }
   }
   // Bot-minutes: a human will be slower than this optimal bot.
-  expect(firstAt[2]).toBeLessThan(25);
+  expect(firstAt[2]).toBeLessThan(90);
   expect(firstAt[3]).toBeGreaterThan(firstAt[2] * 2);
   expect(firstAt[4]).toBeGreaterThan(firstAt[3] * 2);
-  expect(firstAt[4]).toBeLessThan(600);
+  expect(firstAt[4]).toBeLessThan(3600);
 }, 60_000);

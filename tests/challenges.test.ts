@@ -22,14 +22,14 @@ describe('challenges', () => {
     }
   });
 
-  it('open only after a first Time Jump, and start a fresh timeline with permanent bonuses intact', () => {
+  it('open only after a first Jumpback, and start a fresh timeline with permanent bonuses intact', () => {
     expect(executeAction(createInitialState(), { type: 'START_CHALLENGE', challengeId: 'lone_hearth' }).success).toBe(false);
     const s = veteran({ insight: 30, relics: ['whetstone'], achievements: ['rung_band'], features: ['ancestral_hands'] });
     const r = executeAction(ripe({ ...s, rung: 'village', year: 9, tick: 32 }), { type: 'START_CHALLENGE', challengeId: 'lone_hearth' });
     expect(r.success).toBe(true);
     expect(r.state.challenge).toBe('lone_hearth');
     expect(r.state.rung).toBe('hearth');
-    expect(r.state.insight).toBeGreaterThan(30); // the ended run pays out like a Time Jump
+    expect(r.state.insight).toBeGreaterThan(30); // the ended run pays out like a Jumpback
     expect(r.state.relics).toEqual(['whetstone']);
     expect(r.state.features).toEqual(['ancestral_hands']);
     expect(r.state.achievements).toContain('rung_band');
@@ -68,7 +68,7 @@ describe('challenges', () => {
   it('end quietly, with nothing lost, when a time limit passes or when abandoned', () => {
     let s = executeAction(ripe(veteran()), { type: 'START_CHALLENGE', challengeId: 'swift_dawn' }).state;
     const before = { ...s.resources };
-    s = stepTick({ ...s, tick: 48, year: 13 });
+    s = stepTick({ ...s, tick: 236, year: 60 });
     expect(s.challenge).toBeNull();
     expect(s.relics).not.toContain('swift_sandals');
     expect(s.resources.food).toBeGreaterThanOrEqual(before.food);
@@ -89,7 +89,7 @@ describe('challenges', () => {
   });
 });
 
-describe('challenge starts behave like Time Jumps', () => {
+describe('challenge starts behave like Jumpbacks', () => {
   it('announce functions they send back', () => {
     const s = veteran({ prestigeCounts: { 1: 2, 2: 0, 3: 0, 4: 0 } });
     const r = executeAction(ripe(s), { type: 'START_CHALLENGE', challengeId: 'swift_dawn' });

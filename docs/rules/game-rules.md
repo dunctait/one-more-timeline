@@ -30,7 +30,7 @@ Some events let the player pick one of two or three gifts. Every option MUST be 
 
 ## Challenges
 
-Challenges are optional restricted timelines that open after a first Time Jump. Starting one ends the current timeline, pays out the Insight a Time Jump would, and begins a new timeline with every permanent bonus intact; a challenge whose goal the starting head start already reaches MUST NOT be startable; completing one awards a permanent trophy relic. Failing a time limit or abandoning a challenge MUST cost nothing and simply return the timeline to normal play. Automation MUST obey a challenge's restrictions.
+Challenges are optional restricted timelines that open after a first Jumpback. Starting one ends the current timeline, pays out the Insight a Jumpback would, and begins a new timeline with every permanent bonus intact; a challenge whose goal the starting head start already reaches MUST NOT be startable; completing one awards a permanent trophy relic. Failing a time limit or abandoning a challenge MUST cost nothing and simply return the timeline to normal play. Automation MUST obey a challenge's restrictions.
 
 ## Discoveries
 
@@ -95,14 +95,18 @@ Any incremental mechanic MUST pass all of these gates before implementation:
 
 The deterministic rules are implemented and tested in `src/engine/`; this document defines the ongoing acceptance bar.
 
-## Time Jump gate
+## Jumpback gate
 
-The first Time Jump (and a challenge start, which ends the timeline the same way) MUST require the Dawn Village and Year 30. Until a Time Jump has been offered or performed, the Time Jump, Insight, sent-back functions and challenges MUST NOT appear in the interface.
+The first Jumpback (and a challenge start, which ends the timeline the same way) MUST require the Dawn Village and Year 40. Until a Jumpback has been offered or performed, the Jumpback, Insight, sent-back functions and challenges MUST NOT appear in the interface.
 
 ## Progressive disclosure
 
-The interface MUST reveal a mechanic only once the player has come across it: the Marketplace, Edicts and Discoveries from the rung that opens them, the Time Jump when it first becomes possible, sent-back functions, challenges and past timelines after the first Time Jump, relics when the first is found, and each deeper prestige tier once the previous tier has been performed and the realm is reached or its currency banked. Revealed mechanics stay revealed.
+The interface MUST reveal a mechanic only once the player has come across it: the Marketplace, Edicts and Discoveries from the rung that opens them, the Jumpback when it first becomes possible, sent-back functions, challenges and past timelines after the first Jumpback, relics when the first is found, and each deeper prestige tier once the previous tier has been performed and the realm is reached or its currency banked. Revealed mechanics stay revealed.
 
 ## Banner and quiet toasts
 
-A ready goal (a rung within reach, the first Time Jump, a prestige tier) MUST be shown as a banner visible on every page, with a button to the exact sub-page that holds the action. Achievements and seasonal events MUST NOT raise toasts.
+A ready goal (a rung within reach, the first Jumpback, a prestige tier) MUST be shown as a banner visible on every page, with a button to the exact sub-page that holds the action. Achievements and seasonal events MUST NOT raise toasts.
+
+## Locked things and page sizes
+
+Locked buildings, wonders, Discoveries and trials MUST NOT be rendered. A sub-menu page exactly one rung from opening is shown greyed out and explains when it opens; further pages are blank. Every full page of a paged list holds between five and ten items on a 412 by 780 phone. Population begins at twelve.

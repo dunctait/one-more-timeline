@@ -67,7 +67,7 @@ describe('hostile and old saves', () => {
     expect(fixed!.echoes).toBe(0);
     expect(fixed!.buildings.hut).toBe(0);
     expect(fixed!.rung).toBe('hearth');
-    expect(fixed!.caps.food).toBe(30 + 100);
+    expect(fixed!.caps.food).toBe(60 + 200);
     expect(() => stepTick(fixed!)).not.toThrow();
   });
 });
@@ -88,8 +88,8 @@ describe('original v0.1 saves', () => {
     expect(loaded!.buildings.hut).toBe(2);
     expect(loaded!.buildings.spire).toBe(0);
     expect(loaded!.rulesetVersion).toBe('0.2.0');
-    expect(loaded!.caps.food).toBe(30 + 50);
-    expect(loaded!.population.max).toBe(2 + 4);
+    expect(loaded!.caps.food).toBe(60 + 100);
+    expect(loaded!.population.max).toBe(12 + 4);
     const next = stepTick(loaded!);
     expect(next.tick).toBe(1);
     expect(buildTimelineViewModel(next).achievements.total).toBeGreaterThan(0);

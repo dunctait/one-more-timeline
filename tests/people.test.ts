@@ -13,7 +13,7 @@ describe('people', () => {
 
   it('are named in the arrival log and match the roster', () => {
     let s = createInitialState();
-    s = { ...s, resources: { ...s.resources, food: 30, stability: 80 }, tick: 1 };
+    s = { ...s, population: { ...s.population, total: 1, roles: { ...s.population.roles, unassigned: 1 } }, resources: { ...s.resources, food: 30, stability: 80 }, tick: 1 };
     s = stepTick(s);
     expect(s.population.total).toBe(2);
     const roster = buildTimelineViewModel(s).people;

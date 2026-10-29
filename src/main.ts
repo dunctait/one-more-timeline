@@ -7,8 +7,8 @@ import {
   executeAction,
   stepTick,
 } from './engine/engine.js';
-import { AutomationKey, BuildingId, EngineAction, PrestigeTier, RoleId, RungId, TimelineState, TradeableResource } from './engine/types.js';
-import { checkPrestigeTier, FEATURES, PRESTIGE_TIER_ORDER, PRESTIGE_TIERS, RUNGS, RUNG_ORDER, rungLevel } from './engine/rules.js';
+import { AutomationKey, BuildingId, EngineAction, FeatureId, PrestigeTier, RoleId, RungId, TimelineState, TradeableResource } from './engine/types.js';
+import { BUILDINGS, checkPrestigeTier, FEATURES, PRESTIGE_TIER_ORDER, PRESTIGE_TIERS, RUNGS, RUNG_ORDER, rungLevel } from './engine/rules.js';
 import { resolveTheme, themeOptions } from './ui/themes.js';
 import { playSound, soundForAction } from './ui/sound.js';
 import {
@@ -154,6 +154,7 @@ const elStatDeepPill = document.getElementById('stat-deep-pill') as HTMLElement;
 const elLegacyBox = document.getElementById('legacy-functions-box') as HTMLElement;
 const elNextFunctions = document.getElementById('next-functions-list') as HTMLElement;
 const elLegacyList = document.getElementById('legacy-functions-list') as HTMLElement;
+const elGatherHint = document.getElementById('gather-hint') as HTMLElement;
 const elDeepPrestigeList = document.getElementById('deep-prestige-list') as HTMLElement;
 
 // Actionable bottom navigation badges
@@ -514,7 +515,7 @@ function announcePrestige(action: EngineAction, before: TimelineState, after: Ti
       ? `${PRESTIGE_TIERS[action.tier].icon} ${PRESTIGE_TIERS[action.tier].name} complete.`
       : action.type === 'START_CHALLENGE'
         ? '🏁 Challenge begun.'
-        : '🌀 Time Jump complete.';
+        : '🌀 Jumpback complete.';
   const lore = action.type === 'PRESTIGE' ? ` ${PRESTIGE_TIERS[action.tier].lore}` : '';
   showToast(`${title}${lore}${sent.length ? ` Sent back through time: ${sent.join(', ')}.` : ''}`, {
     id: 'prestige-done',
@@ -531,6 +532,10 @@ function dispatch(action: EngineAction): void {
     state = result.state;
     const sound = soundForAction(action.type);
     if (sound) playSound(sound, displayPrefs.sound);
+    // The first of anything is an event: the player earned it, so it gets a moment.
+    if (action.type === 'BUILD' && previousState.buildings[action.buildingId] === 0) {
+      showToast(`🏗️ Your first ${BUILDINGS[action.buildingId].name} stands.`, { id: 'first-build', type: 'milestone', persistent: false });
+    }
     if (action.type === 'TIME_JUMP' || action.type === 'PRESTIGE' || action.type === 'START_CHALLENGE') {
       dismissToast();
       // A newly sent-back Chrono Dial changes the tick rate right away.
@@ -650,7 +655,8 @@ function renderDevProposals(): void {
 
 function render(): void {
   const vm: TimelineViewModel = buildTimelineViewModel(state);
-  setLayoutInputs({ disclosure: { ...vm.disclosure }, badges: vm.tabBadges.subs });
+  setLayoutInputs({ disclosure: { ...vm.disclosure }, badges: vm.tabBadges.subs, locks: vm.locks });
+  elGatherHint.textContent = state.features.includes('steady_hands') ? 'Immediate agency · keys 1, 2, 3 · hold to repeat' : 'Immediate agency · keys 1, 2, 3';
 
   // Persistent Status Header
   elStatYear.textContent = `Year ${vm.header.year}`;
@@ -660,7 +666,7 @@ function render(): void {
   elStatRung.textContent = vm.header.rungName;
   elStatFurthest.textContent = `Yr ${vm.header.furthestYear}`;
   elStatInsight.textContent = `${vm.header.insight}`;
-  // Insight is not mentioned until the first Time Jump has been met.
+  // Insight is not mentioned until the first Jumpback has been met.
   elStatInsightPill.hidden = !vm.disclosure.timeJump;
   elStatInsightPill.title = `${vm.timeJump.breakdown.whatIsInsight} Current effect: ${vm.timeJump.currentMultiplier}. ${vm.timeJump.breakdown.startingBonus}`;
   elStatTimelines.textContent = `${vm.header.timelinesCreated}`;
@@ -767,50 +773,39 @@ function render(): void {
     .join('');
 
   // Tab 2: Buildings
-  const buildingHtml = (list: typeof vm.buildings): string =>
-    list
-    .map((b) => {
-      if (!b.unlocked) {
-        return `
-          <div class="building-card locked">
-            <div class="building-card-top">
-              <div class="building-title-group">
-                <span class="building-name">🔒 ${b.name}</span>
-              </div>
-              <span class="unlock-badge">${b.unlockPrereq}</span>
-            </div>
-            <p class="building-desc-text">${b.description}</p>
-          </div>
-        `;
-      }
-
-      return `
-        <div class="building-card ${b.canAfford ? 'affordable' : ''}">
-          <div class="building-card-top">
-            <div class="building-title-group">
+  const costHtml = (b: (typeof vm.buildings)[number]): string =>
+    b.costChips.map((c) => `<span class="cost-chip${c.short ? ' short' : ''}"><span aria-hidden="true">${c.icon}</span>${c.amount}</span>`).join('');
+  const buildingHtml = (list: typeof vm.buildings, empty: string): string => {
+    const shown = list.filter((b) => b.unlocked);
+    if (shown.length === 0) return `<p class="settings-copy">${escapeHtml(empty)}</p>`;
+    return shown
+      .map(
+        (b) => `
+        <div class="building-card ${b.canAfford ? 'affordable' : ''}${b.maxed ? ' built' : ''}">
+          <div class="bc-body">
+            <div class="bc-head">
               <span class="building-name">${b.name}</span>
-              <span class="building-count-chip">Built: ${b.count}</span>
+              ${b.wonder ? '' : `<span class="building-count-chip" title="Built: ${b.count}">×${b.count}</span>`}
             </div>
+            <p class="bc-flavour">${escapeHtml(b.flavour)}</p>
+            <div class="bc-chips">${b.chips.map((c) => `<span class="chip" title="${escapeHtml(c.title)}"><span aria-hidden="true">${c.icon}</span>${escapeHtml(c.text)}</span>`).join('')}</div>
           </div>
-          <p class="building-desc-text">${b.description}</p>
-          ${b.gains.length ? `<p class="building-gains">Next adds: ${b.gains.map((g) => escapeHtml(g)).join(', ')}</p>` : ''}
-          <div class="building-card-bottom">
-            <span class="building-cost-tags">Cost: ${b.costString}</span>
-            <button class="btn-build-action btn-build ${b.canAfford ? 'can-buy' : ''}" data-building="${b.id}" ${b.canAfford ? '' : 'disabled'}>
-              ${b.maxed ? 'Built' : 'Build (+1)'}
-            </button>
-          </div>
-        </div>
-      `;
-    })
-    .join('');
-  elBuildingGrid.innerHTML = buildingHtml(vm.buildings.filter((b) => !b.wonder));
-  elWonderGrid.innerHTML = buildingHtml(vm.buildings.filter((b) => b.wonder));
+          <button class="btn-build-action btn-build ${b.canAfford ? 'can-buy' : ''}" data-building="${b.id}" ${b.canAfford ? '' : 'disabled'} aria-label="${b.maxed ? `${b.name} is built` : `Build ${b.name} (${escapeHtml(b.costString)})`}">
+            <span class="bb-verb">${b.maxed ? 'Built' : 'Build'}</span>
+            ${b.maxed ? '' : `<span class="bb-cost">${costHtml(b)}</span>`}
+            ${b.eta ? `<span class="bb-eta">⏱ ${escapeHtml(b.eta)}</span>` : ''}
+          </button>
+        </div>`
+      )
+      .join('');
+  };
+  elBuildingGrid.innerHTML = buildingHtml(vm.buildings.filter((b) => !b.wonder), 'Reach the Gathering Band to start building.');
+  elWonderGrid.innerHTML = buildingHtml(vm.buildings.filter((b) => b.wonder), 'No wonder can be raised yet.');
   elSeasonList.innerHTML = vm.seasons
     .map((x) => `<div class="season-row${x.current ? ' current' : ''}"><strong>${escapeHtml(x.name)}${x.current ? ' (now)' : ''}</strong><span>${escapeHtml(x.note)}</span></div>`)
     .join('');
 
-  // Tab 3: Evolution (Rung Progression & Time Jump)
+  // Tab 3: Evolution (Rung Progression & Jumpback)
   elCurrentRungName.textContent = vm.rungProgression.currentName;
   elCurrentRungSubtitle.textContent = vm.rungProgression.currentSubtitle;
   elCurrentRungDesc.textContent = vm.rungProgression.currentDescription;
@@ -855,7 +850,7 @@ function render(): void {
     elBtnAdvanceRung.classList.toggle('ready', nextRung.eligible);
   }
 
-  // Time Jump Card
+  // Jumpback Card
   elInsightBadge.textContent = `+${vm.timeJump.projectedInsight} Insight`;
   elTimeJumpDesc.textContent = vm.timeJump.description;
   elTimeJumpBreakdown.innerHTML = `
@@ -867,7 +862,7 @@ function render(): void {
       </ul>
     </div>
     <div class="time-jump-card-section">
-      <div class="time-jump-section-title">🌀 Next Time Jump</div>
+      <div class="time-jump-section-title">🌀 Next Jumpback</div>
       <ul class="time-jump-stat-list">
         <li><span class="time-jump-stat-label">Projected gain</span><span class="time-jump-stat-val highlight">${escapeHtml(vm.timeJump.projectedGain)}</span></li>
         <li><span class="time-jump-stat-label">Next timeline reserves</span><span class="time-jump-stat-val">+${vm.timeJump.breakdown.nextStartingFood} Food, +${vm.timeJump.breakdown.nextStartingMaterials} Materials</span></li>
@@ -924,6 +919,7 @@ function render(): void {
 
   // Challenges
   elChallengeList.innerHTML = vm.challenges
+    .filter((c) => c.status !== 'locked')
     .map((c) => {
       const action =
         c.status === 'done'
@@ -935,8 +931,7 @@ function render(): void {
               : `<button type="button" class="btn-trade" data-challenge-start="${c.id}">Begin</button>`;
       return `<div class="discovery ${c.status === 'done' ? 'researched' : ''}">
         <div><strong>${c.icon} ${escapeHtml(c.name)}</strong>
-          <p>${escapeHtml(c.description)} ${escapeHtml(c.goal)}.</p>
-          <p>Trophy: ${escapeHtml(c.reward)}</p></div>
+          <p title="${escapeHtml(`${c.description} ${c.goal}. Trophy: ${c.reward}`)}">${escapeHtml(c.description)} 🏆 ${escapeHtml(c.reward)}</p></div>
         ${action}
       </div>`;
     })
@@ -980,6 +975,7 @@ function render(): void {
 
   // Discoveries
   elDiscoveryList.innerHTML = vm.discoveries
+    .filter((d) => d.unlocked || d.researched)
     .map((d) => {
       const cls = d.researched ? 'researched' : d.unlocked ? '' : 'locked';
       const button = d.researched
@@ -1043,9 +1039,21 @@ function render(): void {
 
   // Functions sent back through time
   elNextFunctions.innerHTML = vm.nextFeatures
-    .map((f) => `<li>${f.icon} <strong>${escapeHtml(f.name)}</strong> after ${escapeHtml(f.condition)} — ${escapeHtml(f.description)}</li>`)
+    .map((f) => `<li title="${escapeHtml(f.description)}">${f.icon} <strong>${escapeHtml(f.name)}</strong> · ${escapeHtml(f.condition)}</li>`)
     .join('');
-  elLegacyList.innerHTML = vm.features
+  const boonOffers = vm.boons
+    .map(
+      (b) => `
+      <div class="legacy-item boon-offer">
+        <div>
+          <strong>${b.icon} ${escapeHtml(b.name)}</strong>
+          <p>${escapeHtml(b.description)}</p>
+        </div>
+        <button type="button" class="btn-trade" data-boon="${b.id}">Take</button>
+      </div>`
+    )
+    .join('');
+  elLegacyList.innerHTML = boonOffers + vm.features
     .map(
       (f) => `
       <div class="legacy-item">
@@ -1124,6 +1132,11 @@ function escapeHtml(str: string): string {
 
 // Event Listeners setup
 function setupListeners(): void {
+  // Tapping a greyed-out page says when it opens.
+  document.addEventListener('omt:locked', (event) => {
+    showToast((event as CustomEvent<string>).detail, { id: 'locked-page', type: 'info', persistent: false });
+  });
+
   // Tab switching
   (Object.keys(tabButtons) as TabId[]).forEach((tab) => {
     tabButtons[tab].addEventListener('click', () => switchTab(tab));
@@ -1144,6 +1157,8 @@ function setupListeners(): void {
     button.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return;
       held = false;
+      // Holding to repeat is a function sent back by the first Jumpback; until then every gather is a tap.
+      if (!state.features.includes('steady_hands')) return;
       delay = setTimeout(() => {
         held = true;
         repeat = setInterval(() => dispatch(action), 125);
@@ -1295,7 +1310,7 @@ function setupListeners(): void {
     const target = event.target as HTMLElement;
     const start = target.closest<HTMLButtonElement>('[data-challenge-start]');
     if (start) {
-      if (confirm('Begin this challenge? Your current timeline ends (paying out the Insight a Time Jump would) and a new one starts with every permanent bonus intact.')) {
+      if (confirm('Begin this challenge? Your current timeline ends (paying out the Insight a Jumpback would) and a new one starts with every permanent bonus intact.')) {
         dispatch({ type: 'START_CHALLENGE', challengeId: start.dataset.challengeStart as string });
         switchTab('hearth', 'gather');
       }
@@ -1332,12 +1347,17 @@ function setupListeners(): void {
 
   // Automation switches for functions sent back through time
   elLegacyList.addEventListener('click', (event) => {
+    const boon = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-boon]');
+    if (boon) {
+      dispatch({ type: 'CHOOSE_BOON', featureId: boon.dataset.boon as FeatureId });
+      return;
+    }
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-automation]');
     if (!button) return;
     dispatch({ type: 'TOGGLE_AUTOMATION', key: button.dataset.automation as AutomationKey });
   });
 
-  // Time Jump Prestige
+  // Jumpback Prestige
   elBtnTimeJump.addEventListener('click', () => {
     const vm = buildTimelineViewModel(state);
     if (!vm.timeJump.eligible) return;

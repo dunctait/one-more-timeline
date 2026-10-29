@@ -38,11 +38,11 @@ describe('discoveries', () => {
 
   it('is gated by rung and Knowledge, and cannot be bought twice', () => {
     expect(executeAction(withKnowledge({}, 5), { type: 'RESEARCH', discoveryId: 'fire_hardening' }).success).toBe(false);
-    const band = withKnowledge({ rung: 'band' }, 10);
+    const band = withKnowledge({ rung: 'band' }, 20);
     const ok = executeAction(band, { type: 'RESEARCH', discoveryId: 'fire_hardening' });
     expect(ok.success).toBe(true);
     expect(ok.state.resources.knowledge).toBe(0);
-    expect(executeAction({ ...ok.state, resources: { ...ok.state.resources, knowledge: 20 } }, { type: 'RESEARCH', discoveryId: 'fire_hardening' }).success).toBe(false);
+    expect(executeAction({ ...ok.state, resources: { ...ok.state.resources, knowledge: 40 } }, { type: 'RESEARCH', discoveryId: 'fire_hardening' }).success).toBe(false);
     expect(executeAction(withKnowledge({ rung: 'band' }, 999), { type: 'RESEARCH', discoveryId: 'masonry' }).success).toBe(false);
   });
 

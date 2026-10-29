@@ -18,19 +18,20 @@ describe('the real page, booted', () => {
   it('renders every tab with content on first load', () => {
     expect(text('goal-title')).toContain('Gathering Band');
     expect(text('stat-year')).toBe('Year 1');
-    // Works and Wonders are separate pages: 14 plus 5.
-    expect($('building-grid').children.length + $('wonder-grid').children.length).toBe(19);
-    expect($('wonder-grid').children.length).toBe(5);
-    expect($('discovery-list').children.length).toBeGreaterThan(10);
+    // Nothing is built or buildable at the Solitary Hearth, and locked things are not drawn at all.
+    expect($('building-grid').querySelectorAll('.building-card').length).toBe(0);
+    expect($('wonder-grid').querySelectorAll('.building-card').length).toBe(0);
+    expect($('building-grid').textContent).toContain('Gathering Band');
+    expect($('discovery-list').querySelectorAll('.locked').length, 'locked ideas are not drawn').toBe(0);
     expect($('achievements-list').children.length).toBeGreaterThan(20);
     expect($('relics-list').children.length).toBeGreaterThan(5);
-    expect($('challenge-list').children.length).toBeGreaterThan(3);
+    expect($('challenge-list').children.length, 'locked trials are not drawn').toBe(0);
     expect($('theme-list').children.length).toBeGreaterThan(3);
     // Later prestige tiers are not shown until the player first comes across them.
     expect($('deep-prestige-list').children.length).toBe(0);
     expect($('records-list').children.length).toBeGreaterThan(8);
     expect($('production-notes').children.length).toBeGreaterThan(0);
-    expect($('people-list').children.length).toBe(1);
+    expect($('people-list').children.length).toBe(12);
   });
 
   it('gathers by hand and reflects it immediately', () => {

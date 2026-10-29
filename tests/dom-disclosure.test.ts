@@ -11,7 +11,7 @@ const sub = (tab: string, key: string): HTMLElement =>
 
 beforeAll(async () => {
   vi.useFakeTimers();
-  // A timeline grown enough for the first Time Jump, one tick short of a quiet achievement.
+  // A timeline grown enough for the first Jumpback, one tick short of a quiet achievement.
   const state = normalizeState({
     ...ripe(createInitialState()),
     stats: { ticks: 7199, gathers: 0, built: 0, researched: 0, traded: 0 },
@@ -26,9 +26,9 @@ beforeAll(async () => {
 });
 
 describe('progressive disclosure, the banner and a quiet bottom of the screen', () => {
-  it('offers the first Time Jump as a banner on every tab, not as a toast', () => {
+  it('offers the first Jumpback as a banner on every tab, not as a toast', () => {
     expect($('ready-banner').hidden).toBe(false);
-    expect(text('ready-banner-title')).toContain('Time Jump is ready');
+    expect(text('ready-banner-title')).toContain('Jumpback is ready');
     expect(text('toast-region')).not.toContain('Temporal Horizon');
     for (const tab of ['hearth', 'settlement', 'evolution', 'chronicle', 'settings']) {
       ($(`tab-btn-${tab}`) as HTMLButtonElement).click();
@@ -47,7 +47,7 @@ describe('progressive disclosure, the banner and a quiet bottom of the screen', 
 
   it('shows a two-tier menu, and only the sub-pages the player has met', () => {
     const labels = [...document.querySelectorAll('#subnav .subnav-btn')].map((b) => b.textContent?.trim());
-    expect(labels.some((l) => l?.includes('Time Jump'))).toBe(true);
+    expect(labels.some((l) => l?.includes('Jumpback'))).toBe(true);
     expect(labels.some((l) => l?.includes('Sent back'))).toBe(false);
     expect(labels.some((l) => l?.includes('Trials'))).toBe(false);
     expect(labels.some((l) => l?.includes('Deeper'))).toBe(false);
@@ -60,7 +60,7 @@ describe('progressive disclosure, the banner and a quiet bottom of the screen', 
     expect(shown).toHaveLength(1);
   });
 
-  it('does not mention Insight until the Time Jump has been met', async () => {
+  it('does not mention Insight until the Jumpback has been met', async () => {
     expect($('stat-insight-pill').hidden).toBe(false);
   });
 

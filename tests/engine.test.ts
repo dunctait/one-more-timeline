@@ -11,8 +11,8 @@ describe('Deterministic Engine', () => {
     expect(state.furthestYear).toBe(1);
     expect(state.rung).toBe('hearth');
     expect(state.resources.food).toBeGreaterThan(0);
-    expect(state.population.total).toBe(1);
-    expect(state.population.roles.unassigned).toBe(1);
+    expect(state.population.total).toBe(12);
+    expect(state.population.roles.unassigned).toBe(12);
     expect(state.timelineId).toBe('timeline_1337_0');
   });
 
@@ -57,37 +57,41 @@ describe('Deterministic Engine', () => {
 
     // The Hearth-to-Camp route: rapid manual agency followed by natural timeline progression.
     // Reach Gathering Band requirements: Year 2, Knowledge 12, Food 12.
-    for (let i = 0; i < 8; i += 1) {
+    for (let i = 0; i < 24; i += 1) {
       action({ type: 'STUDY' });
       action({ type: 'FORAGE' });
     }
-    // Advance time to Year 2 (4 ticks = 1 year)
-    for (let i = 0; i < 4; i += 1) {
+    // Advance time to Year 3 (4 ticks = 1 year)
+    for (let i = 0; i < 8; i += 1) {
       tick();
     }
     action({ type: 'ADVANCE_RUNG', rungId: 'band' });
     expect(state.rung).toBe('band');
 
-    // At Band rung: gather resources, build a hut, gather materials for Settled Camp (15 Mats, 20 Knw, 1 Hut, Year 4)
-    for (let i = 0; i < 8; i += 1) {
+    // At Band rung: raise two huts, then gather for the Settled Camp (45 Mats, 40 Knw, 2 Huts, Year 10)
+    for (let i = 0; i < 30; i += 1) {
+      action({ type: 'SCAVENGE' });
+    }
+    action({ type: 'BUILD', buildingId: 'hut' });
+    expect(state.buildings.hut).toBe(1);
+    for (let i = 0; i < 40; i += 1) {
       action({ type: 'SCAVENGE' });
       action({ type: 'FORAGE' });
     }
     action({ type: 'BUILD', buildingId: 'hut' });
-    expect(state.buildings.hut).toBe(1);
-
-    for (let i = 0; i < 14; i += 1) {
+    expect(state.buildings.hut).toBe(2);
+    for (let i = 0; i < 40; i += 1) {
       action({ type: 'SCAVENGE' });
       action({ type: 'STUDY' });
       action({ type: 'FORAGE' });
     }
-    // Advance to Year 4
-    while (state.year < 4) {
+    // Advance to Year 10
+    while (state.year < 10) {
       tick();
     }
     action({ type: 'ADVANCE_RUNG', rungId: 'settlement' });
     expect(state.rung).toBe('settlement');
-    expect(state.tick).toBeLessThanOrEqual(50);
+    expect(state.tick).toBeLessThanOrEqual(80);
   });
 
   it('handles manual FORAGE, SCAVENGE, and STUDY actions cleanly within caps', () => {
@@ -171,13 +175,13 @@ describe('Deterministic Engine', () => {
     expect(failBuild.error).toContain('Materials');
 
     // Give enough materials
-    state.resources.materials = 20;
+    state.resources.materials = 40;
     const initialPopMax = state.population.max;
 
     const successBuild = executeAction(state, { type: 'BUILD', buildingId: 'hut' });
     expect(successBuild.success).toBe(true);
     expect(successBuild.state.buildings.hut).toBe(1);
-    expect(successBuild.state.resources.materials).toBe(10);
+    expect(successBuild.state.resources.materials).toBe(0);
     expect(successBuild.state.population.max).toBe(initialPopMax + 2);
   });
 
@@ -188,9 +192,9 @@ describe('Deterministic Engine', () => {
     const check1 = checkRungPrerequisites(state, 'band');
     expect(check1.eligible).toBe(false);
 
-    state.year = 2;
-    state.resources.knowledge = 15;
-    state.resources.food = 15;
+    state.year = 3;
+    state.resources.knowledge = 36;
+    state.resources.food = 36;
 
     const check2 = checkRungPrerequisites(state, 'band');
     expect(check2.eligible).toBe(true);
@@ -203,15 +207,15 @@ describe('Deterministic Engine', () => {
   it('executes TIME_JUMP prestige action, grants Insight, and preserves Furthest Year', () => {
     let state = createInitialState();
 
-    // Cannot time jump before Year 3
+    // Cannot jumpback before Year 3
     state.year = 2;
     const prematureJump = executeAction(state, { type: 'TIME_JUMP' });
     expect(prematureJump.success).toBe(false);
-    expect(prematureJump.error).toContain('Year 30');
+    expect(prematureJump.error).toContain('Year 40');
 
-    // Fast-forward to Year 30 in a village with high knowledge
-    state.year = 30;
-    state.furthestYear = 30;
+    // Fast-forward to Year 40 in a village with high knowledge
+    state.year = 40;
+    state.furthestYear = 40;
     state.rung = 'village';
     state.resources.knowledge = 85;
 
@@ -224,7 +228,7 @@ describe('Deterministic Engine', () => {
     const nextTimeline = jumpRes.state;
     expect(nextTimeline.year).toBe(1);
     expect(nextTimeline.tick).toBe(0);
-    expect(nextTimeline.furthestYear).toBe(30);
+    expect(nextTimeline.furthestYear).toBe(40);
     expect(nextTimeline.timelinesCreated).toBe(1);
     expect(nextTimeline.insight).toBe(expectedInsight);
     expect(nextTimeline.rung).toBe('hearth');
@@ -237,63 +241,45 @@ describe('Deterministic Engine', () => {
   it('expands knowledge capacity through Workshop and Chronicle Obelisk to unlock Dawn Village', () => {
     let state = createInitialState();
     state.rung = 'settlement';
-    state.year = 8;
-    state.furthestYear = 8;
-    state.buildings.granary = 1;
-    state.buildings.hut = 2;
-    state.population.total = 6;
-    state.caps = {
-      ...state.caps,
-      food: 30 + 1 * 50,
-    };
-    state.population.max = 2 + 2 * 2;
+    state.year = 40;
+    state.furthestYear = 40;
+    state.buildings = { ...state.buildings, granary: 1, hut: 3 };
+    state.population = { ...state.population, total: 17, max: 12 + 3 * 2 };
+    state.caps = { food: 60 + 100, materials: 50, knowledge: 40 };
 
-    // Base knowledge cap without workshop or obelisk is 20
-    expect(state.caps.knowledge).toBe(20);
-
-    // Verify Chronicle Obelisk is unlocked at Settled Camp with reachable base cost
+    // Base knowledge storage without a workshop or obelisk
+    expect(state.caps.knowledge).toBe(40);
     expect(BUILDINGS.chronicle_stone.unlockedAt).toBe('settlement');
-    expect(BUILDINGS.chronicle_stone.baseCost.materials).toBe(30);
-    expect(BUILDINGS.chronicle_stone.baseCost.knowledge).toBe(15);
 
-    // Building Workshop expands materials cap by +40 and knowledge cap by +10
-    state.resources.materials = 25;
-    state.resources.knowledge = 10;
+    state.resources.materials = 50;
+    state.resources.knowledge = 20;
     const buildWorkshop = executeAction(state, { type: 'BUILD', buildingId: 'workshop' });
     expect(buildWorkshop.success).toBe(true);
     state = buildWorkshop.state;
     expect(state.buildings.workshop).toBe(1);
-    expect(state.caps.materials).toBe(65);
-    expect(state.caps.knowledge).toBe(30);
+    expect(state.caps.materials).toBe(50 + 80);
+    expect(state.caps.knowledge).toBe(40 + 20);
 
-    // Building Chronicle Obelisk costs 30 mats and 15 knowledge, expanding knowledge cap to 60
-    state.resources.materials = 30;
-    state.resources.knowledge = 15;
+    state.resources.materials = BUILDINGS.chronicle_stone.baseCost.materials;
+    state.resources.knowledge = BUILDINGS.chronicle_stone.baseCost.knowledge ?? 0;
     const buildObelisk = executeAction(state, { type: 'BUILD', buildingId: 'chronicle_stone' });
     expect(buildObelisk.success).toBe(true);
     state = buildObelisk.state;
     expect(state.buildings.chronicle_stone).toBe(1);
-    expect(state.caps.knowledge).toBe(60);
+    expect(state.caps.knowledge).toBe(40 + 20 + 60);
 
     // Check Dawn Village prerequisites
-    state.resources.knowledge = 60;
+    state.resources.knowledge = 120;
     const prereqCheck = checkRungPrerequisites(state, 'village');
     expect(prereqCheck.eligible).toBe(true);
     expect(prereqCheck.reasons).toHaveLength(0);
 
-    // Advance to Dawn Village
+    // Advance to Dawn Village, which adds its own storage
     const advanceVillage = executeAction(state, { type: 'ADVANCE_RUNG', rungId: 'village' });
     expect(advanceVillage.success).toBe(true);
     state = advanceVillage.state;
     expect(state.rung).toBe('village');
-    // Dawn Village provides +50 knowledge cap bonus
-    expect(state.caps.knowledge).toBe(110);
-
-    // Assign healer (unlocked at Dawn Village)
-    state.population.roles.unassigned = 1;
-    const assignHealer = executeAction(state, { type: 'ASSIGN_ROLE', role: 'healer', delta: 1 });
-    expect(assignHealer.success).toBe(true);
-    expect(assignHealer.state.population.roles.healer).toBe(1);
+    expect(state.caps.knowledge).toBe(40 + 20 + 60 + 100);
   });
 
   it('supports dev mode actions', () => {

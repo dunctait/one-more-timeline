@@ -11,9 +11,11 @@ interface LayoutInputs {
   disclosure: Record<string, boolean>;
   /** Which `tab.sub` pages hold work waiting for the player. */
   badges: Record<string, boolean>;
+  /** Pages shown greyed out one rung ahead of opening, keyed `tab.sub`, with when they open. */
+  locks: Record<string, string>;
 }
 
-let inputs: LayoutInputs = { disclosure: {}, badges: {} };
+let inputs: LayoutInputs = { disclosure: {}, badges: {}, locks: {} };
 const selected: Record<string, string> = {};
 const pageOf = new Map<string, number>();
 
@@ -46,6 +48,7 @@ function layoutPager(pager: HTMLElement): void {
   const kids = Array.from(items.children) as HTMLElement[];
   kids.forEach((kid) => (kid.hidden = false));
   bar.hidden = true;
+  pager.dataset.pageSizes = String(kids.length);
   const full = items.clientHeight;
   // Without a rendered layout (or with nothing to split) every item simply shows.
   if (full === 0 || kids.length < 2) return;
@@ -72,6 +75,7 @@ function layoutPager(pager: HTMLElement): void {
   });
   pages.push([start, kids.length]);
 
+  pager.dataset.pageSizes = pages.map(([from, to]) => to - from).join(',');
   const page = Math.min(pageOf.get(key) ?? 0, pages.length - 1);
   pageOf.set(key, page);
   kids.forEach((kid, i) => (kid.hidden = i < pages[page][0] || i >= pages[page][1]));
@@ -99,12 +103,21 @@ export function refreshLayout(tab: string, panel: HTMLElement, choose?: string):
   const nav = document.getElementById('subnav');
   if (nav) {
     nav.dataset.tab = tab;
-    const cells = visible.map((p) => {
+    const cells: string[] = [];
+    for (const p of subs) {
       const sub = p.dataset.sub ?? '';
-      const on = p === current;
-      const badge = inputs.badges[`${tab}.${sub}`] ? '<span class="tab-badge" aria-label="needs attention"></span>' : '';
-      return `<button type="button" role="tab" class="subnav-btn${on ? ' active' : ''}" data-sub="${sub}" aria-selected="${on}" tabindex="${on ? 0 : -1}"><span class="sub-icon" aria-hidden="true">${p.dataset.icon ?? ''}</span><span class="sub-label">${p.dataset.label ?? sub}</span>${badge}</button>`;
-    });
+      if (visible.includes(p)) {
+        const on = p === current;
+        const badge = inputs.badges[`${tab}.${sub}`] ? '<span class="tab-badge" aria-label="needs attention"></span>' : '';
+        cells.push(`<button type="button" role="tab" class="subnav-btn${on ? ' active' : ''}" data-sub="${sub}" aria-selected="${on}" tabindex="${on ? 0 : -1}"><span class="sub-icon" aria-hidden="true">${p.dataset.icon ?? ''}</span><span class="sub-label">${p.dataset.label ?? sub}</span>${badge}</button>`);
+        continue;
+      }
+      // One rung ahead of opening, a page is shown greyed out so the player can see what is coming.
+      const note = inputs.locks[`${tab}.${sub}`];
+      if (note) {
+        cells.push(`<button type="button" role="tab" class="subnav-btn locked" data-sub="${sub}" data-lock="${note}" aria-disabled="true" aria-label="${p.dataset.label ?? sub}. ${note}" tabindex="-1"><span class="sub-icon" aria-hidden="true">${p.dataset.icon ?? ''}</span><span class="sub-label">${p.dataset.label ?? sub}</span></button>`);
+      }
+    }
     // The row always keeps its full width, so pages appearing later never shift the layout.
     while (cells.length < SUBNAV_SLOTS) cells.push('<span class="subnav-blank" aria-hidden="true"></span>');
     const html = cells.join('');
@@ -128,6 +141,10 @@ export function bindLayoutEvents(): void {
     const target = event.target instanceof Element ? event.target : null;
     if (!target) return;
     const subBtn = target.closest<HTMLElement>('.subnav-btn');
+    if (subBtn?.classList.contains('locked')) {
+      document.dispatchEvent(new CustomEvent('omt:locked', { detail: subBtn.dataset.lock ?? '' }));
+      return;
+    }
     if (subBtn) {
       const where = subnavTab(subBtn);
       if (where) refreshLayout(where.tab, where.panel, subBtn.dataset.sub);
@@ -145,11 +162,11 @@ export function bindLayoutEvents(): void {
 
   document.addEventListener('keydown', (event) => {
     const target = event.target instanceof Element ? event.target : null;
-    const subBtn = target?.closest<HTMLElement>('.subnav-btn');
+    const subBtn = target?.closest<HTMLElement>('.subnav-btn:not(.locked)');
     if (!subBtn || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     const where = subnavTab(subBtn);
     if (!where) return;
-    const buttons = Array.from(subBtn.parentElement?.querySelectorAll<HTMLElement>('.subnav-btn') ?? []);
+    const buttons = Array.from(subBtn.parentElement?.querySelectorAll<HTMLElement>('.subnav-btn:not(.locked)') ?? []);
     const index = buttons.indexOf(subBtn);
     const next =
       event.key === 'Home' ? 0

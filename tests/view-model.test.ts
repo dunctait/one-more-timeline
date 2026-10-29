@@ -124,7 +124,7 @@ describe('UI View Model & Storage', () => {
     expect(vm.rungProgression.nextRung).not.toBeNull();
     expect(vm.rungProgression.nextRung?.items.length).toBeGreaterThan(0);
 
-    // Time jump should be ineligible at Year 1
+    // Jumpback should be ineligible at Year 1
     expect(vm.timeJump.eligible).toBe(false);
   });
 
@@ -132,7 +132,7 @@ describe('UI View Model & Storage', () => {
     const state = createInitialState();
     state.rung = 'settlement';
     state.population.roles.unassigned = 2;
-    state.resources.materials = 30;
+    state.resources.materials = 60;
     state.resources.food = 20;
     state.resources.knowledge = 20;
 
@@ -147,11 +147,11 @@ describe('UI View Model & Storage', () => {
     expect(vm.tabBadges.chronicle).toBe(false);
   });
 
-  it('shows the Evolution badge when ascension or Time Jump is ready', () => {
+  it('shows the Evolution badge when ascension or Jumpback is ready', () => {
     const ascensionState = createInitialState();
-    ascensionState.year = 2;
-    ascensionState.resources.food = 12;
-    ascensionState.resources.knowledge = 12;
+    ascensionState.year = 3;
+    ascensionState.resources.food = 36;
+    ascensionState.resources.knowledge = 36;
     const ascensionVm = buildTimelineViewModel(ascensionState);
     expect(ascensionVm.rungProgression.nextRung?.eligible).toBe(true);
     expect(ascensionVm.tabBadges.evolution).toBe(true);
@@ -162,7 +162,7 @@ describe('UI View Model & Storage', () => {
     expect(prestigeVm.tabBadges.evolution).toBe(true);
   });
 
-  it('exposes plain-language Insight benefits and its Time Jump calculation', () => {
+  it('exposes plain-language Insight benefits and its Jumpback calculation', () => {
     const state = ripe(createInitialState({ insight: 3 }));
     state.population.total = 8;
     state.resources.knowledge = 80;
@@ -185,7 +185,7 @@ describe('UI View Model & Storage', () => {
     state.rung = 'settlement';
     state.population.total = 4;
     state.population.roles.unassigned = 2;
-    state.resources.materials = 30;
+    state.resources.materials = 60;
     state.resources.food = 20;
 
     const vm = buildTimelineViewModel(state);
@@ -202,11 +202,11 @@ describe('UI View Model & Storage', () => {
   it('simulates a complete opening progression sequence into Settled Camp', () => {
     let state = createInitialState({ seed: 101 });
     // Rapid gathering
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 24; i++) {
       state = executeAction(state, { type: 'STUDY' }).state;
       state = executeAction(state, { type: 'FORAGE' }).state;
     }
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 8; i++) {
       state = executeAction(state, { type: 'TICK' }).state;
     }
 
@@ -221,8 +221,8 @@ describe('UI View Model & Storage', () => {
     const hut = vm.buildings.find((b) => b.id === 'hut');
     expect(hut?.unlocked).toBe(true);
 
-    // Gather for Hut and build
-    for (let i = 0; i < 8; i++) {
+    // Gather for a Hut and build
+    for (let i = 0; i < 30; i++) {
       state = executeAction(state, { type: 'SCAVENGE' }).state;
       state = executeAction(state, { type: 'FORAGE' }).state;
     }
@@ -230,12 +230,17 @@ describe('UI View Model & Storage', () => {
     expect(state.buildings.hut).toBe(1);
 
     // Gather remaining materials & knowledge for Settled Camp
-    for (let i = 0; i < 15; i++) {
+    state = executeAction(state, { type: 'BUILD', buildingId: 'hut' }).state;
+    for (let i = 0; i < 35; i++) {
+      state = executeAction(state, { type: 'SCAVENGE' }).state;
+    }
+    state = executeAction(state, { type: 'BUILD', buildingId: 'hut' }).state;
+    for (let i = 0; i < 40; i++) {
       state = executeAction(state, { type: 'SCAVENGE' }).state;
       state = executeAction(state, { type: 'STUDY' }).state;
       state = executeAction(state, { type: 'FORAGE' }).state;
     }
-    while (state.year < 4) {
+    while (state.year < 10) {
       state = executeAction(state, { type: 'TICK' }).state;
     }
 
@@ -255,29 +260,29 @@ describe('UI View Model & Storage', () => {
     expect(chronicle?.unlocked).toBe(true);
   });
 
-  it('holds the first Time Jump back until the timeline has grown, then offers it as the banner goal', () => {
+  it('holds the first Jumpback back until the timeline has grown, then offers it as the banner goal', () => {
     const fresh = createInitialState({ seed: 777 });
     expect(buildTimelineViewModel(fresh).disclosure.timeJump).toBe(false);
     expect(executeAction({ ...fresh, year: 5 }, { type: 'TIME_JUMP' }).success).toBe(false);
 
     // A late year alone is not enough: the first jump needs a real settlement behind it.
-    const early = { ...fresh, year: 40 };
+    const early = { ...fresh, year: 45 };
     expect(executeAction(early, { type: 'TIME_JUMP' }).success).toBe(false);
     expect(buildTimelineViewModel(early).timeJump.eligible).toBe(false);
 
-    const grown = { ...fresh, year: 30, rung: 'village' as const };
+    const grown = { ...fresh, year: 40, rung: 'village' as const };
     const vm = buildTimelineViewModel(grown);
     expect(vm.timeJump.eligible).toBe(true);
     expect(vm.disclosure.timeJump).toBe(true);
     expect(vm.goal.ready).toBe(true);
-    expect(vm.goal.title).toContain('Time Jump is ready');
+    expect(vm.goal.title).toContain('Jumpback is ready');
 
     const jumped = executeAction(grown, { type: 'TIME_JUMP' });
     expect(jumped.success).toBe(true);
     expect(jumped.state.timelineId).not.toBe(grown.timelineId);
     // After the first jump the offer is no longer a banner: it is simply always available.
-    const again = buildTimelineViewModel({ ...jumped.state, year: 30, rung: 'village' as const });
-    expect(again.goal.title).not.toContain('Time Jump is ready');
+    const again = buildTimelineViewModel({ ...jumped.state, year: 40, rung: 'village' as const });
+    expect(again.goal.title).not.toContain('Jumpback is ready');
   });
 
   it('keeps later prestige tiers and their spoilers hidden until first encountered', () => {

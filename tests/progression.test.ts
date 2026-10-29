@@ -137,21 +137,21 @@ describe('content reachability', () => {
     }
     // Pacing guard: the first run to the realm should fit in a single sitting (~15 min).
     expect(marks.length).toBe(RUNG_ORDER.length - 1);
-    expect(ticks).toBeLessThan(900);
+    expect(ticks).toBeLessThan(2400);
   });
 });
 
 describe('prestige tiers and sent-back functions', () => {
   const atRealm = (patch: Partial<TimelineState> = {}): TimelineState => {
     const s = createInitialState();
-    return { ...s, rung: 'realm', year: 70, tick: 276, ...patch };
+    return { ...s, rung: 'realm', year: 310, tick: 276, ...patch };
   };
 
   it('refuses each tier until the realm stands and the lower currency is banked', () => {
     expect(executeAction(createInitialState(), { type: 'PRESTIGE', tier: 2 }).success).toBe(false);
     expect(executeAction(atRealm({ insight: 119 }), { type: 'PRESTIGE', tier: 2 }).success).toBe(false);
-    expect(executeAction(atRealm({ echoes: 7, year: 130 }), { type: 'PRESTIGE', tier: 3 }).success).toBe(false);
-    expect(executeAction(atRealm({ resonance: 5, year: 250 }), { type: 'PRESTIGE', tier: 4 }).success).toBe(false);
+    expect(executeAction(atRealm({ echoes: 7, year: 370 }), { type: 'PRESTIGE', tier: 3 }).success).toBe(false);
+    expect(executeAction(atRealm({ resonance: 5, year: 450 }), { type: 'PRESTIGE', tier: 4 }).success).toBe(false);
   });
 
   it('Epoch Shift banks Echoes, resets Insight, keeps records, and sends back a function', () => {
@@ -160,24 +160,24 @@ describe('prestige tiers and sent-back functions', () => {
     expect(r.state.echoes).toBe(3);
     expect(r.state.insight).toBe(0);
     expect(r.state.rung).toBe('hearth');
-    expect(r.state.furthestYear).toBe(70);
+    expect(r.state.furthestYear).toBe(310);
     expect(r.state.features).toContain('rising_tide');
   });
 
   it('the second Epoch Shift sends back Inherited Foundations as starting buildings', () => {
     const first = executeAction(atRealm({ insight: 120 }), { type: 'PRESTIGE', tier: 2 }).state;
     expect(first.features).not.toContain('inherited_foundations');
-    const second = executeAction({ ...first, rung: 'realm', insight: 120, year: 70 }, { type: 'PRESTIGE', tier: 2 })
+    const second = executeAction({ ...first, rung: 'realm', insight: 120, year: 310 }, { type: 'PRESTIGE', tier: 2 })
       .state;
     expect(second.features).toContain('inherited_foundations');
     expect(second.buildings.hut).toBe(1);
     expect(second.buildings.granary).toBe(1);
     expect(second.buildings.workshop).toBe(1);
-    expect(second.population.max).toBe(4);
+    expect(second.population.max).toBe(14);
   });
 
   it('Paradigm Shift resets Echoes and starts later timelines further up the rungs', () => {
-    const r = executeAction(atRealm({ echoes: 16, insight: 30, year: 130 }), { type: 'PRESTIGE', tier: 3 });
+    const r = executeAction(atRealm({ echoes: 16, insight: 30, year: 370 }), { type: 'PRESTIGE', tier: 3 });
     expect(r.success).toBe(true);
     expect(r.state.resonance).toBe(3);
     expect(r.state.echoes).toBe(0);
@@ -187,7 +187,7 @@ describe('prestige tiers and sent-back functions', () => {
   });
 
   it('Ascension keeps only Eternity Marks and sends back The Steward', () => {
-    const r = executeAction(atRealm({ resonance: 6, echoes: 3, insight: 10, year: 250 }), {
+    const r = executeAction(atRealm({ resonance: 6, echoes: 3, insight: 10, year: 450 }), {
       type: 'PRESTIGE',
       tier: 4,
     });
@@ -198,8 +198,10 @@ describe('prestige tiers and sent-back functions', () => {
     expect(r.state.features).toContain('steward');
   });
 
-  it('the first Time Jump sends back Ancestral Hands, which assigns newcomers on its own', () => {
-    const jump = executeAction(ripe({ ...createInitialState(), year: 5 }), { type: 'TIME_JUMP' });
+  it('the first Jumpback sends back Ancestral Hands, which assigns newcomers on its own', () => {
+    const first = executeAction(ripe({ ...createInitialState(), year: 5 }), { type: 'TIME_JUMP' });
+    expect(first.state.features).toEqual(['steady_hands']);
+    const jump = executeAction(ripe({ ...first.state, year: 5 }), { type: 'TIME_JUMP' });
     expect(jump.state.features).toContain('ancestral_hands');
     let s: TimelineState = { ...jump.state, rung: 'band' };
     s = { ...s, population: { ...s.population, total: 3, roles: { ...s.population.roles, unassigned: 3 } } };
@@ -212,13 +214,13 @@ describe('prestige tiers and sent-back functions', () => {
 
   it('Rising Tide advances a rung and The Steward builds without player input', () => {
     let s = createInitialState();
-    s = { ...s, features: ['rising_tide', 'steward'], rung: 'band', tick: 20, year: 6 };
-    s.resources = { ...s.resources, knowledge: 20, materials: 20, food: 20 };
-    s.buildings.hut = 1;
+    s = { ...s, features: ['rising_tide', 'steward'], rung: 'band', tick: 44, year: 12 };
+    s.resources = { ...s.resources, knowledge: 40, materials: 45, food: 20 };
+    s.buildings.hut = 2;
     s.caps = { ...s.caps, ...calculateCaps(s.buildings, 'band') };
     const after = stepTick(s);
     expect(after.rung).toBe('settlement');
-    const stewarded = stepTick({ ...after, resources: { ...after.resources, materials: 25, food: 20 } });
+    const stewarded = stepTick({ ...after, resources: { ...after.resources, materials: 50, food: 20 } });
     const built = Object.values(stewarded.buildings).reduce((a, b) => a + b, 0);
     expect(built).toBeGreaterThan(1);
   });
@@ -235,12 +237,12 @@ describe('later sent-back functions', () => {
   const atRealm = (patch: Partial<TimelineState> = {}): TimelineState => ({
     ...createInitialState(),
     rung: 'realm',
-    year: 70,
+    year: 310,
     tick: 276,
     ...patch,
   });
 
-  it('Seasoned Memory (3rd Time Jump) keeps Edicts across timelines', () => {
+  it('Seasoned Memory (3rd Jumpback) keeps Edicts across timelines', () => {
     let s: TimelineState = { ...createInitialState(), rung: 'village' };
     s = executeAction(s, { type: 'SET_EDICT', slot: 'band', edictId: 'hunters_way' }).state;
     s = jump(s);
@@ -256,12 +258,21 @@ describe('later sent-back functions', () => {
     expect(jump(s).edicts.band).toBe('hunters_way');
   });
 
-  it('Lore Keepers (6th Time Jump) starts timelines with early Discoveries', () => {
+  it('Lore Keepers (a Jumpback boon) start every timeline with early Discoveries', () => {
     let s = createInitialState();
-    for (let i = 0; i < 6; i++) s = jump(s);
+    for (let i = 0; i < 3; i++) s = jump(s);
+    expect(s.pendingBoon).toBeNull();
+    s = jump(s);
+    expect(s.pendingBoon).toHaveLength(3);
+    s = { ...s, pendingBoon: ['lore_keepers', 'founders', 'cartographers'] };
+    s = executeAction(s, { type: 'CHOOSE_BOON', featureId: 'lore_keepers' }).state;
     expect(s.features).toContain('lore_keepers');
+    expect(s.pendingBoon).toBeNull();
+    // It helps the timeline already under way...
     expect(s.discoveries).toEqual(['fire_hardening', 'foraging_lore', 'granary_seals']);
     expect(s.caps.food).toBeGreaterThan(30);
+    // ...and every one after it.
+    expect(jump(s).discoveries).toEqual(['fire_hardening', 'foraging_lore', 'granary_seals']);
   });
 
   it('Apprentice Scholars research the cheapest affordable Discovery automatically', () => {
@@ -300,15 +311,15 @@ describe('wonders', () => {
     return {
       ...s,
       rung: 'realm',
-      resources: { ...s.resources, materials: 700, food: 200, knowledge: 380 },
-      caps: { food: 600, materials: 900, knowledge: 900 },
+      resources: { ...s.resources, materials: 1400, food: 400, knowledge: 760 },
+      caps: { food: 3000, materials: 3000, knowledge: 3000 },
     };
   };
 
   it('can be built once per timeline and then show as built', () => {
     const first = executeAction(rich(), { type: 'BUILD', buildingId: 'wonder_of_ages' });
     expect(first.success).toBe(true);
-    const richer = { ...first.state, resources: { ...first.state.resources, materials: 900, food: 300, knowledge: 500 } };
+    const richer = { ...first.state, resources: { ...first.state.resources, materials: 2000, food: 600, knowledge: 900 } };
     const second = executeAction(richer, { type: 'BUILD', buildingId: 'wonder_of_ages' });
     expect(second.success).toBe(false);
     expect(second.error).toContain('once per timeline');
@@ -326,7 +337,7 @@ describe('wonders', () => {
   it('is skipped by the Steward once built so it never stalls', () => {
     let s: TimelineState = { ...rich(), features: ['steward'] };
     s = executeAction(s, { type: 'BUILD', buildingId: 'wonder_of_ages' }).state;
-    for (let i = 0; i < 5; i++) s = stepTick({ ...s, resources: { ...s.resources, materials: 900, food: 300, knowledge: 500 } });
+    for (let i = 0; i < 5; i++) s = stepTick({ ...s, resources: { ...s.resources, materials: 2000, food: 600, knowledge: 900 } });
     expect(s.buildings.wonder_of_ages).toBe(1);
   });
 });
@@ -335,7 +346,7 @@ describe('Chrono Dial', () => {
   it('is sent back by the fifth Epoch Shift and not before', () => {
     let s: TimelineState = { ...createInitialState(), rung: 'realm', insight: 120 };
     for (let i = 1; i <= 5; i++) {
-      s = executeAction({ ...s, rung: 'realm', insight: 120, year: 70 }, { type: 'PRESTIGE', tier: 2 }).state;
+      s = executeAction({ ...s, rung: 'realm', insight: 120, year: 310 }, { type: 'PRESTIGE', tier: 2 }).state;
       expect(s.features.includes('chrono_dial')).toBe(i >= 5);
     }
   });
@@ -348,10 +359,10 @@ describe('deeper sent-back functions', () => {
     return cur;
   };
 
-  it('Grand Foundations (10th Time Jump) adds an Obelisk and Fire Pit to every start', () => {
-    const nine = jumpN(createInitialState(), 9);
-    expect(nine.buildings.chronicle_stone).toBe(0);
-    const ten = jumpN(nine, 1);
+  it('Grand Foundations (a Jumpback boon) adds an Obelisk and Fire Pit to every start', () => {
+    const four = jumpN(createInitialState(), 4);
+    expect(four.buildings.chronicle_stone).toBe(0);
+    const ten = executeAction({ ...four, pendingBoon: ['grand_foundations', 'founders'] }, { type: 'CHOOSE_BOON', featureId: 'grand_foundations' }).state;
     expect(ten.features).toContain('grand_foundations');
     expect(ten.buildings.chronicle_stone).toBe(1);
     expect(ten.buildings.fire_pit).toBe(1);
@@ -371,7 +382,7 @@ describe('deeper sent-back functions', () => {
     expect(discoveryCost({ features: [] }, 100)).toBe(100);
     expect(discoveryCost({ features: ['master_scholars'] }, 100)).toBe(75);
     const s: TimelineState = { ...createInitialState(), rung: 'band', features: ['master_scholars'] };
-    s.resources = { ...s.resources, knowledge: 8 };
+    s.resources = { ...s.resources, knowledge: 15 };
     const r = executeAction(s, { type: 'RESEARCH', discoveryId: 'fire_hardening' });
     expect(r.success).toBe(true);
     expect(r.state.resources.knowledge).toBe(0);

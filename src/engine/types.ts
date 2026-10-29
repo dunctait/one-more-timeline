@@ -44,7 +44,11 @@ export type FeatureId =
   | 'chrono_dial'
   | 'grand_foundations'
   | 'echo_merchants'
-  | 'master_scholars';
+  | 'master_scholars'
+  | 'steady_hands'
+  | 'packed_provisions'
+  | 'founders'
+  | 'cartographers';
 
 export type AutomationKey = 'assign' | 'advance' | 'build' | 'research';
 
@@ -92,7 +96,7 @@ export interface PopulationState {
 export interface HistoryEntry {
   /** Which timeline this was (1 = the first). */
   number: number;
-  /** 1 = Time Jump, 2 = Epoch Shift, 3 = Paradigm Shift, 4 = Ascension. */
+  /** 1 = Jumpback, 2 = Epoch Shift, 3 = Paradigm Shift, 4 = Ascension. */
   tier: 1 | 2 | 3 | 4;
   year: number;
   rung: RungId;
@@ -141,11 +145,13 @@ export interface TimelineState {
   relics: string[];
   /** Earned achievement ids. Permanent; each adds Renown production. */
   achievements: string[];
+  /** Boons offered by the latest Jumpback, waiting for the player to pick one. */
+  pendingBoon: FeatureId[] | null;
   /** Functions unlocked by prestige. Never lost. */
   features: FeatureId[];
   /** Player on/off switches for unlocked automation. */
   automation: AutomationSettings;
-  /** How many times each prestige tier has been performed (1 = Time Jump). */
+  /** How many times each prestige tier has been performed (1 = Jumpback). */
   prestigeCounts: Record<1 | 2 | 3 | 4, number>;
   /** Legacy save field; manual actions are immediate and always responsive. */
   actionCooldown: number;
@@ -172,6 +178,7 @@ export type EngineAction =
   | { type: 'START_CHALLENGE'; challengeId: string }
   | { type: 'ABANDON_CHALLENGE' }
   | { type: 'RESOLVE_CHOICE'; index: number }
+  | { type: 'CHOOSE_BOON'; featureId: FeatureId }
   | { type: 'BARTER'; from: TradeableResource; to: TradeableResource; amount: number }
   | { type: 'SET_EDICT'; slot: RungId; edictId: string | null }
   | { type: 'DEV_ADD_RESOURCES'; amount: number }

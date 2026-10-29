@@ -14,7 +14,7 @@ export interface RelicEffects {
   startFood?: number;
   /** Extra people at the dawn of every timeline. */
   startPeople?: number;
-  /** Bonus to Insight gained from a Time Jump. */
+  /** Bonus to Insight gained from a Jumpback. */
   insight?: number;
 }
 
@@ -43,13 +43,13 @@ export const RELICS: RelicDef[] = [
   { id: 'bronze_compass', name: 'Bronze Compass', icon: '🧭', description: 'Years bring events 10 points more often.', minRung: 'settlement', effects: { eventChance: 0.1 } },
   { id: 'star_chart', name: 'Star Chart', icon: '🗺️', description: 'Scholars and libraries produce +20% Knowledge.', minRung: 'village', effects: { knowledge: 0.2 } },
   { id: 'cracked_hourglass', name: 'Cracked Hourglass', icon: '⏳', description: 'Your timeline keeps growing 4 hours longer while you are away.', minRung: 'village', effects: { awayHours: 4 } },
-  { id: 'chronometer', name: 'Chronometer', icon: '⌚', description: 'Time Jumps yield +10% more Insight.', minRung: 'town', effects: { insight: 0.1 } },
+  { id: 'chronometer', name: 'Chronometer', icon: '⌚', description: 'Jumpbacks yield +10% more Insight.', minRung: 'town', effects: { insight: 0.1 } },
   { id: 'hermits_lantern', name: "Hermit's Lantern", icon: '🏮', description: 'Trophy: Foragers and the land yield +25% Food.', minRung: 'hearth', effects: { food: 0.25 }, trophyOf: 'lone_hearth' },
   { id: 'silent_quill', name: 'Silent Quill', icon: '🪶', description: 'Trophy: Knowledge production is +25%.', minRung: 'hearth', effects: { knowledge: 0.25 }, trophyOf: 'quiet_scholars' },
   { id: 'ember_pendant', name: 'Ember Pendant', icon: '📿', description: 'Trophy: Food, Materials and Knowledge are all +10%.', minRung: 'hearth', effects: { food: 0.1, materials: 0.1, knowledge: 0.1 }, trophyOf: 'cold_resolve' },
   { id: 'calloused_gloves', name: 'Calloused Gloves', icon: '🧤', description: 'Trophy: Builders and the land yield +25% Materials.', minRung: 'hearth', effects: { materials: 0.25 }, trophyOf: 'hands_only' },
   { id: 'architects_rule', name: "Architect's Rule", icon: '📏', description: 'Trophy: Materials and Knowledge are +15%.', minRung: 'hearth', effects: { materials: 0.15, knowledge: 0.15 }, trophyOf: 'grand_plan' },
-  { id: 'crown_of_haste', name: 'Crown of Haste', icon: '🎖️', description: 'Trophy: Food, Materials and Knowledge are all +15%, and Time Jumps give +10% Insight.', minRung: 'hearth', effects: { food: 0.15, materials: 0.15, knowledge: 0.15, insight: 0.1 }, trophyOf: 'royal_road' },
+  { id: 'crown_of_haste', name: 'Crown of Haste', icon: '🎖️', description: 'Trophy: Food, Materials and Knowledge are all +15%, and Jumpbacks give +10% Insight.', minRung: 'hearth', effects: { food: 0.15, materials: 0.15, knowledge: 0.15, insight: 0.1 }, trophyOf: 'royal_road' },
   { id: 'swift_sandals', name: 'Swift Sandals', icon: '👟', description: 'Trophy: Manual gathering yields +50%.', minRung: 'hearth', effects: { manual: 0.5 }, trophyOf: 'swift_dawn' },
 ];
 

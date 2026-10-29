@@ -26,7 +26,7 @@ Explain persistent progression currencies: Any prestige/legacy currency must be 
 
 ## Prestige as climax, not stagnation
 
-When a run reaches a developmental ceiling designed to prompt prestige, the game must never quietly stall, fizzle out, or present mathematically impossible goals as if they were standard tasks. It must celebrate the timeline's culmination as an earned milestone, alerting the player prominently, with a banner that every page shows rather than a toast, that the temporal horizon has been reached and that a Time Jump is the triumphant next step.
+When a run reaches a developmental ceiling designed to prompt prestige, the game must never quietly stall, fizzle out, or present mathematically impossible goals as if they were standard tasks. It must celebrate the timeline's culmination as an earned milestone, alerting the player prominently, with a banner that every page shows rather than a toast, that the temporal horizon has been reached and that a Jumpback is the triumphant next step.
 
 ## Safe absence and risk-free choices
 
@@ -48,4 +48,4 @@ Toasts are for the result of something the player just did (an export, an import
 
 ## The first prestige is earned
 
-The first Time Jump MUST wait until the timeline has a real settlement behind it (the Dawn Village at Year 30 or later), so it arrives as a milestone and not a reflex. Until then the Time Jump, Insight and everything they lead to stay hidden.
+The first Jumpback MUST wait until the timeline has a real settlement behind it (the Dawn Village at Year 40 or later), so it arrives as a milestone and not a reflex. Until then the Jumpback, Insight and everything they lead to stay hidden.

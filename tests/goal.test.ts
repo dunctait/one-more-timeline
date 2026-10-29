@@ -21,7 +21,7 @@ describe('current goal', () => {
 
   it('announces a ready rung and a ready prestige tier', () => {
     const base = createInitialState();
-    const realm = { ...base, prestigeCounts: { 1: 1, 2: 0, 3: 0, 4: 0 }, rung: 'realm' as const, year: 70, insight: 120 };
+    const realm = { ...base, prestigeCounts: { 1: 1, 2: 0, 3: 0, 4: 0 }, rung: 'realm' as const, year: 310, insight: 120 };
     const vm = buildTimelineViewModel(realm);
     expect(vm.goal.ready).toBe(true);
     expect(vm.goal.title).toContain('Epoch Shift');
@@ -43,8 +43,8 @@ describe('records and history', () => {
     expect(s.history[0].year).toBe(43);
     expect(s.history[0].gained).toContain('Insight');
     const vm = buildTimelineViewModel(s);
-    expect(vm.history[0].label).toContain('#14 Time Jump');
-    expect(vm.records.find((r) => r.label === 'Time Jumps')?.value).toBe('14');
+    expect(vm.history[0].label).toContain('#14 Jumpback');
+    expect(vm.records.find((r) => r.label === 'Jumpbacks')?.value).toBe('14');
   });
 });
 
@@ -61,9 +61,9 @@ describe('dev tools', () => {
 describe('goal card follows the tier being worked toward', () => {
   it('points at Paradigm Shift once enough Echoes are banked for it', () => {
     const base = { ...createInitialState(), prestigeCounts: { 1: 1, 2: 1, 3: 0, 4: 0 } };
-    const early = buildTimelineViewModel({ ...base, rung: 'realm', year: 70, echoes: 2 });
+    const early = buildTimelineViewModel({ ...base, rung: 'realm', year: 310, echoes: 2 });
     expect(early.goal.title).toContain('Epoch Shift');
-    const later = buildTimelineViewModel({ ...base, rung: 'realm', year: 70, echoes: 8 });
+    const later = buildTimelineViewModel({ ...base, rung: 'realm', year: 310, echoes: 8 });
     expect(later.goal.title).toContain('Paradigm Shift');
   });
 });
@@ -93,8 +93,8 @@ describe('next functions preview', () => {
     const vm = buildTimelineViewModel(ripe(createInitialState()));
     expect(vm.nextFeatures.length).toBeGreaterThan(0);
     expect(vm.nextFeatures.length).toBeLessThanOrEqual(3);
-    expect(vm.nextFeatures[0].name).toBe('Ancestral Hands');
-    expect(vm.nextFeatures[0].condition).toBe('1 more Time Jump');
+    expect(vm.nextFeatures[0].name).toBe('Steady Hands');
+    expect(vm.nextFeatures[0].condition).toBe('1 more Jumpback');
     const later = buildTimelineViewModel({ ...createInitialState(), features: ['ancestral_hands'], prestigeCounts: { 1: 2, 2: 0, 3: 0, 4: 0 } });
     expect(later.nextFeatures.map((f) => f.name)).not.toContain('Ancestral Hands');
     expect(later.nextFeatures[0].condition).toContain('1 more');
@@ -128,7 +128,7 @@ describe('goal time estimates', () => {
     s.population.total = 4;
     const vm = buildTimelineViewModel(s);
     const steps = vm.goal.steps.join(' | ');
-    expect(steps).toMatch(/Year: 3\/4 \(about \d+s\)/);
-    expect(steps).toMatch(/Knowledge: \d+\/20 \(gather by hand or assign people\)/);
+    expect(steps).toMatch(/Year: 3\/10 \(about \d+s\)/);
+    expect(steps).toMatch(/Knowledge: \d+\/40 \(gather by hand or assign people\)/);
   });
 });

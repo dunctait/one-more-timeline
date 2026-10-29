@@ -5,12 +5,12 @@ import { insightStartBonus } from '../src/engine/rules.js';
 import { TimelineState } from '../src/engine/types.js';
 import { buildTimelineViewModel } from '../src/ui/view-model.js';
 
-describe('Time Jump copy matches what the engine grants', () => {
+describe('Jumpback copy matches what the engine grants', () => {
   it('caps the starting bonus exactly as stated', () => {
     expect(insightStartBonus(5)).toEqual({ food: 10, materials: 5, knowledge: 2 });
     expect(insightStartBonus(100)).toEqual({ food: 20, materials: 15, knowledge: 50 });
     const s = createInitialState({ insight: 100 });
-    expect(s.resources.food).toBe(30); // 12 + 20, limited by the 30 Food storage
+    expect(s.resources.food).toBe(32); // 12 + 20, within the 60 Food storage
     expect(s.resources.materials).toBe(21);
     const vm = buildTimelineViewModel({ ...createInitialState(), insight: 100 });
     expect(vm.timeJump.breakdown.currentStartingFood).toBe(20);
@@ -25,7 +25,7 @@ describe('navigation badges point at attention-required work', () => {
     expect(buildTimelineViewModel(band).tabBadges.hearth).toBe(true);
   });
 
-  it('flag Time Jump for a first jump or the climax, not forever', () => {
+  it('flag Jumpback for a first jump or the climax, not forever', () => {
     const base: TimelineState = { ...createInitialState(), tick: 40, year: 11 };
     expect(buildTimelineViewModel(ripe(base)).tabBadges.evolution).toBe(true);
     const veteran: TimelineState = { ...ripe(base), prestigeCounts: { 1: 3, 2: 0, 3: 0, 4: 0 } };
@@ -123,7 +123,7 @@ describe('third review fixes', () => {
 });
 
 describe('fourth review fixes', () => {
-  it('starting a challenge counts as a Time Jump and needs Year 3', () => {
+  it('starting a challenge counts as a Jumpback and needs Year 3', () => {
     const early: TimelineState = { ...createInitialState(), prestigeCounts: { 1: 1, 2: 0, 3: 0, 4: 0 } };
     expect(executeAction(early, { type: 'START_CHALLENGE', challengeId: 'swift_dawn' }).success).toBe(false);
     const ready: TimelineState = { ...early, tick: 40, year: 11 };
@@ -147,7 +147,7 @@ describe('fourth review fixes', () => {
   it('automation still builds the buildings the next rung requires', () => {
     // The Settled Camp requires a hut; the Steward builds it first even when that dips into the reserve.
     const s: TimelineState = { ...createInitialState(), rung: 'band', features: ['steward'] };
-    s.resources = { ...s.resources, materials: 16, knowledge: 22, food: 20 };
+    s.resources = { ...s.resources, materials: 40, knowledge: 44, food: 20 };
     s.caps = { food: 100, materials: 100, knowledge: 100 };
     expect(executeAction(s, { type: 'TICK' }).state.buildings.hut).toBe(1);
   });
@@ -156,7 +156,7 @@ describe('fourth review fixes', () => {
     const s = createInitialState();
     const old = { ...s, timelinesCreated: 6, features: [], prestigeCounts: undefined } as unknown as TimelineState;
     const fixed = normalizeState(old);
-    expect(fixed.features).toEqual(expect.arrayContaining(['ancestral_hands', 'seasoned_memory', 'lore_keepers']));
+    expect(fixed.features).toEqual(expect.arrayContaining(['steady_hands', 'ancestral_hands', 'seasoned_memory']));
   });
 
   it('an imported population cannot exceed the cap', () => {
@@ -228,7 +228,7 @@ describe('sixth review fixes', () => {
     expect(jumped.challenge).toBeNull();
   });
 
-  it('Time Jump copy never promises more than the +50% Insight cap', async () => {
+  it('Jumpback copy never promises more than the +50% Insight cap', async () => {
     const vm = buildTimelineViewModel(ripe({ ...createInitialState(), tick: 40, year: 11, insight: 80 }));
     expect(vm.timeJump.projectedGain).toContain('max +50%');
     expect(vm.timeJump.confirmationText).toContain('+50%');

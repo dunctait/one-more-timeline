@@ -18,8 +18,8 @@ import { ripe } from './helpers.js';
 
 // A Nothing Phone class device: roughly 412 CSS px wide; about 780 tall once the browser's own bars are counted.
 const VIEWPORTS = [
-  { name: 'Nothing Phone (412x780)', width: 412, height: 780 },
-  { name: 'compact phone (360x700)', width: 360, height: 700 },
+  { name: 'Nothing Phone (412x780)', width: 412, height: 780, minPerPage: 5 },
+  { name: 'compact phone (360x700)', width: 360, height: 700, minPerPage: 4 },
 ];
 
 function grown(state: TimelineState): TimelineState {
@@ -51,9 +51,10 @@ function states(): Array<{ name: string; state: TimelineState }> {
       timelinesCreated: 7,
       achievements: ACHIEVEMENTS.slice(0, 12).map((a) => a.id),
       relics: RELICS.slice(0, 3).map((r) => r.id),
-      features: FEATURE_IDS.slice(0, 5),
+      features: FEATURE_IDS.filter((id) => !['lore_keepers', 'founders', 'cartographers'].includes(id)).slice(0, 5),
     }),
     rung: 'town',
+    pendingBoon: ['lore_keepers', 'founders', 'cartographers'],
     tick: 400,
     year: 100,
     resources: { food: 300, materials: 300, knowledge: 200, stability: 100 },
@@ -90,7 +91,7 @@ function states(): Array<{ name: string; state: TimelineState }> {
   return [
     { name: 'fresh', state: fresh },
     { name: 'early band', state: early },
-    { name: 'first Time Jump ready', state: village },
+    { name: 'first Jumpback ready', state: village },
     { name: 'mid game after jumps', state: midLate },
     { name: 'everything unlocked', state: everything },
   ];
@@ -170,6 +171,8 @@ function auditPage(): string[] {
       problems.push(`${describe(el)} clips its text (${el.scrollWidth} > ${el.clientWidth})`);
     }
   });
+  // Locked things are not rendered: lists only ever hold what the player can use.
+  if (document.querySelector('.building-card.locked, .discovery.locked')) problems.push('a locked card is rendered');
   // Tap targets.
   document.querySelectorAll('button').forEach((el) => {
     if (!visible(el) || el.closest('#dev-panel')) return;
@@ -236,12 +239,24 @@ describe('every page fits a phone screen with no scrolling', () => {
         const tabs = await page.$$eval('.tab-nav-btn', (b) => b.map((x) => (x as HTMLElement).dataset.tab ?? ''));
         for (const tab of tabs) {
           await page.click(`#tab-btn-${tab}`);
-          const subs = await page.$$eval(`#subnav .subnav-btn`, (b) => b.map((x) => (x as HTMLElement).dataset.sub ?? ''));
+          const subs = await page.$$eval(`#subnav .subnav-btn:not(.locked)`, (b) => b.map((x) => (x as HTMLElement).dataset.sub ?? ''));
           const pages = subs.length ? subs : [''];
           for (const sub of pages) {
             if (sub) await page.click(`#subnav .subnav-btn[data-sub="${sub}"]`);
             // Page through every list too: each page of a list must fit.
             let guard = 0;
+            // Long lists are paged, and each page should hold a healthy handful (5-10), not two or three.
+            // Rich detail cards (a whole prestige tier) are shown one at a time, so they are exempt.
+            const sizes = await page.$$eval(`#tab-${tab} .subpanel:not([hidden]) .pager[data-page-sizes]:not(.pager-flat)`, (els) =>
+              els.map((el) => ((el as HTMLElement).dataset.pageSizes ?? '').split(',').map(Number))
+            );
+            for (const list of sizes) {
+              const total = list.reduce((x, y) => x + y, 0);
+              const want = total >= 2 * viewport.minPerPage ? viewport.minPerPage : Math.max(2, Math.ceil(total / 2));
+              if (list.length > 1 && list.slice(0, -1).some((n) => n < want || n > 10)) {
+                findings.push({ where: `${viewport.name} / ${name} / ${tab}.${sub}`, problem: `items per page are ${list.join('/')} (want ${want}-10 on every full page)` });
+              }
+            }
             for (;;) {
               const problems = await page.evaluate(auditPage);
               problems.forEach((problem) => findings.push({ where: `${viewport.name} / ${name} / ${tab}${sub ? '.' + sub : ''}`, problem }));

@@ -15,6 +15,15 @@ import { discoveryBonus } from './discoveries.js';
 import { edictBonus } from './edicts.js';
 import { relicBonus } from './relics.js';
 
+/** The story begins with a whole band, not a lone survivor: twelve people, enough to carry a people forward. */
+export const START_POPULATION = 12;
+
+/**
+ * How much of a role's nominal yield actually arrives each tick. With a whole band at the fire from the first moment,
+ * people are plentiful and each pair of hands is worth less, so every purchase has to be earned.
+ */
+export const ROLE_PACE = 0.4;
+
 export const SEASONS: readonly ['Spring', 'Summer', 'Autumn', 'Winter'] = [
   'Spring',
   'Summer',
@@ -31,9 +40,9 @@ export interface SeasonProfile {
 
 /** Every season is a boost to something; none is a penalty. */
 export const SEASON_PROFILES: Record<Season, SeasonProfile> = {
-  Spring: { forager: 1.5, builder: 1.0, scholar: 1.0, note: 'Spring: fresh growth. Foragers yield 1.5 Food each.' },
-  Summer: { forager: 1.5, builder: 1.2, scholar: 1.0, note: 'Summer: long days. Builders produce +20% Materials.' },
-  Autumn: { forager: 2.0, builder: 1.0, scholar: 1.0, note: 'Autumn: harvest. Foragers yield 2.0 Food each.' },
+  Spring: { forager: 1.5, builder: 1.0, scholar: 1.0, note: 'Spring: fresh growth. Foragers gather 50% more Food.' },
+  Summer: { forager: 1.5, builder: 1.2, scholar: 1.0, note: 'Summer: long days. Foragers gather 50% more Food and Builders produce +20% Materials.' },
+  Autumn: { forager: 2.0, builder: 1.0, scholar: 1.0, note: 'Autumn: harvest. Foragers gather double the Food.' },
   Winter: { forager: 0.9, builder: 1.0, scholar: 1.25, note: 'Winter: long nights. Scholars produce +25% Knowledge; foraging is slower.' },
 };
 
@@ -75,126 +84,126 @@ const CORE_BUILDINGS: Omit<Record<BuildingId, BuildingDef>, WonderId> = {
   hut: {
     id: 'hut',
     name: 'Thatched Hut',
-    description: 'A modest shelter against the wind. Increases maximum population by +2.',
+    description: 'A modest shelter against the wind.',
     unlockedAt: 'band',
-    baseCost: { materials: 10, food: 5 },
+    baseCost: { materials: 40, food: 10 },
     costMultiplier: 1.2,
     effects: { popMax: 2 },
   },
   granary: {
     id: 'granary',
     name: 'Elevated Granary',
-    description: 'Dry woven storage protecting harvest from vermin. Increases Food capacity by +50.',
+    description: 'Dry woven storage protecting harvest from vermin.',
     unlockedAt: 'band',
-    baseCost: { materials: 15 },
+    baseCost: { materials: 40 },
     costMultiplier: 1.25,
-    effects: { foodCap: 50 },
+    effects: { foodCap: 100 },
   },
   workshop: {
     id: 'workshop',
     name: 'Tool Workshop',
-    description: 'Sharpened flint and wooden levers. Increases Materials capacity by +40, Knowledge cap by +10, and boosts builder output.',
+    description: 'Sharpened flint and wooden levers.',
     unlockedAt: 'settlement',
-    baseCost: { materials: 25, knowledge: 10 },
+    baseCost: { materials: 50, knowledge: 20 },
     costMultiplier: 1.3,
-    effects: { materialsCap: 40, knowledgeCap: 10, builderYield: 0.25 },
+    effects: { materialsCap: 80, knowledgeCap: 20, builderYield: 0.25 },
   },
   fire_pit: {
     id: 'fire_pit',
     name: 'Eternal Fire Pit',
-    description: 'A deep communal fire that warms spirits in winter. Warms the community, adding +0.5 Stability per tick.',
+    description: 'A deep communal fire that warms spirits in winter.',
     unlockedAt: 'settlement',
-    baseCost: { materials: 20, food: 10 },
+    baseCost: { materials: 40, food: 20 },
     costMultiplier: 1.25,
     effects: { stability: 0.5 },
   },
   chronicle_stone: {
     id: 'chronicle_stone',
     name: 'Chronicle Obelisk',
-    description: 'Tall pillars scored with astronomical markings. Increases Knowledge cap by +30 and produces +0.5 Knowledge/tick.',
+    description: 'Tall pillars scored with astronomical markings.',
     unlockedAt: 'settlement',
-    baseCost: { materials: 30, knowledge: 15 },
+    baseCost: { materials: 60, knowledge: 30 },
     costMultiplier: 1.35,
-    effects: { knowledgeCap: 30, knowledge: 0.5 },
+    effects: { knowledgeCap: 60, knowledge: 0.5 },
   },
   longhouse: {
     id: 'longhouse',
     name: 'Longhouse',
-    description: 'Timber halls for whole clans. Increases maximum population by +5.',
+    description: 'Timber halls for whole clans.',
     unlockedAt: 'town',
-    baseCost: { materials: 60, food: 30 },
+    baseCost: { materials: 120, food: 60 },
     costMultiplier: 1.25,
     effects: { popMax: 5 },
   },
   smithy: {
     id: 'smithy',
     name: 'Forge Smithy',
-    description: 'Bronze and bellows. Increases Materials capacity by +80, produces +1 Materials/tick, and boosts builder output.',
+    description: 'Bronze and bellows.',
     unlockedAt: 'town',
-    baseCost: { materials: 80, knowledge: 20 },
+    baseCost: { materials: 160, knowledge: 40 },
     costMultiplier: 1.3,
-    effects: { materialsCap: 80, materials: 1, builderYield: 0.25 },
+    effects: { materialsCap: 160, materials: 1, builderYield: 0.25 },
   },
   library: {
     id: 'library',
     name: 'Clay Library',
-    description: 'Tablets stacked to the rafters. Increases Knowledge cap by +60 and produces +1 Knowledge/tick.',
+    description: 'Tablets stacked to the rafters.',
     unlockedAt: 'town',
-    baseCost: { materials: 70, knowledge: 40 },
+    baseCost: { materials: 140, knowledge: 80 },
     costMultiplier: 1.35,
-    effects: { knowledgeCap: 60, knowledge: 1 },
+    effects: { knowledgeCap: 120, knowledge: 1 },
   },
   aqueduct: {
     id: 'aqueduct',
     name: 'Stone Aqueduct',
-    description: 'Water carried over valleys to terraced fields. Increases Food capacity by +150 and produces +2 Food/tick.',
+    description: 'Water carried over valleys to terraced fields.',
     unlockedAt: 'city',
-    baseCost: { materials: 150, knowledge: 60 },
+    baseCost: { materials: 300, knowledge: 120 },
     costMultiplier: 1.3,
-    effects: { foodCap: 150, food: 2 },
+    effects: { foodCap: 300, food: 2 },
   },
   academy: {
     id: 'academy',
     name: 'Grand Academy',
-    description: 'Halls of masters and apprentices. Increases Knowledge cap by +120 and produces +2.5 Knowledge/tick.',
+    description: 'Halls of masters and apprentices.',
     unlockedAt: 'city',
-    baseCost: { materials: 160, knowledge: 100 },
+    baseCost: { materials: 320, knowledge: 200 },
     costMultiplier: 1.35,
-    effects: { knowledgeCap: 120, knowledge: 2.5 },
+    effects: { knowledgeCap: 240, knowledge: 2.5 },
   },
   bazaar: {
     id: 'bazaar',
     name: 'Grand Bazaar',
-    description: 'Caravans from every horizon. Increases Materials capacity by +200, produces +2.5 Materials/tick, and population by +4.',
+    description: 'Caravans from every horizon.',
     unlockedAt: 'city',
-    baseCost: { materials: 200, food: 60 },
+    baseCost: { materials: 400, food: 120 },
     costMultiplier: 1.3,
-    effects: { materialsCap: 200, materials: 2.5, popMax: 4 },
+    effects: { materialsCap: 400, materials: 2.5, popMax: 4 },
   },
   observatory: {
     id: 'observatory',
     name: 'Sky Observatory',
-    description: 'Lenses aimed at the turning heavens. Increases Knowledge cap by +250 and produces +5 Knowledge/tick.',
+    description: 'Lenses aimed at the turning heavens.',
     unlockedAt: 'realm',
-    baseCost: { materials: 350, knowledge: 200 },
+    baseCost: { materials: 700, knowledge: 400 },
     costMultiplier: 1.4,
-    effects: { knowledgeCap: 250, knowledge: 5 },
+    effects: { knowledgeCap: 500, knowledge: 5 },
   },
   citadel: {
     id: 'citadel',
     name: 'Sovereign Citadel',
-    description: "A fortress-city at the realm's heart. Increases population by +12, Food and Materials capacity by +150, and Stability by +1/tick.",
+    description: "A fortress-city at the realm's heart.",
     unlockedAt: 'realm',
-    baseCost: { materials: 400, food: 120 },
+    baseCost: { materials: 800, food: 240 },
     costMultiplier: 1.35,
-    effects: { popMax: 12, foodCap: 150, materialsCap: 150, stability: 1 },
+    effects: { popMax: 12, foodCap: 300, materialsCap: 300, stability: 1 },
   },
   spire: {
     id: 'spire',
     name: 'Spire of Ages',
-    description: 'A tower that remembers every timeline. Produces +3 Food, +3 Materials, and +3 Knowledge per tick.',
+    description: 'A tower that remembers every timeline.',
     unlockedAt: 'realm',
-    baseCost: { materials: 450, food: 150, knowledge: 250 },
+    baseCost: { materials: 900, food: 300, knowledge: 500 },
     costMultiplier: 1.5,
     effects: { food: 3, materials: 3, knowledge: 3 },
   },
@@ -204,9 +213,9 @@ const WONDERS: Record<WonderId, BuildingDef> = {
   great_hearth_hall: {
     id: 'great_hearth_hall',
     name: 'Great Hearth Hall',
-    description: 'WONDER (one per timeline). A hall around the first fire. +5% to all production and +1 Stability per tick.',
+    description: 'A hall around the first fire.',
     unlockedAt: 'settlement',
-    baseCost: { materials: 45, food: 20, knowledge: 20 },
+    baseCost: { materials: 90, food: 40, knowledge: 40 },
     costMultiplier: 1,
     effects: { allProduction: 0.05, stability: 1 },
     maxCount: 1,
@@ -214,39 +223,39 @@ const WONDERS: Record<WonderId, BuildingDef> = {
   standing_stones: {
     id: 'standing_stones',
     name: 'Ring of Standing Stones',
-    description: 'WONDER (one per timeline). Stones aligned to the sun. +8% to all production and +40 Knowledge capacity.',
+    description: 'Stones aligned to the sun.',
     unlockedAt: 'village',
-    baseCost: { materials: 100, knowledge: 55 },
+    baseCost: { materials: 200, knowledge: 110 },
     costMultiplier: 1,
-    effects: { allProduction: 0.08, knowledgeCap: 40 },
+    effects: { allProduction: 0.08, knowledgeCap: 80 },
     maxCount: 1,
   },
   triumphal_arch: {
     id: 'triumphal_arch',
     name: 'Triumphal Arch',
-    description: 'WONDER (one per timeline). A gate to be proud of. +10% to all production and +100 Materials capacity.',
+    description: 'A gate to be proud of.',
     unlockedAt: 'town',
-    baseCost: { materials: 220, food: 60, knowledge: 100 },
+    baseCost: { materials: 440, food: 120, knowledge: 200 },
     costMultiplier: 1,
-    effects: { allProduction: 0.1, materialsCap: 100 },
+    effects: { allProduction: 0.1, materialsCap: 200 },
     maxCount: 1,
   },
   colossus: {
     id: 'colossus',
     name: 'Colossus',
-    description: 'WONDER (one per timeline). A giant guarding the harbour. +15% to all production and +150 Food capacity.',
+    description: 'A giant guarding the harbour.',
     unlockedAt: 'city',
-    baseCost: { materials: 420, food: 120, knowledge: 220 },
+    baseCost: { materials: 840, food: 240, knowledge: 440 },
     costMultiplier: 1,
-    effects: { allProduction: 0.15, foodCap: 150 },
+    effects: { allProduction: 0.15, foodCap: 300 },
     maxCount: 1,
   },
   wonder_of_ages: {
     id: 'wonder_of_ages',
     name: 'Wonder of Ages',
-    description: 'WONDER (one per timeline). The crown of your realm. +25% to all production and +2 Stability per tick.',
+    description: 'The crown of your realm.',
     unlockedAt: 'realm',
-    baseCost: { materials: 700, food: 200, knowledge: 380 },
+    baseCost: { materials: 1400, food: 400, knowledge: 760 },
     costMultiplier: 1,
     effects: { allProduction: 0.25, stability: 2 },
     maxCount: 1,
@@ -289,7 +298,7 @@ export interface RungDef {
   description: string;
   /** Features revealed when this rung is reached. */
   unlocks: string[];
-  /** Added to Time Jump Insight when the timeline ends on this rung. */
+  /** Added to Jumpback Insight when the timeline ends on this rung. */
   insightBonus: number;
   /** Extra storage granted by reaching this rung. */
   capBonus: { food: number; materials: number; knowledge: number };
@@ -318,7 +327,7 @@ export const RUNGS: Record<RungId, RungDef> = {
     unlocks: ['Foragers', 'Builders', 'Thatched Huts', 'Elevated Granaries'],
     insightBonus: 1,
     capBonus: NO_CAP_BONUS,
-    prerequisites: { year: 2, knowledge: 12, food: 12 },
+    prerequisites: { year: 3, knowledge: 36, food: 36 },
   },
   settlement: {
     id: 'settlement',
@@ -330,11 +339,11 @@ export const RUNGS: Record<RungId, RungDef> = {
     insightBonus: 3,
     capBonus: NO_CAP_BONUS,
     prerequisites: {
-      year: 4,
-      population: 1,
-      knowledge: 20,
-      materials: 15,
-      buildings: { hut: 1 },
+      year: 10,
+      population: 12,
+      knowledge: 40,
+      materials: 45,
+      buildings: { hut: 2 },
     },
   },
   village: {
@@ -345,12 +354,12 @@ export const RUNGS: Record<RungId, RungDef> = {
     description: 'Permanent architecture and memory stones. Support healers and record timelines for the next leap.',
     unlocks: ['Healers', 'Expanded Horizon'],
     insightBonus: 5,
-    capBonus: { food: 0, materials: 0, knowledge: 50 },
+    capBonus: { food: 0, materials: 0, knowledge: 100 },
     prerequisites: {
-      year: 8,
-      population: 6,
-      knowledge: 60,
-      buildings: { workshop: 1, granary: 1 },
+      year: 40,
+      population: 17,
+      knowledge: 120,
+      buildings: { workshop: 1, granary: 1, hut: 3 },
     },
   },
   town: {
@@ -361,14 +370,14 @@ export const RUNGS: Record<RungId, RungDef> = {
     description: 'Ramparts rise and trades take root. Raise longhouses, forges, and libraries to feed a growing people.',
     unlocks: ['Longhouses', 'Forge Smithies', 'Clay Libraries', 'Wider storage'],
     insightBonus: 8,
-    capBonus: { food: 50, materials: 50, knowledge: 100 },
+    capBonus: { food: 100, materials: 100, knowledge: 200 },
     prerequisites: {
-      year: 16,
-      population: 10,
-      knowledge: 100,
-      food: 60,
-      materials: 80,
-      buildings: { hut: 4, workshop: 2, granary: 2, chronicle_stone: 1 },
+      year: 80,
+      population: 21,
+      knowledge: 260,
+      food: 160,
+      materials: 220,
+      buildings: { hut: 6, workshop: 3, granary: 3, chronicle_stone: 2 },
     },
   },
   city: {
@@ -379,13 +388,13 @@ export const RUNGS: Record<RungId, RungDef> = {
     description: 'Markets, schools and canals. Build aqueducts, academies, and bazaars to power a metropolis.',
     unlocks: ['Stone Aqueducts', 'Grand Academies', 'Grand Bazaars', 'Much wider storage'],
     insightBonus: 12,
-    capBonus: { food: 150, materials: 150, knowledge: 200 },
+    capBonus: { food: 300, materials: 300, knowledge: 400 },
     prerequisites: {
-      year: 32,
-      population: 18,
-      knowledge: 220,
-      food: 120,
-      materials: 150,
+      year: 160,
+      population: 29,
+      knowledge: 440,
+      food: 240,
+      materials: 300,
       buildings: { longhouse: 2, library: 2, smithy: 1 },
     },
   },
@@ -397,13 +406,13 @@ export const RUNGS: Record<RungId, RungDef> = {
     description: 'Observatories and citadels crown the age. Your realm is complete: only a deeper prestige can carry it further.',
     unlocks: ['Sky Observatories', 'Sovereign Citadels', 'Spires of Ages', 'Epoch-level prestige'],
     insightBonus: 18,
-    capBonus: { food: 300, materials: 300, knowledge: 400 },
+    capBonus: { food: 600, materials: 600, knowledge: 800 },
     prerequisites: {
-      year: 60,
-      population: 22,
-      knowledge: 450,
-      food: 200,
-      materials: 300,
+      year: 300,
+      population: 33,
+      knowledge: 900,
+      food: 400,
+      materials: 600,
       buildings: { aqueduct: 2, academy: 2, bazaar: 1 },
     },
   },
@@ -479,7 +488,8 @@ export function getBuildingCost(
 export function calculateCaps(
   buildings: BuildingsMap,
   rung: RungId,
-  discoveries: readonly string[] = []
+  discoveries: readonly string[] = [],
+  homePeople: number = START_POPULATION
 ): {
   food: number;
   materials: number;
@@ -489,10 +499,10 @@ export function calculateCaps(
   const bonus = RUNGS[rung].capBonus;
   const capMult = 1 + discoveryBonus(discoveries, 'caps');
   return {
-    food: Math.floor((30 + bonus.food + sumEffect(buildings, 'foodCap')) * capMult),
-    materials: Math.floor((25 + bonus.materials + sumEffect(buildings, 'materialsCap')) * capMult),
-    knowledge: Math.floor((20 + bonus.knowledge + sumEffect(buildings, 'knowledgeCap')) * capMult),
-    population: 2 + sumEffect(buildings, 'popMax') + discoveryBonus(discoveries, 'popMax'),
+    food: Math.floor((60 + bonus.food + sumEffect(buildings, 'foodCap')) * capMult),
+    materials: Math.floor((50 + bonus.materials + sumEffect(buildings, 'materialsCap')) * capMult),
+    knowledge: Math.floor((40 + bonus.knowledge + sumEffect(buildings, 'knowledgeCap')) * capMult),
+    population: homePeople + sumEffect(buildings, 'popMax') + discoveryBonus(discoveries, 'popMax'),
   };
 }
 
@@ -586,18 +596,18 @@ export function calculateNetRates(state: TimelineState): NetRates {
   const profile = SEASON_PROFILES[season];
   const foragerYield = profile.forager;
   const foodProduced =
-    (roles.forager * foragerYield + sumEffect(buildings, 'food')) * foodBoost;
-  const foodConsumed = population.total * 0.35;
+    (roles.forager * foragerYield * ROLE_PACE + sumEffect(buildings, 'food')) * foodBoost;
+  const foodConsumed = population.total * 0.35 * ROLE_PACE;
   const foodRate = Math.max(0, foodProduced - foodConsumed);
 
   // Builder base: 1.0 plus building bonuses.
   const builderYield = 1.0 + sumEffect(buildings, 'builderYield');
   const materialsRate =
-    (roles.builder * builderYield * profile.builder + sumEffect(buildings, 'materials')) * materialsBoost;
+    (roles.builder * builderYield * profile.builder * ROLE_PACE + sumEffect(buildings, 'materials')) * materialsBoost;
 
   // Scholar base: 0.8.
   const knowledgeRate =
-    (roles.scholar * 0.8 * profile.scholar + sumEffect(buildings, 'knowledge')) * knowledgeBoost;
+    (roles.scholar * 0.8 * profile.scholar * ROLE_PACE + sumEffect(buildings, 'knowledge')) * knowledgeBoost;
 
   // Stability only ever rises: healers +2.0, buildings, and slow recovery below 70.
   let stabilityDelta =
@@ -722,15 +732,15 @@ export function calculateTimeJumpInsight(state: TimelineState): number {
   const rungBonus = RUNGS[state.rung].insightBonus;
 
   const yearComponent = Math.floor(Math.sqrt(state.year));
-  const knowledgeComponent = Math.floor(state.resources.knowledge / 40);
-  const popComponent = Math.floor(state.population.total / 4);
+  const knowledgeComponent = Math.floor(state.resources.knowledge / 80);
+  const popComponent = Math.floor(Math.max(0, state.population.total - START_POPULATION + 1) / 4);
 
   const base = yearComponent + rungBonus + knowledgeComponent + popComponent;
   return Math.max(1, Math.floor(base * (1 + relicBonus(state.relics, 'insight'))));
 }
 
 // ---------------------------------------------------------------------------
-// Deep prestige tiers (Tier 1 is the Time Jump above).
+// Deep prestige tiers (Tier 1 is the Jumpback above).
 // Each tier resets everything below it and grants a permanent currency.
 // ---------------------------------------------------------------------------
 
@@ -771,7 +781,7 @@ export const PRESTIGE_TIERS: Record<PrestigeTier, PrestigeTierDef> = {
     requires: 'insight',
     requiresName: 'Insight',
     requiresAmount: 120,
-    requiresYear: 60,
+    requiresYear: 300,
     gainDivisor: 120,
     whatItDoes: 'Each Echo adds +10% production to everything, stacking with Insight.',
     nextRun: 'Every future timeline produces more from its very first tick.',
@@ -789,7 +799,7 @@ export const PRESTIGE_TIERS: Record<PrestigeTier, PrestigeTierDef> = {
     requires: 'echoes',
     requiresName: 'Echoes',
     requiresAmount: 8,
-    requiresYear: 120,
+    requiresYear: 360,
     gainDivisor: 8,
     whatItDoes: 'Each Resonance multiplies all production by x1.25.',
     nextRun: 'Timelines begin further along the rungs: each Resonance advances the starting rung by one, up to Trade City.',
@@ -807,7 +817,7 @@ export const PRESTIGE_TIERS: Record<PrestigeTier, PrestigeTierDef> = {
     requires: 'resonance',
     requiresName: 'Resonance',
     requiresAmount: 6,
-    requiresYear: 240,
+    requiresYear: 440,
     gainDivisor: 6,
     whatItDoes: 'Each Eternity Mark doubles all production (x2) and advances where timelines begin by two rungs (up to Trade City).',
     nextRun: 'Doubled output and a deeper head start in every timeline, forever.',
@@ -851,7 +861,7 @@ export function checkPrestigeTier(
 }
 
 /** The first prestige is a milestone, not a reflex: a timeline must have grown before it can collapse. */
-export const TIME_JUMP_MIN_YEAR = 30;
+export const TIME_JUMP_MIN_YEAR = 40;
 export const TIME_JUMP_MIN_RUNG: RungId = 'village';
 
 export function checkTimeJump(
@@ -893,22 +903,32 @@ export interface FeatureDef {
   id: FeatureId;
   name: string;
   icon: string;
-  /** Prestige tier (1 = Time Jump) that grants this feature... */
+  /** Prestige tier (1 = Jumpback) that grants this feature... */
   tier: 1 | 2 | 3 | 4;
-  /** ...on the Nth time that tier is performed. */
-  onCount: number;
+  /** ...on the Nth time that tier is performed (scripted rewards). */
+  onCount?: number;
+  /** Offered as a choice from the fourth Jumpback on, instead of being scripted. */
+  boon?: boolean;
   description: string;
   /** Automation switch that controls it, if any. */
   automation?: AutomationKey;
 }
 
 export const FEATURES: Record<FeatureId, FeatureDef> = {
+  steady_hands: {
+    id: 'steady_hands',
+    name: 'Steady Hands',
+    icon: '✋',
+    tier: 1,
+    onCount: 1,
+    description: 'Hold a gather button to keep gathering, instead of tapping again and again.',
+  },
   ancestral_hands: {
     id: 'ancestral_hands',
     name: 'Ancestral Hands',
     icon: '🤲',
     tier: 1,
-    onCount: 1,
+    onCount: 2,
     description: 'New arrivals automatically take up the role your people have the fewest of (Foragers, Builders, then Scholars as they unlock).',
     automation: 'assign',
   },
@@ -959,7 +979,7 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
     name: 'Lore Keepers',
     icon: '📚',
     tier: 1,
-    onCount: 6,
+    boon: true,
     description: 'Every timeline begins already knowing Fire Hardening, Foraging Lore, and Granary Seals.',
   },
   apprentice_scholars: {
@@ -992,8 +1012,32 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
     name: 'Grand Foundations',
     icon: '🏗️',
     tier: 1,
-    onCount: 10,
+    boon: true,
     description: 'Every timeline also begins with a Chronicle Obelisk and an Eternal Fire Pit standing.',
+  },
+  packed_provisions: {
+    id: 'packed_provisions',
+    name: 'Packed Provisions',
+    icon: '🎒',
+    tier: 1,
+    boon: true,
+    description: 'Every timeline begins with extra stores: +20 Food, +15 Materials and +8 Knowledge.',
+  },
+  founders: {
+    id: 'founders',
+    name: 'Founders',
+    icon: '🧑‍🤝‍🧑',
+    tier: 1,
+    boon: true,
+    description: 'Every timeline begins with one more person at the fire.',
+  },
+  cartographers: {
+    id: 'cartographers',
+    name: 'Cartographers',
+    icon: '🗺️',
+    tier: 1,
+    boon: true,
+    description: 'Every building and Idea shows how long until you can afford it.',
   },
   echo_merchants: {
     id: 'echo_merchants',
@@ -1020,6 +1064,13 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
     description: 'The Steward builds up to two buildings each tick.',
   },
 };
+
+/** From this Jumpback on, each one offers a choice of boons instead of a scripted reward. */
+export const BOON_FIRST_JUMPBACK = 4;
+/** How many boons each Jumpback offers (the player takes one). */
+export const BOON_OFFERS = 3;
+
+export const PACKED_PROVISIONS = { food: 20, materials: 15, knowledge: 8 };
 
 export const LORE_KEEPER_DISCOVERIES = ['fire_hardening', 'foraging_lore', 'granary_seals'];
 

@@ -56,7 +56,7 @@ describe('building previews', () => {
     base.population.total = 4;
     expect(describeBuildingGain(base, 'hut')).toEqual(['+2 max population']);
     const lines = describeBuildingGain(base, 'academy');
-    expect(lines).toContain('+120 Knowledge storage');
+    expect(lines).toContain('+240 Knowledge storage');
     const before = calculateNetRates(base).knowledge;
     const after = calculateNetRates({ ...base, buildings: { ...base.buildings, academy: 1 } }).knowledge;
     const claimed = Number(lines.find((l) => l.endsWith('Knowledge/tick'))!.replace(/[^0-9.]/g, ''));

@@ -17,7 +17,7 @@ The public repository contains rules, contracts, governance, and eventually dist
 - Normative documentation: established.
 - Offline: installable PWA (manifest with PNG and maskable icons, network-first service worker with a 4 second timeout in `public/sw.js`); implemented and asset-checked, not yet tested on hosted Pages.
 - Frontend: playable web client implemented and served via GitHub Pages.
-- Engine: deterministic core engine implemented and tested, including seven rungs and four prestige tiers (Time Jump, Epoch Shift, Paradigm Shift, Ascension) with sent-back functions.
+- Engine: deterministic core engine implemented and tested, including seven rungs and four prestige tiers (Jumpback, Epoch Shift, Paradigm Shift, Ascension) with sent-back functions.
 - Authentication and hosted services: not implemented (feature intake currently in closed incubation mode).
 - Save, replay, and migration formats: client local persistence implemented; hosted format specified as contracts.
 
@@ -27,7 +27,7 @@ Status: implemented and tested unless noted.
 
 - Seven rungs from Solitary Hearth to Sovereign Realm, with 19 buildings (five of them one-per-timeline Wonders).
 - Lifetime statistics that never reset. Harmony: high Stability boosts production. Optional Challenges (restricted timelines) that award permanent trophy relics. A Marketplace from the Walled Town to turn spare stores into what you need. Relics: rare permanent finds from events that send back functions. Named villagers. Edicts (free-to-swap emphasis choices), Discoveries (Knowledge sinks), seasonal gift events (some with risk-free choices), and achievements with permanent Renown.
-- Four prestige tiers: Time Jump, Epoch Shift, Paradigm Shift, Ascension. Each banks a currency and sends back functions such as auto-assign, automatic rung advance, starting buildings, a speed dial, and a steward.
+- Four prestige tiers: Jumpback, Epoch Shift, Paradigm Shift, Ascension. Each banks a currency and sends back functions such as auto-assign, automatic rung advance, starting buildings, a speed dial, and a steward.
 - No resource ever decreases over time. Absence is safe: the timeline keeps growing for up to 8 hours (24 with Second Wind) and the game welcomes you back.
 - Save string export and import, achievement-unlocked colour themes, larger-text, reduced-motion and optional sound switches, hold-to-gather, keyboard shortcuts (1, 2, 3), and offline play.
 

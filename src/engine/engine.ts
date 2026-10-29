@@ -25,6 +25,10 @@ import {
   featuresEarned,
   hasFeature,
   LORE_KEEPER_DISCOVERIES,
+  BOON_FIRST_JUMPBACK,
+  START_POPULATION,
+  BOON_OFFERS,
+  PACKED_PROVISIONS,
   marketRungFor,
   discoveryCost,
   PRESTIGE_TIERS,
@@ -64,6 +68,11 @@ function createLog(
   };
 }
 
+/** Where a timeline's people begin, and the room they have before any shelter is built. */
+function homePeople(features: readonly FeatureId[], relics: readonly string[]): number {
+  return START_POPULATION + relicBonus(relics, 'startPeople') + (features.includes('founders') ? 1 : 0);
+}
+
 export function createInitialState(options?: {
   timelineId?: string;
   seed?: number;
@@ -77,6 +86,7 @@ export function createInitialState(options?: {
   achievements?: string[];
   automation?: AutomationSettings;
   prestigeCounts?: TimelineState['prestigeCounts'];
+  pendingBoon?: FeatureId[] | null;
   edicts?: Record<string, string>;
   history?: HistoryEntry[];
   relics?: string[];
@@ -106,14 +116,15 @@ export function createInitialState(options?: {
 
   const relics = options?.relics ?? [];
   const discoveries = features.includes('lore_keepers') ? [...LORE_KEEPER_DISCOVERIES] : [];
-  const caps = calculateCaps(buildings, startRung, discoveries);
-  const startPeople = Math.min(caps.population, 1 + relicBonus(relics, 'startPeople'));
+  const caps = calculateCaps(buildings, startRung, discoveries, homePeople(features, relics));
+  const startPeople = caps.population;
 
   // Insight bonus: starting resources are enhanced by legacy Insight
   const bonus = insightStartBonus(insight);
-  const startingFood = Math.min(caps.food, 12 + bonus.food + relicBonus(relics, 'startFood'));
-  const startingMaterials = Math.min(caps.materials, 6 + bonus.materials);
-  const startingKnowledge = Math.min(caps.knowledge, bonus.knowledge);
+  const packed = features.includes('packed_provisions') ? PACKED_PROVISIONS : { food: 0, materials: 0, knowledge: 0 };
+  const startingFood = Math.min(caps.food, 12 + bonus.food + relicBonus(relics, 'startFood') + packed.food);
+  const startingMaterials = Math.min(caps.materials, 6 + bonus.materials + packed.materials);
+  const startingKnowledge = Math.min(caps.knowledge, bonus.knowledge + packed.knowledge);
 
   const initialLogText =
     timelinesCreated > 0
@@ -139,6 +150,7 @@ export function createInitialState(options?: {
     history: options?.history ?? [],
     relics,
     pendingChoice: null,
+    pendingBoon: options?.pendingBoon ?? null,
     stats: { ticks: 0, gathers: 0, built: 0, researched: 0, traded: 0 },
     challenge: options?.challenge ?? null,
     edicts: features.includes('seasoned_memory') ? { ...(options?.edicts ?? {}) } : {},
@@ -206,6 +218,22 @@ function carryFeatures(
     prestigeCounts,
     achievements: state.achievements,
   };
+}
+
+/** The boons a Jumpback offers: up to BOON_OFFERS not yet owned, picked by the timeline's seed. */
+export function boonOptions(
+  state: Pick<TimelineState, 'features' | 'seed' | 'timelinesCreated'>,
+  jumpbackNumber: number
+): FeatureId[] | null {
+  if (jumpbackNumber < BOON_FIRST_JUMPBACK) return null;
+  const pool = FEATURE_IDS.filter((id) => FEATURES[id].boon && !state.features.includes(id));
+  if (pool.length === 0) return null;
+  const tseed = timelineSeed(state.seed, state.timelinesCreated);
+  const ranked = pool
+    .map((id, i) => ({ id, key: seededUnit(tseed, jumpbackNumber * 31 + i, 11) }))
+    .sort((a, b) => a.key - b.key)
+    .map((x) => x.id);
+  return ranked.slice(0, BOON_OFFERS);
 }
 
 function recordHistory(state: TimelineState, tier: 1 | 2 | 3 | 4, gained: string): HistoryEntry[] {
@@ -820,12 +848,12 @@ function executeActionCore(
         [buildingId]: currentCount + 1,
       };
 
-      const nextCaps = calculateCaps(nextBuildings, state.rung, state.discoveries);
+      const nextCaps = calculateCaps(nextBuildings, state.rung, state.discoveries, homePeople(state.features, state.relics));
 
       const log = createLog(
         state.tick,
         state.year,
-        `Constructed a ${def.name}.`,
+        currentCount === 0 ? `Your first ${def.name} stands.` : `Constructed a ${def.name}.`,
         'milestone'
       );
 
@@ -869,7 +897,7 @@ function executeActionCore(
         };
       }
 
-      const nextCaps = calculateCaps(state.buildings, rungId, state.discoveries);
+      const nextCaps = calculateCaps(state.buildings, rungId, state.discoveries, homePeople(state.features, state.relics));
       const log = createLog(
         state.tick,
         state.year,
@@ -936,6 +964,11 @@ function executeActionCore(
         'prestige'
       );
 
+      resetState.pendingBoon = boonOptions(
+        { features: resetState.features, seed: state.seed, timelinesCreated: state.timelinesCreated },
+        nextTimelinesCreated
+      );
+
       resetState.logs = [
         jumpLog,
         ...closureLogs(state, true),
@@ -946,7 +979,7 @@ function executeActionCore(
       return {
         success: true,
         state: resetState,
-        events: [`Time jump completed: +${gainedInsight} Insight`],
+        events: [`Jumpback completed: +${gainedInsight} Insight`],
       };
     }
 
@@ -994,6 +1027,7 @@ function executeActionCore(
         timelinesCreated: state.timelinesCreated + 1,
         ...carried,
         ...carryFeatures(state, action.tier),
+        pendingBoon: state.pendingBoon,
         edicts: state.edicts,
         relics: state.relics,
         history: recordHistory(state, action.tier, `+${gain} ${def.currencyName}`),
@@ -1146,11 +1180,55 @@ function executeActionCore(
       };
     }
 
+    case 'CHOOSE_BOON': {
+      const id = action.featureId;
+      if (!state.pendingBoon || !state.pendingBoon.includes(id) || !FEATURES[id]?.boon) {
+        return { success: false, state, error: 'That boon is not on offer.', events: [] };
+      }
+      const buildings = { ...state.buildings };
+      let discoveries = state.discoveries;
+      const resources = { ...state.resources };
+      const roles = { ...state.population.roles };
+      let total = state.population.total;
+      // The boon helps the timeline already under way, not only the ones that follow.
+      if (id === 'grand_foundations') {
+        buildings.chronicle_stone = Math.max(1, buildings.chronicle_stone);
+        buildings.fire_pit = Math.max(1, buildings.fire_pit);
+      }
+      if (id === 'lore_keepers') discoveries = [...new Set([...discoveries, ...LORE_KEEPER_DISCOVERIES])];
+      const nextCaps = calculateCaps(buildings, state.rung, discoveries, homePeople([...state.features, id], state.relics));
+      if (id === 'packed_provisions') {
+        resources.food = Math.min(nextCaps.food, resources.food + PACKED_PROVISIONS.food);
+        resources.materials = Math.min(nextCaps.materials, resources.materials + PACKED_PROVISIONS.materials);
+        resources.knowledge = Math.min(nextCaps.knowledge, resources.knowledge + PACKED_PROVISIONS.knowledge);
+      }
+      if (id === 'founders' && total < nextCaps.population) {
+        total += 1;
+        roles.unassigned += 1;
+      }
+      const def = FEATURES[id];
+      return {
+        success: true,
+        state: {
+          ...state,
+          features: [...state.features, id],
+          pendingBoon: null,
+          buildings,
+          discoveries,
+          resources,
+          caps: { food: nextCaps.food, materials: nextCaps.materials, knowledge: nextCaps.knowledge },
+          population: { ...state.population, total, max: nextCaps.population, roles },
+          logs: [createLog(state.tick, state.year, `${def.icon} Boon chosen: ${def.name}. ${def.description}`, 'milestone'), ...state.logs].slice(0, 50),
+        },
+        events: [`Chose ${def.name}`],
+      };
+    }
+
     case 'START_CHALLENGE': {
       const def = getChallenge(action.challengeId);
       if (!def) return { success: false, state, error: 'Unknown challenge.', events: [] };
       if (state.prestigeCounts[1] < 1) {
-        return { success: false, state, error: 'Challenges open after your first Time Jump.', events: [] };
+        return { success: false, state, error: 'Challenges open after your first Jumpback.', events: [] };
       }
       if (state.challenge) {
         return { success: false, state, error: 'Finish or abandon the current challenge first.', events: [] };
@@ -1171,11 +1249,11 @@ function executeActionCore(
         return {
           success: false,
           state,
-          error: `Beginning a challenge ends this timeline like a Time Jump, so it must be ready first: ${startCheck.reasons.join('; ')}.`,
+          error: `Beginning a challenge ends this timeline like a Jumpback, so it must be ready first: ${startCheck.reasons.join('; ')}.`,
           events: [],
         };
       }
-      // Ending the run this way is a Time Jump: it pays the same Insight and counts as one.
+      // Ending the run this way is a Jumpback: it pays the same Insight and counts as one.
       const gainedInsight = calculateTimeJumpInsight(state);
       // A fresh timeline with every permanent bonus intact; nothing is gained or lost by starting.
       const fresh = createInitialState({
@@ -1247,7 +1325,7 @@ function executeActionCore(
         };
       }
       const discoveries = [...state.discoveries, def.id];
-      const nextCaps = calculateCaps(state.buildings, state.rung, discoveries);
+      const nextCaps = calculateCaps(state.buildings, state.rung, discoveries, homePeople(state.features, state.relics));
       return {
         success: true,
         state: {
@@ -1333,7 +1411,7 @@ function executeActionCore(
     }
 
     case 'DEV_SET_RUNG': {
-      const nextCaps = calculateCaps(state.buildings, action.rung, state.discoveries);
+      const nextCaps = calculateCaps(state.buildings, action.rung, state.discoveries, homePeople(state.features, state.relics));
       return {
         success: true,
         state: {
@@ -1403,7 +1481,6 @@ export function normalizeState(saved: TimelineState): TimelineState {
   }
   const discoveries = asStringArray(old.discoveries).filter((id) => getDiscovery(id));
   const rung = RUNG_ORDER.includes(saved.rung) ? saved.rung : 'hearth';
-  const caps = calculateCaps(buildings, rung, discoveries);
   const edicts: Record<string, string> = {};
   if (old.edicts && typeof old.edicts === 'object') {
     for (const [slot, id] of Object.entries(old.edicts)) {
@@ -1420,9 +1497,13 @@ export function normalizeState(saved: TimelineState): TimelineState {
   const features = [
     ...new Set([
       ...asStringArray(old.features).filter((id): id is FeatureId => Object.hasOwn(FEATURES, id)),
-      ...FEATURE_IDS.filter((id) => prestigeCounts[FEATURES[id].tier] >= FEATURES[id].onCount),
+      ...FEATURE_IDS.filter((id) => {
+        const at = FEATURES[id].onCount;
+        return at !== undefined && prestigeCounts[FEATURES[id].tier] >= at;
+      }),
     ]),
   ];
+  const caps = calculateCaps(buildings, rung, discoveries, homePeople(features, asStringArray(old.relics)));
   const rawRoles: Partial<TimelineState['population']['roles']> = old.population?.roles ?? {};
   const roles = {
     unassigned: Math.floor(asNumber(rawRoles.unassigned)),
@@ -1494,6 +1575,12 @@ export function normalizeState(saved: TimelineState): TimelineState {
       !asStringArray(old.relics).includes(getChallenge(old.challenge)!.reward)
         ? old.challenge
         : null,
+    pendingBoon: (() => {
+      const offered = asStringArray(old.pendingBoon).filter(
+        (id): id is FeatureId => Object.hasOwn(FEATURES, id) && Boolean(FEATURES[id as FeatureId].boon) && !features.includes(id as FeatureId)
+      );
+      return offered.length > 0 ? offered : null;
+    })(),
     pendingChoice:
       old.pendingChoice && EVENTS.some((e) => e.id === old.pendingChoice?.eventId && e.choices)
         ? { eventId: old.pendingChoice.eventId, tick: asNumber(old.pendingChoice.tick) }

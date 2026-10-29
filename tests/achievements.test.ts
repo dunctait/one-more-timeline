@@ -23,7 +23,7 @@ describe('achievements', () => {
     expect(getProductionMultiplier(next)).toBeCloseTo(1 + next.achievements.length * 0.01, 5);
   });
 
-  it('survive a Time Jump and are never lost', () => {
+  it('survive a Jumpback and are never lost', () => {
     let s = createInitialState();
     s = { ...s, rung: 'village', tick: 40, year: 11, furthestYear: 11 };
     s = stepTick(s);
