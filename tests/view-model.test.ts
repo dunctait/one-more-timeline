@@ -89,8 +89,8 @@ describe('UI View Model & Storage', () => {
       statusClass: 'status-critical',
     });
     expect(getStabilityLabel(0)).toEqual({
-      label: 'Starving',
-      statusClass: 'status-starving',
+      label: 'Critical',
+      statusClass: 'status-critical',
     });
   });
 
@@ -120,7 +120,6 @@ describe('UI View Model & Storage', () => {
     expect(vm.actions.canStudy).toBe(true);
     expect(vm.actions.actionPacing).toContain('resolve immediately');
     expect(vm.actions.pacing).toContain('Act quickly');
-    expect(vm.actions.learningGrace).toContain('Learning grace');
 
     // Next rung prerequisite items
     expect(vm.rungProgression.nextRung).not.toBeNull();
@@ -177,7 +176,7 @@ describe('UI View Model & Storage', () => {
     expect(vm.timeJump.currentMultiplier).toContain('+3% permanent production');
     expect(vm.timeJump.currentMultiplier).toContain('all roles and builders');
     expect(vm.timeJump.projectedGain).toContain('+');
-    expect(vm.timeJump.projectedGain).toContain('production boost next cycle');
+    expect(vm.timeJump.projectedGain).toContain('production bonus becomes');
     expect(vm.timeJump.startingBonus).toContain('per Insight');
     expect(vm.timeJump.breakdown.formulaExplanation).toContain('Year');
     expect(vm.timeJump.breakdown.formulaExplanation).toContain('Highest Rung');

@@ -28,4 +28,16 @@ Explain persistent progression currencies: Any prestige/legacy currency must be 
 
 When a run reaches a developmental ceiling designed to prompt prestige, the game must never quietly stall, fizzle out, or present mathematically impossible goals as if they were standard tasks. It must celebrate the timeline's culmination as an earned milestone, alerting the player prominently (e.g. via toast notifications) that the temporal horizon has been reached and that a Time Jump is the triumphant next step.
 
-The service and engine are not implemented by this foundation. These statements specify the intended experience, not current availability.
+## Safe absence and risk-free choices
+
+The player must be able to leave at any moment and return to a timeline that is the same or better. Decisions the game offers (events, edicts, trades) are emphasis choices between gifts, never gambles, and a decision left unanswered must resolve in the player's favour on its own. Spare resources are never silently wasted: a full store says it is full, and the marketplace offers a way to use the overflow.
+
+## Ask for the why
+
+Every multiplier the player earns must be nameable in the interface. A player who wonders why a rate is what it is must be able to open one place that lists each source and its size.
+
+## Cosmetic rewards
+
+Cosmetic unlocks (themes) are rewarded for achievements, never sold, never required, and never change the rules.
+
+The hosted service is not implemented. The local client and engine are implemented; see the README for current status. These statements specify the intended experience.

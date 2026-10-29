@@ -1,6 +1,33 @@
+import { findNewAchievements } from './achievements.js';
+import { getChallenge } from './challenges.js';
+import { DISCOVERIES, discoveryBonus, getDiscovery, legacyMet, legacyNote } from './discoveries.js';
+import { edictBonus, getEdict } from './edicts.js';
+import { EVENTS, rollEvent, scaleGift, seededUnit, timelineSeed } from './events.js';
+import type { EventGift } from './events.js';
+import { personName } from './people.js';
+import { getRelic, RELICS, RELIC_CHANCE, relicBonus } from './relics.js';
 import {
+  BUILDING_IDS,
   BUILDINGS,
+  activeEdicts,
+  barterRatio,
   calculateCaps,
+  calculatePrestigeGain,
+  checkPrestigeTier,
+  createEmptyBuildings,
+  getStartingRung,
+  insightStartBonus,
+  ROLE_MIN_RUNG,
+  RUNG_ORDER,
+  FEATURE_IDS,
+  FEATURES,
+  featuresEarned,
+  hasFeature,
+  LORE_KEEPER_DISCOVERIES,
+  marketRungFor,
+  discoveryCost,
+  PRESTIGE_TIERS,
+  rungLevel,
   calculateNetRates,
   calculateTimeJumpInsight,
   checkRungPrerequisites,
@@ -9,8 +36,12 @@ import {
   SEASONS,
 } from './rules.js';
 import {
+  AutomationSettings,
   BuildingId,
   EngineAction,
+  FeatureId,
+  HistoryEntry,
+  LifetimeStats,
   EngineResult,
   LogEntry,
   RoleId,
@@ -38,27 +69,50 @@ export function createInitialState(options?: {
   furthestYear?: number;
   timelinesCreated?: number;
   insight?: number;
+  echoes?: number;
+  resonance?: number;
+  eternity?: number;
+  features?: FeatureId[];
+  achievements?: string[];
+  automation?: AutomationSettings;
+  prestigeCounts?: TimelineState['prestigeCounts'];
+  edicts?: Record<string, string>;
+  history?: HistoryEntry[];
+  relics?: string[];
+  challenge?: string | null;
 }): TimelineState {
   const seed = options?.seed ?? 1337;
   const furthestYear = Math.max(1, options?.furthestYear ?? 1);
   const timelinesCreated = options?.timelinesCreated ?? 0;
   const insight = options?.insight ?? 0;
+  const echoes = options?.echoes ?? 0;
+  const resonance = options?.resonance ?? 0;
+  const eternity = options?.eternity ?? 0;
+  const startRung = getStartingRung({ resonance, eternity });
   const timelineId = options?.timelineId ?? `timeline_${seed}_${timelinesCreated}`;
 
-  const buildings = {
-    hut: 0,
-    granary: 0,
-    workshop: 0,
-    fire_pit: 0,
-    chronicle_stone: 0,
-  };
+  const features = options?.features ?? [];
+  const buildings = createEmptyBuildings();
+  if (features.includes('inherited_foundations')) {
+    buildings.hut = 1;
+    buildings.granary = 1;
+    buildings.workshop = 1;
+  }
+  if (features.includes('grand_foundations')) {
+    buildings.chronicle_stone = 1;
+    buildings.fire_pit = 1;
+  }
 
-  const caps = calculateCaps(buildings, 'hearth');
+  const relics = options?.relics ?? [];
+  const discoveries = features.includes('lore_keepers') ? [...LORE_KEEPER_DISCOVERIES] : [];
+  const caps = calculateCaps(buildings, startRung, discoveries);
+  const startPeople = Math.min(caps.population, 1 + relicBonus(relics, 'startPeople'));
 
   // Insight bonus: starting resources are enhanced by legacy Insight
-  const startingFood = Math.min(caps.food, 12 + Math.min(insight * 2, 20));
-  const startingMaterials = Math.min(caps.materials, 6 + Math.min(insight, 15));
-  const startingKnowledge = Math.min(caps.knowledge, Math.floor(insight * 0.5));
+  const bonus = insightStartBonus(insight);
+  const startingFood = Math.min(caps.food, 12 + bonus.food + relicBonus(relics, 'startFood'));
+  const startingMaterials = Math.min(caps.materials, 6 + bonus.materials);
+  const startingKnowledge = Math.min(caps.knowledge, bonus.knowledge);
 
   const initialLogText =
     timelinesCreated > 0
@@ -68,7 +122,7 @@ export function createInitialState(options?: {
   return {
     timelineId,
     schemaVersion: 1,
-    rulesetVersion: '0.1.0',
+    rulesetVersion: '0.2.0',
     seed,
     tick: 0,
     year: 1,
@@ -76,21 +130,34 @@ export function createInitialState(options?: {
     furthestYear,
     timelinesCreated,
     insight,
-    learningGraceTicks: 8,
+    echoes,
+    resonance,
+    eternity,
+    features,
+    achievements: options?.achievements ?? [],
+    history: options?.history ?? [],
+    relics,
+    pendingChoice: null,
+    stats: { ticks: 0, gathers: 0, built: 0, researched: 0, traded: 0 },
+    challenge: options?.challenge ?? null,
+    edicts: features.includes('seasoned_memory') ? { ...(options?.edicts ?? {}) } : {},
+    discoveries,
+    automation: options?.automation ?? { assign: true, advance: true, build: true, research: true },
+    prestigeCounts: options?.prestigeCounts ?? { 1: 0, 2: 0, 3: 0, 4: 0 },
     actionCooldown: 0,
-    rung: 'hearth',
+    rung: startRung,
     resources: {
       food: startingFood,
       materials: startingMaterials,
       knowledge: startingKnowledge,
       stability: 75,
     },
-    caps,
+    caps: { food: caps.food, materials: caps.materials, knowledge: caps.knowledge },
     population: {
-      total: 1,
+      total: startPeople,
       max: caps.population,
       roles: {
-        unassigned: 1,
+        unassigned: startPeople,
         forager: 0,
         scholar: 0,
         healer: 0,
@@ -102,7 +169,154 @@ export function createInitialState(options?: {
   };
 }
 
+export function manualMultiplier(
+  state: Pick<TimelineState, 'discoveries' | 'edicts' | 'rung' | 'relics'>
+): number {
+  return (
+    1 +
+    discoveryBonus(state.discoveries, 'manual') +
+    edictBonus(activeEdicts(state), 'manual') +
+    relicBonus(state.relics, 'manual')
+  );
+}
+
+const YEAR_OPENINGS = [
+  (y: number) => `Year ${y} begins as the spring thaw settles in.`,
+  (y: number) => `Year ${y} dawns with birdsong over the fields.`,
+  (y: number) => `A new year, ${y}, breaks cold and clear.`,
+  (y: number) => `Year ${y} arrives; the days begin to lengthen.`,
+  (y: number) => `Spring rain greets Year ${y}.`,
+  (y: number) => `Year ${y} opens with green shoots everywhere.`,
+];
+
+function yearOpening(seed: number, tick: number, year: number): string {
+  return YEAR_OPENINGS[Math.floor(seededUnit(seed, tick, 7) * YEAR_OPENINGS.length)](year);
+}
+
+function carryFeatures(
+  state: TimelineState,
+  tier: 1 | 2 | 3 | 4
+): Pick<TimelineState, 'features' | 'automation' | 'prestigeCounts' | 'achievements'> {
+  const prestigeCounts = { ...state.prestigeCounts, [tier]: state.prestigeCounts[tier] + 1 };
+  const earned = featuresEarned(tier, prestigeCounts[tier]).map((f) => f.id);
+  return {
+    features: [...new Set([...state.features, ...earned])],
+    automation: state.automation,
+    prestigeCounts,
+    achievements: state.achievements,
+  };
+}
+
+function recordHistory(state: TimelineState, tier: 1 | 2 | 3 | 4, gained: string): HistoryEntry[] {
+  const entry: HistoryEntry = {
+    number: state.timelinesCreated + 1,
+    tier,
+    year: state.year,
+    rung: state.rung,
+    gained,
+  };
+  return [entry, ...state.history].slice(0, 12);
+}
+
+/** Tells the player what a prestige quietly closed: an unanswered decision or a running challenge. */
+function closureLogs(state: TimelineState, endsChallenge: boolean): LogEntry[] {
+  const logs: LogEntry[] = [];
+  const decision = state.pendingChoice && EVENTS.find((e) => e.id === state.pendingChoice?.eventId);
+  if (decision) {
+    logs.push(createLog(0, 1, `${decision.title}: the decision went unanswered as the timeline ended. Nothing was lost.`));
+  }
+  const challenge = endsChallenge && state.challenge ? getChallenge(state.challenge) : undefined;
+  if (challenge) {
+    logs.push(createLog(0, 1, `${challenge.icon} ${challenge.name} ended with the timeline. Nothing was lost; begin it again any time.`));
+  }
+  return logs;
+}
+
+function unlockLogs(state: TimelineState, tier: 1 | 2 | 3 | 4): LogEntry[] {
+  return featuresEarned(tier, state.prestigeCounts[tier] + 1).map((f) =>
+    createLog(0, 1, `${f.icon} Sent back through time: ${f.name}. ${f.description}`, 'prestige')
+  );
+}
+
+/** Awards any newly satisfied achievements (permanent, gift-only). */
+function grantAchievements(state: TimelineState): TimelineState {
+  const earned = findNewAchievements(state);
+  if (earned.length === 0) return state;
+  const logs = earned.map((a) =>
+    createLog(state.tick, state.year, `${a.icon} Achievement: ${a.name}. ${a.description}`, 'milestone')
+  );
+  return {
+    ...state,
+    achievements: [...state.achievements, ...earned.map((a) => a.id)],
+    logs: [...logs, ...state.logs].slice(0, 50),
+  };
+}
+
+/** Completes or ends the active challenge when its goal is reached or its time runs out. */
+function settleChallenge(state: TimelineState): TimelineState {
+  const def = state.challenge ? getChallenge(state.challenge) : undefined;
+  if (!def) return state;
+  if (rungLevel(state.rung) >= rungLevel(def.goalRung)) {
+    const trophy = RELICS.find((r) => r.id === def.reward);
+    return {
+      ...state,
+      challenge: null,
+      relics: state.relics.includes(def.reward) ? state.relics : [...state.relics, def.reward],
+      logs: [
+        createLog(state.tick, state.year, `${def.icon} Challenge complete: ${def.name}! Trophy earned: ${trophy?.name ?? def.reward}.`, 'prestige'),
+        ...state.logs,
+      ].slice(0, 50),
+    };
+  }
+  if (def.maxYear !== undefined && state.year > def.maxYear) {
+    return {
+      ...state,
+      challenge: null,
+      logs: [
+        createLog(state.tick, state.year, `${def.icon} The time for ${def.name} has passed. Nothing is lost; try again whenever you like.`, 'info'),
+        ...state.logs,
+      ].slice(0, 50),
+    };
+  }
+  return state;
+}
+
+/** Carries the lifetime counters across any action, including ones that reset the timeline. */
+function withStats(
+  before: TimelineState,
+  after: TimelineState,
+  bump: Partial<LifetimeStats>
+): TimelineState {
+  const stats = { ...before.stats };
+  for (const key of Object.keys(bump) as Array<keyof LifetimeStats>) stats[key] += bump[key] ?? 0;
+  return { ...after, stats };
+}
+
 export function stepTick(state: TimelineState): TimelineState {
+  // Stats are counted inside the tick too (automation), so carry them forward from the result.
+  const next = settleChallenge(stepTickCore(state));
+  return grantAchievements(withStats(next, next, { ticks: 1 }));
+}
+
+export function executeAction(state: TimelineState, action: EngineAction): EngineResult {
+  const result = executeActionCore(state, action);
+  if (!result.success || action.type === 'DEV_RESET') return result;
+  const bump: Partial<LifetimeStats> =
+    action.type === 'FORAGE' || action.type === 'SCAVENGE' || action.type === 'STUDY'
+      ? { gathers: 1 }
+      : action.type === 'BUILD'
+        ? { built: 1 }
+        : action.type === 'RESEARCH'
+          ? { researched: 1 }
+          : action.type === 'BARTER'
+            ? { traded: 1 }
+            : {};
+  // A plain tick already settled challenges, counted stats and granted achievements in stepTick.
+  if (action.type === 'TICK') return result;
+  return { ...result, state: grantAchievements(settleChallenge(withStats(state, result.state, bump))) };
+}
+
+function stepTickCore(state: TimelineState): TimelineState {
   const nextTick = state.tick + 1;
   const nextSeason = SEASONS[nextTick % 4];
   const nextYear = 1 + Math.floor(nextTick / 4);
@@ -111,107 +325,128 @@ export function stepTick(state: TimelineState): TimelineState {
   const newLogs: LogEntry[] = [];
 
   // New year notification
-  if (nextTick % 4 === 0) {
+  // Only every fifth year is noted, so milestones are not pushed out of the Chronicle.
+  if (nextTick % 4 === 0 && nextYear % 5 === 0) {
     newLogs.push(
-      createLog(nextTick, nextYear, `Year ${nextYear} begins as the spring thaw settles in.`, 'info')
+      createLog(nextTick, nextYear, yearOpening(timelineSeed(state.seed, state.timelinesCreated), nextTick, nextYear), 'info')
     );
   }
 
   // Calculate net production rates
-  const rawRates = calculateNetRates(state);
-  const rates =
-    state.learningGraceTicks > 0 && state.rung === 'hearth'
-      ? { ...rawRates, food: Math.max(0, rawRates.food) }
-      : rawRates;
+  const rates = calculateNetRates(state);
 
   let nextFood = Math.max(0, Math.min(state.caps.food, state.resources.food + rates.food));
-  const nextMaterials = Math.max(
+  let nextMaterials = Math.max(
     0,
     Math.min(state.caps.materials, state.resources.materials + rates.materials)
   );
-  const nextKnowledge = Math.max(
+  let nextKnowledge = Math.max(
     0,
     Math.min(state.caps.knowledge, state.resources.knowledge + rates.knowledge)
   );
 
-  let nextStability = Math.max(
-    0,
-    Math.min(100, state.resources.stability + rates.stability)
-  );
+  let nextStability = Math.max(0, Math.min(100, state.resources.stability + rates.stability));
+
+  // Seasonal events are gifts only; they never take anything away.
+  const event = rollEvent(state, nextTick);
+  let pendingChoice = state.pendingChoice;
+  let gift: Required<EventGift> | null = null;
+  if (event) {
+    if (event.def.choices) {
+      // A decision the player never made is settled with its first option, so waiting costs nothing.
+      const stale = pendingChoice && EVENTS.find((e) => e.id === pendingChoice?.eventId);
+      if (stale?.choices) {
+        gift = scaleGift(stale.choices[0], rungLevel(state.rung));
+        newLogs.push(
+          createLog(nextTick, nextYear, `${stale.title}: your people chose "${stale.choices[0].label}" while the decision waited.`, 'milestone')
+        );
+      }
+      pendingChoice = { eventId: event.def.id, tick: nextTick };
+    } else {
+      gift = {
+        food: event.food,
+        materials: event.materials,
+        knowledge: event.knowledge,
+        stability: event.stability,
+        people: event.people,
+      };
+    }
+  }
+  if (gift) {
+    nextFood = Math.min(state.caps.food, nextFood + gift.food);
+    nextMaterials = Math.min(state.caps.materials, nextMaterials + gift.materials);
+    nextKnowledge = Math.min(state.caps.knowledge, nextKnowledge + gift.knowledge);
+    nextStability = Math.min(100, nextStability + gift.stability);
+  }
 
   let currentTotalPop = state.population.total;
   let currentUnassigned = state.population.roles.unassigned;
 
-  // Starvation condition
-  if (state.resources.food <= 0 && rates.food < 0) {
-    nextStability = Math.max(0, nextStability - 8);
-    newLogs.push(
-      createLog(
-        nextTick,
-        nextYear,
-        'Food stores are empty! Desperation grips your settlement.',
-        'warning'
-      )
-    );
-
-    // If starving and stability critically low, someone may perish or leave
-    if (nextStability <= 10 && currentTotalPop > 1) {
-      currentTotalPop -= 1;
-      if (currentUnassigned > 0) {
-        currentUnassigned -= 1;
-      } else {
-        // Remove from a role
-        const roleOrder: RoleId[] = ['scholar', 'builder', 'forager', 'healer'];
-        for (const r of roleOrder) {
-          if (state.population.roles[r] > 0) {
-            state.population.roles[r] -= 1;
-            break;
-          }
-        }
-      }
-      newLogs.push(
-        createLog(
-          nextTick,
-          nextYear,
-          'A member of your community was lost to famine.',
-          'warning'
-        )
-      );
-    }
-  }
-
   // Population growth condition
-  // Pop grows when there is food room, stability >= 60, pop total < pop max, and spring/autumn
+  // Pop grows (at no cost) when food >= 10, stability >= 60, and pop total < pop max, every other tick
   if (
     nextFood >= 10 &&
     nextStability >= 60 &&
     currentTotalPop < state.population.max &&
     nextTick % 2 === 0
   ) {
-    // Consume 5 food for welcoming new member
-    nextFood = Math.max(0, nextFood - 4);
     currentTotalPop += 1;
     currentUnassigned += 1;
     newLogs.push(
       createLog(
         nextTick,
         nextYear,
-        'Attracted by your warm fire, a wanderer joins your band.',
+        `${personName(timelineSeed(state.seed, state.timelinesCreated), currentTotalPop - 1)}, drawn by your warm fire, joins your band.`,
         'info'
       )
     );
   }
 
-  // Limit logs to last 50 entries
-  const combinedLogs = [...newLogs, ...state.logs].slice(0, 50);
+  let relics = state.relics;
+  if (event) {
+    const tseed = timelineSeed(state.seed, state.timelinesCreated);
+    const pool = RELICS.filter(
+      (r) => !r.trophyOf && !relics.includes(r.id) && rungLevel(r.minRung) <= rungLevel(state.rung)
+    );
+    if (pool.length > 0 && seededUnit(tseed, nextTick, 3) < RELIC_CHANCE) {
+      const found = pool[Math.floor(seededUnit(tseed, nextTick, 4) * pool.length)];
+      relics = [...relics, found.id];
+      newLogs.push(
+        createLog(nextTick, nextYear, `${found.icon} Relic found: ${found.name}. ${found.description}`, 'prestige')
+      );
+    }
+  }
 
-  return {
+  if (gift) {
+    const room = Math.max(0, state.population.max - currentTotalPop);
+    const arrivals = Math.min(gift.people, room);
+    currentTotalPop += arrivals;
+    currentUnassigned += arrivals;
+  }
+  if (event) {
+    newLogs.push(
+      createLog(
+        nextTick,
+        nextYear,
+        event.def.choices
+          ? `${event.def.title}: ${event.def.text} A decision awaits on the Hearth.`
+          : `${event.def.title}: ${event.def.text}`,
+        'milestone'
+      )
+    );
+  }
+
+  // Limit logs to last 50 entries
+  const combinedLogs = newLogs.length > 0 ? [...newLogs, ...state.logs].slice(0, 50) : state.logs;
+
+  const advanced: TimelineState = {
     ...state,
     tick: nextTick,
     year: nextYear,
     season: nextSeason,
     furthestYear: nextFurthestYear,
-    learningGraceTicks: Math.max(0, state.learningGraceTicks - 1),
+    relics,
+    pendingChoice,
      // Kept at zero for save compatibility; manual actions are intentionally immediate.
      actionCooldown: 0,
     resources: {
@@ -230,9 +465,109 @@ export function stepTick(state: TimelineState): TimelineState {
     },
     logs: combinedLogs,
   };
+
+  return runAutomation(advanced);
 }
 
-export function executeAction(
+const AUTO_ROLES: RoleId[] = ['forager', 'builder', 'scholar'];
+
+function autoAssign(state: TimelineState): TimelineState {
+  const level = rungLevel(state.rung);
+  const barred = (state.challenge && getChallenge(state.challenge)?.noRoles) || [];
+  const open = AUTO_ROLES.filter((r) => level >= rungLevel(ROLE_MIN_RUNG[r]) && !barred.includes(r));
+  let unassigned = state.population.roles.unassigned;
+  if (unassigned <= 0 || open.length === 0) return state;
+  const roles = { ...state.population.roles };
+  while (unassigned > 0) {
+    const target = open.reduce((a, b) => (roles[b] < roles[a] ? b : a));
+    roles[target] += 1;
+    unassigned -= 1;
+  }
+  roles.unassigned = 0;
+  return { ...state, population: { ...state.population, roles } };
+}
+
+function runAutomation(input: TimelineState): TimelineState {
+  let current = input;
+
+  if (hasFeature(current, 'ancestral_hands') && current.automation.assign) {
+    current = autoAssign(current);
+  }
+
+  if (hasFeature(current, 'rising_tide') && current.automation.advance) {
+    const nextRung = RUNG_ORDER[rungLevel(current.rung) + 1];
+    if (nextRung && checkRungPrerequisites(current, nextRung).eligible) {
+      const result = executeActionCore(current, { type: 'ADVANCE_RUNG', rungId: nextRung });
+      if (result.success) current = result.state;
+    }
+  }
+
+  // Automation never spends below what the next rung asks for, or progress could stall unseen.
+  const next = RUNG_ORDER[rungLevel(current.rung) + 1];
+  const need = next ? RUNGS[next].prerequisites : undefined;
+  const reserve = {
+    food: need?.food ?? 0,
+    materials: need?.materials ?? 0,
+    knowledge: need?.knowledge ?? 0,
+  };
+
+  if (hasFeature(current, 'apprentice_scholars') && current.automation.research) {
+    const options = DISCOVERIES.filter(
+      (d) =>
+        !current.discoveries.includes(d.id) &&
+        rungLevel(current.rung) >= rungLevel(d.minRung) &&
+        legacyMet(current, d) &&
+        current.resources.knowledge - discoveryCost(current, d.cost) >= reserve.knowledge
+    ).sort((a, b) => a.cost - b.cost);
+    if (options[0]) {
+      const result = executeActionCore(current, { type: 'RESEARCH', discoveryId: options[0].id });
+      if (result.success) current = withStats(current, result.state, { researched: 1 });
+    }
+  }
+
+  const stewardBuilds = hasFeature(current, 'twin_stewards') ? 2 : 1;
+  for (let n = 0; n < stewardBuilds; n++) {
+    if (!(hasFeature(current, 'steward') && current.automation.build)) break;
+    const required = need?.buildings ?? {};
+    const isRequired = (id: BuildingId): boolean => current.buildings[id] < (required[id] ?? 0);
+    let best: BuildingId | null = null;
+    let bestScore = Infinity;
+    for (const id of BUILDING_IDS) {
+      if (rungLevel(current.rung) < rungLevel(BUILDINGS[id].unlockedAt)) continue;
+      if (current.buildings[id] >= (BUILDINGS[id].maxCount ?? Infinity)) continue;
+      if ((current.challenge && getChallenge(current.challenge)?.noBuildings)?.includes(id)) continue;
+      const cost = getBuildingCost(id, current.buildings[id]);
+      const affordable =
+        current.resources.materials >= cost.materials &&
+        current.resources.food >= cost.food &&
+        current.resources.knowledge >= cost.knowledge;
+      if (!affordable) continue;
+      // Buildings the next rung requires come first and may dip into the reserve; the rest must not.
+      const required1 = isRequired(id);
+      if (
+        !required1 &&
+        (current.resources.materials - cost.materials < reserve.materials ||
+          current.resources.food - cost.food < reserve.food ||
+          current.resources.knowledge - cost.knowledge < reserve.knowledge)
+      ) {
+        continue;
+      }
+      const score = (required1 ? 0 : 1e6) + cost.materials + cost.food + cost.knowledge;
+      if (score < bestScore) {
+        best = id;
+        bestScore = score;
+      }
+    }
+    if (best) {
+      const result = executeActionCore(current, { type: 'BUILD', buildingId: best });
+      if (result.success) current = withStats(current, result.state, { built: 1 });
+    }
+  }
+
+  return current;
+}
+
+function executeActionCore(
   state: TimelineState,
   action: EngineAction
 ): EngineResult {
@@ -245,7 +580,7 @@ export function executeAction(
     case 'FORAGE': {
       // Pure food yield, scaled by season (winter is harsher)
       const isWinter = state.season === 'Winter';
-      const foodGain = isWinter ? 1.8 : 3.0;
+      const foodGain = Number(((isWinter ? 1.8 : 3.0) * manualMultiplier(state)).toFixed(2));
 
       const newFood = Math.min(state.caps.food, state.resources.food + foodGain);
 
@@ -274,7 +609,7 @@ export function executeAction(
 
     case 'SCAVENGE': {
       // Scavenge yields materials: flint, dry boughs, river stones
-      const materialsGain = 1.5;
+      const materialsGain = Number((1.5 * manualMultiplier(state)).toFixed(2));
 
       const newMaterials = Math.min(
         state.caps.materials,
@@ -306,7 +641,7 @@ export function executeAction(
 
     case 'STUDY': {
       // Manual contemplation/ponder yields knowledge and a small stability grounding
-      const knowledgeGain = 1.5;
+      const knowledgeGain = Number((1.5 * manualMultiplier(state)).toFixed(2));
       const newKnowledge = Math.min(
         state.caps.knowledge,
         state.resources.knowledge + knowledgeGain
@@ -339,35 +674,28 @@ export function executeAction(
 
     case 'ASSIGN_ROLE': {
       const { role, delta } = action;
+      if (!Number.isInteger(delta) || delta === 0) {
+        return { success: false, state, error: 'Choose a whole number of people to move.', events: [] };
+      }
 
-      // Check role unlocks based on rung
-      if (role === 'forager' || role === 'builder') {
-        if (state.rung === 'hearth') {
-          return {
-            success: false,
-            state,
-            error: 'You must reach the Gathering Band rung to assign Foragers and Builders.',
-            events: [],
-          };
-        }
-      } else if (role === 'scholar') {
-        if (state.rung === 'hearth' || state.rung === 'band') {
-          return {
-            success: false,
-            state,
-            error: 'You must reach the Settled Camp rung to appoint Scholars.',
-            events: [],
-          };
-        }
-      } else if (role === 'healer') {
-        if (state.rung !== 'village') {
-          return {
-            success: false,
-            state,
-            error: 'You must reach the Dawn Village rung to appoint Healers.',
-            events: [],
-          };
-        }
+      const activeChallenge = state.challenge ? getChallenge(state.challenge) : undefined;
+      if (delta > 0 && activeChallenge?.noRoles?.includes(role)) {
+        return {
+          success: false,
+          state,
+          error: `${activeChallenge.name}: nobody may be a ${role} during this challenge.`,
+          events: [],
+        };
+      }
+
+      // Roles unlock at fixed rungs (single source: ROLE_MIN_RUNG).
+      if (rungLevel(state.rung) < rungLevel(ROLE_MIN_RUNG[role])) {
+        return {
+          success: false,
+          state,
+          error: `You must reach the ${RUNGS[ROLE_MIN_RUNG[role]].name} rung to assign ${role}s.`,
+          events: [],
+        };
       }
 
       if (delta > 0) {
@@ -399,7 +727,7 @@ export function executeAction(
       const log = createLog(
         state.tick,
         state.year,
-        `${delta > 0 ? 'Assigned' : 'Unassigned'} 1 ${role}.`
+        `${delta > 0 ? 'Assigned' : 'Unassigned'} ${Math.abs(delta)} ${role}.`
       );
 
       const nextState: TimelineState = {
@@ -431,8 +759,7 @@ export function executeAction(
       }
 
       // Check rung prerequisite
-      const RUNG_LEVELS = { hearth: 0, band: 1, settlement: 2, village: 3 };
-      if (RUNG_LEVELS[state.rung] < RUNG_LEVELS[def.unlockedAt]) {
+      if (rungLevel(state.rung) < rungLevel(def.unlockedAt)) {
         return {
           success: false,
           state,
@@ -441,7 +768,25 @@ export function executeAction(
         };
       }
 
+      const buildChallenge = state.challenge ? getChallenge(state.challenge) : undefined;
+      if (buildChallenge?.noBuildings?.includes(buildingId)) {
+        return {
+          success: false,
+          state,
+          error: `${buildChallenge.name}: ${def.name} cannot be built during this challenge.`,
+          events: [],
+        };
+      }
+
       const currentCount = state.buildings[buildingId] || 0;
+      if (def.maxCount !== undefined && currentCount >= def.maxCount) {
+        return {
+          success: false,
+          state,
+          error: `${def.name} is a wonder and can only be built once per timeline.`,
+          events: [],
+        };
+      }
       const cost = getBuildingCost(buildingId, currentCount);
 
       if (state.resources.materials < cost.materials) {
@@ -474,7 +819,7 @@ export function executeAction(
         [buildingId]: currentCount + 1,
       };
 
-      const nextCaps = calculateCaps(nextBuildings, state.rung);
+      const nextCaps = calculateCaps(nextBuildings, state.rung, state.discoveries);
 
       const log = createLog(
         state.tick,
@@ -523,7 +868,7 @@ export function executeAction(
         };
       }
 
-      const nextCaps = calculateCaps(state.buildings, rungId);
+      const nextCaps = calculateCaps(state.buildings, rungId, state.discoveries);
       const log = createLog(
         state.tick,
         state.year,
@@ -573,6 +918,13 @@ export function executeAction(
         furthestYear: newFurthestYear,
         timelinesCreated: nextTimelinesCreated,
         insight: totalInsight,
+        echoes: state.echoes,
+        resonance: state.resonance,
+        eternity: state.eternity,
+        ...carryFeatures(state, 1),
+        edicts: state.edicts,
+        relics: state.relics,
+        history: recordHistory(state, 1, `+${gainedInsight} Insight`),
       });
 
       const jumpLog = createLog(
@@ -582,12 +934,345 @@ export function executeAction(
         'prestige'
       );
 
-      resetState.logs = [jumpLog, ...resetState.logs];
+      resetState.logs = [
+        jumpLog,
+        ...closureLogs(state, true),
+        ...unlockLogs(state, 1),
+        ...resetState.logs,
+      ];
 
       return {
         success: true,
         state: resetState,
         events: [`Time jump completed: +${gainedInsight} Insight`],
+      };
+    }
+
+    case 'PRESTIGE': {
+      const def = PRESTIGE_TIERS[action.tier];
+      if (!def) {
+        return { success: false, state, error: 'Unknown prestige tier.', events: [] };
+      }
+      const check = checkPrestigeTier(state, action.tier);
+      if (!check.eligible) {
+        return {
+          success: false,
+          state,
+          error: `Cannot begin ${def.name}: ${check.reasons.join(', ')}`,
+          events: [],
+        };
+      }
+
+      const gain = calculatePrestigeGain(state, action.tier);
+      const carried = {
+        echoes: state.echoes,
+        resonance: state.resonance,
+        eternity: state.eternity,
+        insight: state.insight,
+      };
+      // Each tier resets everything below itself and banks its own currency.
+      if (action.tier === 2) {
+        carried.insight = 0;
+        carried.echoes += gain;
+      } else if (action.tier === 3) {
+        carried.insight = 0;
+        carried.echoes = 0;
+        carried.resonance += gain;
+      } else {
+        carried.insight = 0;
+        carried.echoes = 0;
+        carried.resonance = 0;
+        carried.eternity += gain;
+      }
+
+      const newFurthestYear = Math.max(state.furthestYear, state.year);
+      const resetState = createInitialState({
+        seed: state.seed,
+        furthestYear: newFurthestYear,
+        timelinesCreated: state.timelinesCreated + 1,
+        ...carried,
+        ...carryFeatures(state, action.tier),
+        edicts: state.edicts,
+        relics: state.relics,
+        history: recordHistory(state, action.tier, `+${gain} ${def.currencyName}`),
+      });
+      resetState.logs = [
+        createLog(
+          0,
+          1,
+          `${def.name} at Year ${state.year}. Gained +${gain} ${def.currencyName}. Furthest Year: ${newFurthestYear}.`,
+          'prestige'
+        ),
+        ...closureLogs(state, true),
+        ...unlockLogs(state, action.tier),
+        ...resetState.logs,
+      ];
+
+      return {
+        success: true,
+        state: resetState,
+        events: [`${def.name} completed: +${gain} ${def.currencyName}`],
+      };
+    }
+
+    case 'SET_EDICT': {
+      if (!RUNG_ORDER.includes(action.slot) || action.slot === 'hearth') {
+        return { success: false, state, error: 'That is not an edict slot.', events: [] };
+      }
+      if (action.edictId === null) {
+        const { [action.slot]: _removed, ...rest } = state.edicts;
+        return { success: true, state: { ...state, edicts: rest }, events: ['Edict cleared'] };
+      }
+      const def = getEdict(action.edictId);
+      if (!def || def.slot !== action.slot) {
+        return { success: false, state, error: 'That edict is not available in this slot.', events: [] };
+      }
+      if (rungLevel(state.rung) < rungLevel(action.slot)) {
+        return {
+          success: false,
+          state,
+          error: `This slot opens at ${RUNGS[action.slot].name}.`,
+          events: [],
+        };
+      }
+      return {
+        success: true,
+        state: {
+          ...state,
+          edicts: { ...state.edicts, [action.slot]: def.id },
+          logs: [
+            createLog(state.tick, state.year, `${def.icon} Decreed ${def.name}. ${def.description}`),
+            ...state.logs,
+          ].slice(0, 50),
+        },
+        events: [`Decreed ${def.name}`],
+      };
+    }
+
+    case 'BARTER': {
+      const marketRung = marketRungFor(state);
+      if (rungLevel(state.rung) < rungLevel(marketRung)) {
+        return {
+          success: false,
+          state,
+          error: `The marketplace opens at ${RUNGS[marketRung].name}.`,
+          events: [],
+        };
+      }
+      const ratio = barterRatio(state.buildings, action.from, action.to);
+      if (ratio === null) {
+        return { success: false, state, error: 'Those two stores cannot be traded.', events: [] };
+      }
+      const wanted = Math.floor(action.amount);
+      if (!(wanted > 0) || state.resources[action.from] < wanted) {
+        return {
+          success: false,
+          state,
+          error: `Not enough ${action.from} to trade ${Math.max(0, wanted)}.`,
+          events: [],
+        };
+      }
+      // Never spend more than the destination can hold: nothing is traded into waste.
+      const room = Math.floor(state.caps[action.to] - state.resources[action.to]);
+      // Whole units only, so the preview and the result always agree.
+      const gain = Math.min(Math.floor(wanted / ratio), room);
+      if (gain < 1) {
+        return {
+          success: false,
+          state,
+          error: `Your ${action.to} stores have no room for that trade.`,
+          events: [],
+        };
+      }
+      const spent = Math.min(wanted, Math.ceil(gain * ratio));
+      return {
+        success: true,
+        state: {
+          ...state,
+          resources: {
+            ...state.resources,
+            [action.from]: Number((state.resources[action.from] - spent).toFixed(2)),
+            [action.to]: Number((state.resources[action.to] + gain).toFixed(2)),
+          },
+          logs: [
+            createLog(
+              state.tick,
+              state.year,
+              `Traded ${spent} ${action.from} for ${gain} ${action.to}.`
+            ),
+            ...state.logs,
+          ].slice(0, 50),
+        },
+        events: [`Traded ${spent} ${action.from} for ${gain} ${action.to}`],
+      };
+    }
+
+    case 'RESOLVE_CHOICE': {
+      const def = state.pendingChoice && EVENTS.find((e) => e.id === state.pendingChoice?.eventId);
+      const choice = def?.choices?.[action.index];
+      if (!def || !choice) {
+        return { success: false, state, error: 'There is no decision to make.', events: [] };
+      }
+      const g = scaleGift(choice, rungLevel(state.rung));
+      const room = Math.max(0, state.population.max - state.population.total);
+      const arrivals = Math.min(g.people, room);
+      return {
+        success: true,
+        state: {
+          ...state,
+          pendingChoice: null,
+          resources: {
+            food: Number(Math.min(state.caps.food, state.resources.food + g.food).toFixed(2)),
+            materials: Number(Math.min(state.caps.materials, state.resources.materials + g.materials).toFixed(2)),
+            knowledge: Number(Math.min(state.caps.knowledge, state.resources.knowledge + g.knowledge).toFixed(2)),
+            stability: Number(Math.min(100, state.resources.stability + g.stability).toFixed(2)),
+          },
+          population: {
+            ...state.population,
+            total: state.population.total + arrivals,
+            roles: {
+              ...state.population.roles,
+              unassigned: state.population.roles.unassigned + arrivals,
+            },
+          },
+          logs: [
+            createLog(state.tick, state.year, `${def.title}: you chose "${choice.label}".`, 'milestone'),
+            ...state.logs,
+          ].slice(0, 50),
+        },
+        events: [`Chose ${choice.label}`],
+      };
+    }
+
+    case 'START_CHALLENGE': {
+      const def = getChallenge(action.challengeId);
+      if (!def) return { success: false, state, error: 'Unknown challenge.', events: [] };
+      if (state.prestigeCounts[1] < 1) {
+        return { success: false, state, error: 'Challenges open after your first Time Jump.', events: [] };
+      }
+      if (state.challenge) {
+        return { success: false, state, error: 'Finish or abandon the current challenge first.', events: [] };
+      }
+      if (state.relics.includes(def.reward)) {
+        return { success: false, state, error: `${def.name} is already complete.`, events: [] };
+      }
+      if (rungLevel(getStartingRung(state)) >= rungLevel(def.goalRung)) {
+        return {
+          success: false,
+          state,
+          error: `Your head start already begins at or past ${RUNGS[def.goalRung].name}, so this challenge would be free.`,
+          events: [],
+        };
+      }
+      if (state.year < 3) {
+        return {
+          success: false,
+          state,
+          error: 'Let the timeline reach Year 3 first: beginning a challenge ends it like a Time Jump.',
+          events: [],
+        };
+      }
+      // Ending the run this way is a Time Jump: it pays the same Insight and counts as one.
+      const gainedInsight = calculateTimeJumpInsight(state);
+      // A fresh timeline with every permanent bonus intact; nothing is gained or lost by starting.
+      const fresh = createInitialState({
+        seed: state.seed,
+        furthestYear: Math.max(state.furthestYear, state.year),
+        timelinesCreated: state.timelinesCreated + 1,
+        insight: state.insight + gainedInsight,
+        echoes: state.echoes,
+        resonance: state.resonance,
+        eternity: state.eternity,
+        ...carryFeatures(state, 1),
+        edicts: state.edicts,
+        relics: state.relics,
+        history: recordHistory(state, 1, `+${gainedInsight} Insight (challenge: ${def.name})`),
+        challenge: def.id,
+      });
+      fresh.logs = [
+        ...closureLogs(state, false),
+        ...unlockLogs(state, 1),
+        createLog(0, 1, `${def.icon} Challenge begun: ${def.name}. ${def.description}${gainedInsight > 0 ? ` The old timeline paid out +${gainedInsight} Insight.` : ''}`, 'prestige'),
+        ...fresh.logs,
+      ].slice(0, 50);
+      return { success: true, state: fresh, events: [`Challenge begun: ${def.name}`] };
+    }
+
+    case 'ABANDON_CHALLENGE': {
+      const def = state.challenge ? getChallenge(state.challenge) : undefined;
+      if (!def) return { success: false, state, error: 'No challenge is active.', events: [] };
+      return {
+        success: true,
+        state: {
+          ...state,
+          challenge: null,
+          logs: [
+            createLog(state.tick, state.year, `${def.icon} ${def.name} set aside. Nothing was lost.`),
+            ...state.logs,
+          ].slice(0, 50),
+        },
+        events: [`Abandoned ${def.name}`],
+      };
+    }
+
+    case 'RESEARCH': {
+      const def = getDiscovery(action.discoveryId);
+      if (!def) {
+        return { success: false, state, error: 'Unknown discovery.', events: [] };
+      }
+      if (state.discoveries.includes(def.id)) {
+        return { success: false, state, error: `${def.name} is already researched.`, events: [] };
+      }
+      if (rungLevel(state.rung) < rungLevel(def.minRung)) {
+        return {
+          success: false,
+          state,
+          error: `${def.name} requires reaching ${RUNGS[def.minRung].name}.`,
+          events: [],
+        };
+      }
+      if (!legacyMet(state, def)) {
+        return { success: false, state, error: `${def.name}: ${legacyNote(def)}.`, events: [] };
+      }
+      const cost = discoveryCost(state, def.cost);
+      if (state.resources.knowledge < cost) {
+        return {
+          success: false,
+          state,
+          error: `Requires ${cost} Knowledge (have ${Math.floor(state.resources.knowledge)}).`,
+          events: [],
+        };
+      }
+      const discoveries = [...state.discoveries, def.id];
+      const nextCaps = calculateCaps(state.buildings, state.rung, discoveries);
+      return {
+        success: true,
+        state: {
+          ...state,
+          discoveries,
+          resources: {
+            ...state.resources,
+            knowledge: Number((state.resources.knowledge - cost).toFixed(2)),
+          },
+          caps: { food: nextCaps.food, materials: nextCaps.materials, knowledge: nextCaps.knowledge },
+          population: { ...state.population, max: nextCaps.population },
+          logs: [
+            createLog(state.tick, state.year, `${def.icon} Discovered ${def.name}. ${def.description}`, 'milestone'),
+            ...state.logs,
+          ].slice(0, 50),
+        },
+        events: [`Discovered ${def.name}`],
+      };
+    }
+
+    case 'TOGGLE_AUTOMATION': {
+      return {
+        success: true,
+        state: {
+          ...state,
+          automation: { ...state.automation, [action.key]: !state.automation[action.key] },
+        },
+        events: [`Toggled ${action.key} automation`],
       };
     }
 
@@ -644,6 +1329,38 @@ export function executeAction(
       };
     }
 
+    case 'DEV_SET_RUNG': {
+      const nextCaps = calculateCaps(state.buildings, action.rung, state.discoveries);
+      return {
+        success: true,
+        state: {
+          ...state,
+          rung: action.rung,
+          caps: { food: nextCaps.food, materials: nextCaps.materials, knowledge: nextCaps.knowledge },
+          resources: {
+            ...state.resources,
+            food: Math.min(state.resources.food, nextCaps.food),
+            materials: Math.min(state.resources.materials, nextCaps.materials),
+            knowledge: Math.min(state.resources.knowledge, nextCaps.knowledge),
+          },
+          population: { ...state.population, max: nextCaps.population },
+          logs: [
+            createLog(state.tick, state.year, `[DEV MODE] Warped to ${RUNGS[action.rung].name}.`),
+            ...state.logs,
+          ].slice(0, 50),
+        },
+        events: [`[Dev] Warped to ${RUNGS[action.rung].name}`],
+      };
+    }
+
+    case 'DEV_ADD_INSIGHT': {
+      return {
+        success: true,
+        state: { ...state, insight: state.insight + Math.max(0, action.amount) },
+        events: [`[Dev] Added ${action.amount} Insight`],
+      };
+    }
+
     case 'DEV_RESET': {
       const resetState = createInitialState();
       return {
@@ -661,4 +1378,182 @@ export function executeAction(
         events: [],
       };
   }
+}
+
+const asNumber = (value: unknown, fallback = 0): number =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : fallback;
+
+const asStringArray = (value: unknown): string[] =>
+  Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+
+/**
+ * Makes any loaded or imported save safe to play: fills fields added after the
+ * save was written, drops wrongly typed values, and recomputes derived storage.
+ */
+export function normalizeState(saved: TimelineState): TimelineState {
+  const old: Partial<TimelineState> = saved;
+  const defaults = createInitialState();
+  const buildings = { ...createEmptyBuildings() };
+  for (const id of BUILDING_IDS) {
+    const count = Math.floor(asNumber(old.buildings?.[id]));
+    buildings[id] = Math.min(count, BUILDINGS[id].maxCount ?? count);
+  }
+  const discoveries = asStringArray(old.discoveries).filter((id) => getDiscovery(id));
+  const rung = RUNG_ORDER.includes(saved.rung) ? saved.rung : 'hearth';
+  const caps = calculateCaps(buildings, rung, discoveries);
+  const edicts: Record<string, string> = {};
+  if (old.edicts && typeof old.edicts === 'object') {
+    for (const [slot, id] of Object.entries(old.edicts)) {
+      if (typeof id === 'string' && getEdict(id)?.slot === slot) edicts[slot] = id;
+    }
+  }
+  const counts: Partial<TimelineState['prestigeCounts']> = old.prestigeCounts ?? {};
+  const prestigeCounts = {
+    1: asNumber(counts[1], asNumber(old.timelinesCreated)),
+    2: asNumber(counts[2]),
+    3: asNumber(counts[3]),
+    4: asNumber(counts[4]),
+  };
+  const features = [
+    ...new Set([
+      ...asStringArray(old.features).filter((id): id is FeatureId => Object.hasOwn(FEATURES, id)),
+      ...FEATURE_IDS.filter((id) => prestigeCounts[FEATURES[id].tier] >= FEATURES[id].onCount),
+    ]),
+  ];
+  const rawRoles: Partial<TimelineState['population']['roles']> = old.population?.roles ?? {};
+  const roles = {
+    unassigned: Math.floor(asNumber(rawRoles.unassigned)),
+    forager: Math.floor(asNumber(rawRoles.forager)),
+    scholar: Math.floor(asNumber(rawRoles.scholar)),
+    healer: Math.floor(asNumber(rawRoles.healer)),
+    builder: Math.floor(asNumber(rawRoles.builder)),
+  };
+  const sumRoles = (): number => Object.values(roles).reduce((a, b) => a + b, 0);
+  if (sumRoles() < 1) roles.unassigned = 1;
+  // An edited save cannot hold more people than the cap allows; trim from the idle end first.
+  let excess = sumRoles() - Math.max(1, caps.population);
+  for (const key of ['unassigned', 'builder', 'scholar', 'forager', 'healer'] as const) {
+    const take = Math.min(roles[key], Math.max(0, excess));
+    roles[key] -= take;
+    excess -= take;
+  }
+  const tick = Math.floor(asNumber(old.tick));
+  const rawRes: Partial<TimelineState['resources']> = old.resources ?? {};
+  const season = (SEASONS as readonly string[]).includes(saved.season) ? saved.season : SEASONS[tick % 4];
+  return {
+    ...saved,
+    rulesetVersion: defaults.rulesetVersion,
+    tick,
+    year: 1 + Math.floor(tick / 4),
+    season,
+    furthestYear: Math.max(1, Math.floor(asNumber(old.furthestYear, 1)), 1 + Math.floor(tick / 4)),
+    timelinesCreated: Math.floor(asNumber(old.timelinesCreated)),
+    insight: Math.floor(asNumber(old.insight)),
+    resources: {
+      food: Math.min(caps.food, asNumber(rawRes.food)),
+      materials: Math.min(caps.materials, asNumber(rawRes.materials)),
+      knowledge: Math.min(caps.knowledge, asNumber(rawRes.knowledge)),
+      stability: Math.min(100, asNumber(rawRes.stability, 75)),
+    },
+    rung,
+    echoes: asNumber(old.echoes),
+    resonance: asNumber(old.resonance),
+    eternity: asNumber(old.eternity),
+    buildings,
+    features,
+    achievements: asStringArray(old.achievements),
+    history: (Array.isArray(old.history) ? old.history : [])
+      .filter(
+        (h): h is HistoryEntry =>
+          !!h &&
+          [1, 2, 3, 4].includes(h.tier) &&
+          RUNG_ORDER.includes(h.rung) &&
+          typeof h.year === 'number' &&
+          typeof h.number === 'number' &&
+          typeof h.gained === 'string'
+      )
+      .slice(0, 12),
+    logs: (Array.isArray(old.logs) ? old.logs : [])
+      .filter((l) => !!l && typeof l.text === 'string' && typeof l.id === 'string')
+      .slice(0, 50),
+    relics: asStringArray(old.relics).filter((id) => getRelic(id)),
+    stats: {
+      ticks: Math.floor(asNumber(old.stats?.ticks, asNumber(old.tick))),
+      gathers: Math.floor(asNumber(old.stats?.gathers)),
+      built: Math.floor(asNumber(old.stats?.built)),
+      researched: Math.floor(asNumber(old.stats?.researched)),
+      traded: Math.floor(asNumber(old.stats?.traded)),
+    },
+    // A completed challenge (trophy already owned) does not linger.
+    challenge:
+      old.challenge &&
+      getChallenge(old.challenge) &&
+      !asStringArray(old.relics).includes(getChallenge(old.challenge)!.reward)
+        ? old.challenge
+        : null,
+    pendingChoice:
+      old.pendingChoice && EVENTS.some((e) => e.id === old.pendingChoice?.eventId && e.choices)
+        ? { eventId: old.pendingChoice.eventId, tick: asNumber(old.pendingChoice.tick) }
+        : null,
+    discoveries,
+    edicts,
+    automation: {
+      assign: old.automation?.assign !== false,
+      advance: old.automation?.advance !== false,
+      build: old.automation?.build !== false,
+      research: old.automation?.research !== false,
+    },
+    prestigeCounts,
+    caps: { food: caps.food, materials: caps.materials, knowledge: caps.knowledge },
+    population: { total: Math.max(1, Object.values(roles).reduce((a, b) => a + b, 0)), max: caps.population, roles },
+  };
+}
+
+export const MAX_AWAY_TICKS = 8 * 60 * 60;
+export const SECOND_WIND_AWAY_TICKS = 24 * 60 * 60;
+
+export function awayCapTicks(state: Pick<TimelineState, 'features' | 'relics'>): number {
+  const base = hasFeature(state, 'second_wind') ? SECOND_WIND_AWAY_TICKS : MAX_AWAY_TICKS;
+  return base + Math.round(relicBonus(state.relics, 'awayHours') * 3600);
+}
+
+export interface AwaySummary {
+  ticks: number;
+  years: number;
+  food: number;
+  materials: number;
+  knowledge: number;
+  population: number;
+  rungChanged: boolean;
+}
+
+/** Adds one entry to the Chronicle (newest first, capped). */
+export function appendLog(state: TimelineState, text: string, type: LogEntry['type'] = 'info'): TimelineState {
+  return { ...state, logs: [createLog(state.tick, state.year, text, type), ...state.logs].slice(0, 50) };
+}
+
+export function summarizeAway(before: TimelineState, after: TimelineState, ticks: number): AwaySummary {
+  return {
+    ticks,
+    years: after.year - before.year,
+    food: Number((after.resources.food - before.resources.food).toFixed(1)),
+    materials: Number((after.resources.materials - before.resources.materials).toFixed(1)),
+    knowledge: Number((after.resources.knowledge - before.resources.knowledge).toFixed(1)),
+    population: after.population.total - before.population.total,
+    rungChanged: after.rung !== before.rung,
+  };
+}
+
+/**
+ * Advances the timeline while the player is away. Nothing can be lost
+ * (see the "Number only goes up" pillar), so absence is always safe.
+ */
+export function fastForward(
+  state: TimelineState,
+  requestedTicks: number
+): { state: TimelineState; summary: AwaySummary } {
+  const ticks = Math.max(0, Math.min(awayCapTicks(state), Math.floor(requestedTicks)));
+  let next = state;
+  for (let i = 0; i < ticks; i++) next = stepTick(next);
+  return { state: next, summary: summarizeAway(state, next, ticks) };
 }

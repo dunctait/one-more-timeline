@@ -1,16 +1,51 @@
+import { ACHIEVEMENTS } from '../engine/achievements.js';
+import { DISCOVERIES, legacyMet, legacyNote } from '../engine/discoveries.js';
+import { CHALLENGES, getChallenge } from '../engine/challenges.js';
+import { edictsForSlot } from '../engine/edicts.js';
+import { EVENTS } from '../engine/events.js';
+import { timelineSeed } from '../engine/events.js';
+import { personName } from '../engine/people.js';
+import { RELICS } from '../engine/relics.js';
+import { manualMultiplier } from '../engine/engine.js';
 import {
+  describeBuildingGain,
+  insightStartBonus,
+  explainProduction,
+  barterRatio,
+  BARTER_BASE_RATIOS,
   BUILDINGS,
+  marketRungFor,
+  discoveryCost,
   calculateNetRates,
+  RENOWN_PER_ACHIEVEMENT,
+  calculatePrestigeGain,
   calculateTimeJumpInsight,
+  checkPrestigeTier,
   checkRungPrerequisites,
+  FEATURES,
+  FEATURE_IDS,
+  featuresEarned,
+  FeatureDef,
   getBuildingCost,
+  getProductionMultiplier,
+  getStartingRung,
+  hasFeature,
+  PRESTIGE_TIERS,
+  PRESTIGE_TIER_ORDER,
   RUNGS,
+  ROLE_MIN_RUNG,
   RUNG_ORDER,
+  rungLevel,
+  SEASON_PROFILES,
 } from '../engine/rules.js';
 import {
+  AutomationKey,
   BuildingId,
+  FeatureId,
   LogEntry,
+  PrestigeTier,
   RoleId,
+  TradeableResource,
   RungId,
   TimelineState,
 } from '../engine/types.js';
@@ -37,6 +72,10 @@ export interface BuildingViewModel {
   costString: string;
   canAfford: boolean;
   affordable: boolean;
+  /** A wonder that already stands. */
+  maxed: boolean;
+  /** What one more would add, with the player's real multipliers applied. */
+  gains: string[];
 }
 
 export interface RungPrerequisiteItem {
@@ -95,6 +134,81 @@ export interface TimeJumpViewModel {
   breakdown: TimeJumpBenefitsBreakdown;
   benefits: TimeJumpBenefitsBreakdown;
   confirmationText: string;
+  sendsBack: SendsBackViewModel[];
+}
+
+export interface SendsBackViewModel {
+  id: FeatureId;
+  name: string;
+  icon: string;
+  description: string;
+}
+
+export interface FeatureViewModel extends SendsBackViewModel {
+  automation: AutomationKey | null;
+  enabled: boolean;
+}
+
+export interface PrestigeTierViewModel {
+  tier: PrestigeTier;
+  name: string;
+  icon: string;
+  actionLabel: string;
+  currencyName: string;
+  balance: number;
+  eligible: boolean;
+  reasons: string[];
+  items: RungPrerequisiteItem[];
+  /** Null when the player cannot yet see it (not eligible and no Temporal Foresight). */
+  projectedGain: number | null;
+  whatItDoes: string;
+  nextRun: string;
+  howEarned: string;
+  resets: string;
+  lore: string;
+  sendsBack: SendsBackViewModel[];
+  confirmationText: string;
+}
+
+export interface EdictSlotViewModel {
+  slot: RungId;
+  slotName: string;
+  chosenId: string | null;
+  options: Array<{ id: string; name: string; icon: string; description: string; chosen: boolean }>;
+}
+
+export interface HistoryRowViewModel {
+  label: string;
+  detail: string;
+}
+
+export interface GoalViewModel {
+  title: string;
+  steps: string[];
+  /** Tab where the player can act on the goal. */
+  tab: 'hearth' | 'settlement' | 'evolution';
+  ready: boolean;
+}
+
+export interface DiscoveryViewModel {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  cost: number;
+  unlocked: boolean;
+  unlockPrereq: string;
+  researched: boolean;
+  canAfford: boolean;
+}
+
+export interface AchievementViewModel {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  earned: boolean;
+  progressText: string;
 }
 
 export interface TabBadgesViewModel {
@@ -112,10 +226,15 @@ export interface TimelineViewModel {
     year: number;
     season: string;
     seasonClass: string;
+    seasonNote: string;
     rungName: string;
     furthestYear: number;
     timelinesCreated: number;
     insight: number;
+    echoes: number;
+    resonance: number;
+    eternity: number;
+    totalMultiplier: string;
   };
   resources: {
     food: {
@@ -123,7 +242,6 @@ export interface TimelineViewModel {
       max: number;
       rate: number;
       rateFormatted: string;
-      isDeficit: boolean;
       percentage: number;
     };
     materials: {
@@ -160,11 +278,53 @@ export interface TimelineViewModel {
     actionPacing: string;
     forageYield: number;
     pacing: string;
-    learningGrace: string;
   };
   buildings: BuildingViewModel[];
   rungProgression: RungProgressionViewModel;
   timeJump: TimeJumpViewModel;
+  prestige: PrestigeTierViewModel[];
+  features: FeatureViewModel[];
+  nextFeatures: Array<{ icon: string; name: string; condition: string; description: string }>;
+  goal: GoalViewModel;
+  challenges: Array<{
+    id: string;
+    name: string;
+    icon: string;
+    description: string;
+    goal: string;
+    reward: string;
+    lockedNote: string;
+    status: 'locked' | 'available' | 'active' | 'done';
+  }>;
+  decision: {
+    title: string;
+    text: string;
+    options: Array<{ label: string; description: string }>;
+  } | null;
+  productionNotes: Array<{ label: string; value: string }>;
+  market: {
+    unlocked: boolean;
+    unlockPrereq: string;
+    rows: Array<{
+      from: TradeableResource;
+      to: TradeableResource;
+      ratio: number;
+      offers: Array<{ amount: number; gain: number; canTrade: boolean }>;
+    }>;
+  };
+  people: Array<{ name: string; role: string }>;
+  relics: { found: number; total: number; list: Array<{ name: string; icon: string; description: string; owned: boolean }> };
+  records: Array<{ label: string; value: string }>;
+  shareText: string;
+  history: HistoryRowViewModel[];
+  discoveries: DiscoveryViewModel[];
+  edictSlots: EdictSlotViewModel[];
+  achievements: {
+    earned: number;
+    total: number;
+    renownPercent: number;
+    list: AchievementViewModel[];
+  };
   tabBadges: TabBadgesViewModel;
   logs: LogEntry[];
 }
@@ -189,6 +349,22 @@ export function countNewLogIds(
   return { count: newLogs.length, updatedSeenIds };
 }
 
+/** Compact numbers for tight spaces: 1,234 becomes 1.2K, 2,500,000 becomes 2.5M. */
+export function formatCompact(n: number): string {
+  const abs = Math.abs(n);
+  const trim = (x: number): string => x.toFixed(1).replace(/\.0$/, '');
+  if (abs < 1000) return `${Math.floor(n)}`;
+  if (abs < 1_000_000) return `${trim(n / 1000)}K`;
+  if (abs < 1_000_000_000) return `${trim(n / 1_000_000)}M`;
+  return `${trim(n / 1_000_000_000)}B`;
+}
+
+/** A full store says so, instead of showing a rate that silently does nothing. */
+export function formatRateAtCap(rate: number, current: number, cap: number): string {
+  if (rate > 0 && current >= cap) return 'FULL';
+  return formatRate(rate);
+}
+
 export function formatRate(rate: number): string {
   if (rate > 0) return `+${rate.toFixed(1)}/t`;
   if (rate < 0) return `${rate.toFixed(1)}/t`;
@@ -202,16 +378,277 @@ export function getStabilityLabel(stability: number): {
   if (stability >= 80) return { label: 'Thriving', statusClass: 'status-thriving' };
   if (stability >= 55) return { label: 'Stable', statusClass: 'status-stable' };
   if (stability >= 30) return { label: 'Strained', statusClass: 'status-strained' };
-  if (stability > 0) return { label: 'Critical', statusClass: 'status-critical' };
-  return { label: 'Starving', statusClass: 'status-starving' };
+  return { label: 'Critical', statusClass: 'status-critical' };
+}
+
+/** Seconds of play at 1x speed, shown compactly. */
+export function formatDuration(ticks: number): string {
+  const s = Math.max(0, Math.ceil(ticks));
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+}
+
+/** A rough time to reach a requirement at current rates; null when it cannot be estimated. */
+function estimateTicks(
+  state: TimelineState,
+  name: string,
+  required: number,
+  rates: { food: number; materials: number; knowledge: number }
+): string | null {
+  if (name === 'Year') return `about ${formatDuration(Math.max(0, (required - 1) * 4 - state.tick))}`;
+  const key = name === 'Food' ? 'food' : name === 'Materials' ? 'materials' : name === 'Knowledge' ? 'knowledge' : null;
+  if (!key) return null;
+  const rate = rates[key];
+  if (rate <= 0) return 'gather by hand or assign people';
+  return `about ${formatDuration((required - state.resources[key]) / rate)}`;
+}
+
+function buildGoal(
+  state: TimelineState,
+  nextRung: RungProgressionViewModel['nextRung'],
+  prestige: PrestigeTierViewModel[]
+): GoalViewModel {
+  if (nextRung) {
+    if (nextRung.eligible) {
+      return {
+        title: `${nextRung.name} is within reach`,
+        steps: ['Every requirement is met. Open Evolution to advance.'],
+        tab: 'evolution',
+        ready: true,
+      };
+    }
+    const rates = calculateNetRates(state);
+    const steps = nextRung.items
+      .filter((i) => !i.met)
+      .map((i) => {
+        const isBuilding = Object.values(BUILDINGS).some((b) => b.name === i.name);
+        if (isBuilding) return `Build ${i.required - i.current} more ${i.name} (${i.current}/${i.required})`;
+        const eta = estimateTicks(state, i.name, i.required, rates);
+        return `${i.name}: ${i.current}/${i.required}${eta ? ` (${eta})` : ''}`;
+      });
+    const needsBuilding = nextRung.items.some(
+      (i) => !i.met && Object.values(BUILDINGS).some((b) => b.name === i.name)
+    );
+    return {
+      title: `Next: ${nextRung.name}`,
+      steps,
+      tab: needsBuilding ? 'settlement' : 'hearth',
+      ready: false,
+    };
+  }
+  const ready = prestige.filter((p) => p.eligible).pop();
+  if (ready) {
+    return {
+      title: `${ready.name} is ready`,
+      steps: [`Earn ${ready.currencyName} in Evolution. ${ready.resets}`],
+      tab: 'evolution',
+      ready: true,
+    };
+  }
+  // The tier being worked toward: the lowest whose currency has not yet unlocked the next tier.
+  const nearest =
+    prestige.find((p, i) => {
+      const next = prestige[i + 1];
+      return next ? p.balance < PRESTIGE_TIERS[next.tier].requiresAmount : true;
+    }) ?? prestige[prestige.length - 1];
+  const missing = nearest.items.filter((i) => !i.met).map((i) => `${i.name}: ${i.current}/${i.required}`);
+  return {
+    title: `Your realm stands. Next: ${nearest.name}`,
+    steps: missing.length ? missing.concat(['Time Jumps bank Insight.']) : ['Open Evolution.'],
+    tab: 'evolution',
+    ready: false,
+  };
+}
+
+function buildChallenges(state: TimelineState): TimelineViewModel['challenges'] {
+  return CHALLENGES.map((c) => {
+    const trophy = RELICS.find((r) => r.id === c.reward);
+    const done = state.relics.includes(c.reward);
+    const status = done
+      ? 'done'
+      : state.challenge === c.id
+        ? 'active'
+        : state.prestigeCounts[1] < 1 || rungLevel(getStartingRung(state)) >= rungLevel(c.goalRung)
+          ? 'locked'
+          : 'available';
+    return {
+      id: c.id,
+      name: c.name,
+      icon: c.icon,
+      description: c.description,
+      goal: `Reach ${RUNGS[c.goalRung].name}${c.maxYear ? ` before Year ${c.maxYear + 1}` : ''}`,
+      lockedNote:
+        state.prestigeCounts[1] < 1
+          ? 'Opens after your first Time Jump'
+          : 'Your head start already passes this goal',
+      reward: `${trophy?.icon ?? ''} ${trophy?.name ?? c.reward}: ${trophy?.description ?? ''}`,
+      status,
+    } as TimelineViewModel['challenges'][number];
+  });
+}
+
+function buildDecision(state: TimelineState): TimelineViewModel['decision'] {
+  const def = state.pendingChoice && EVENTS.find((e) => e.id === state.pendingChoice?.eventId);
+  if (!def?.choices) return null;
+  return {
+    title: def.title,
+    text: def.text,
+    options: def.choices.map((c) => ({ label: c.label, description: c.description })),
+  };
+}
+
+const TRADE_AMOUNTS = [30, 120];
+
+function buildMarket(state: TimelineState): TimelineViewModel['market'] {
+  const unlocked = rungLevel(state.rung) >= rungLevel(marketRungFor(state));
+  return {
+    unlocked,
+    unlockPrereq: `Opens at ${RUNGS[marketRungFor(state)].name}`,
+    rows: BARTER_BASE_RATIOS.map(({ from, to }) => {
+      const ratio = barterRatio(state.buildings, from, to) ?? 1;
+      const room = state.caps[to] - state.resources[to];
+      return {
+        from,
+        to,
+        ratio,
+        offers: TRADE_AMOUNTS.map((amount) => {
+          const gain = Math.min(Math.floor(amount / ratio), Math.floor(room));
+          return {
+            amount,
+            gain,
+            canTrade: unlocked && state.resources[from] >= amount && gain >= 1,
+          };
+        }),
+      };
+    }),
+  };
+}
+
+/** A short, spoiler-free summary a player can paste anywhere. */
+export function buildShareText(state: TimelineState): string {
+  const parts = [
+    `Furthest year ${state.furthestYear}`,
+    `${state.prestigeCounts[1]} Time Jumps`,
+    state.prestigeCounts[2] > 0 ? `${state.prestigeCounts[2]} Epoch Shifts` : null,
+    state.prestigeCounts[3] > 0 ? `${state.prestigeCounts[3]} Paradigm Shifts` : null,
+    state.prestigeCounts[4] > 0 ? `${state.prestigeCounts[4]} Ascensions` : null,
+    `${state.achievements.length}/${ACHIEVEMENTS.length} achievements`,
+    `${state.relics.length}/${RELICS.length} relics`,
+  ].filter(Boolean);
+  return `One More Timeline: ${parts.join(', ')}.`;
+}
+
+const MAX_PEOPLE_SHOWN = 12;
+
+/** Names are cosmetic; roles are assigned to people in a fixed order so the roster is stable. */
+function buildPeople(state: TimelineState): Array<{ name: string; role: string }> {
+  const order: Array<[string, number]> = [
+    ['Forager', state.population.roles.forager],
+    ['Builder', state.population.roles.builder],
+    ['Scholar', state.population.roles.scholar],
+    ['Healer', state.population.roles.healer],
+    ['Unassigned', state.population.roles.unassigned],
+  ];
+  const roles: string[] = order.flatMap(([label, n]) => Array<string>(Math.max(0, n)).fill(label));
+  return roles.slice(0, MAX_PEOPLE_SHOWN).map((role, i) => ({ name: personName(timelineSeed(state.seed, state.timelinesCreated), i), role }));
+}
+
+/** The closest functions not yet earned, with exactly what earns them. */
+function buildNextFeatures(
+  state: TimelineState
+): Array<{ icon: string; name: string; condition: string; description: string }> {
+  return FEATURE_IDS.map((id) => FEATURES[id])
+    .filter((f) => !hasFeature(state, f.id))
+    .map((f) => ({ f, remaining: f.onCount - state.prestigeCounts[f.tier] }))
+    .filter(({ remaining }) => remaining > 0)
+    .sort((a, b) => a.remaining - b.remaining || a.f.tier - b.f.tier)
+    .slice(0, 3)
+    .map(({ f, remaining }) => ({
+      icon: f.icon,
+      name: f.name,
+      description: f.description,
+      condition: `${remaining} more ${PRESTIGE_LABELS[f.tier]}${remaining > 1 ? 's' : ''}`,
+    }));
+}
+
+const PRESTIGE_LABELS: Record<1 | 2 | 3 | 4, string> = {
+  1: 'Time Jump',
+  2: 'Epoch Shift',
+  3: 'Paradigm Shift',
+  4: 'Ascension',
+};
+
+function toSendsBack(f: FeatureDef): SendsBackViewModel {
+  return { id: f.id, name: f.name, icon: f.icon, description: f.description };
+}
+
+function formatMultiplier(state: TimelineState): string {
+  return `x${getProductionMultiplier(state).toFixed(2)}`;
+}
+
+function buildPrestigeTierViewModel(state: TimelineState, tier: PrestigeTier): PrestigeTierViewModel {
+  const def = PRESTIGE_TIERS[tier];
+  const check = checkPrestigeTier(state, tier);
+  const gain = calculatePrestigeGain(state, tier);
+  const balance = state[def.requires];
+  const finalLevel = RUNG_ORDER.length - 1;
+  const items: RungPrerequisiteItem[] = [
+    {
+      name: RUNGS[RUNG_ORDER[finalLevel]].name,
+      current: rungLevel(state.rung),
+      required: finalLevel,
+      met: state.rung === RUNG_ORDER[finalLevel],
+    },
+    {
+      name: 'Year',
+      current: Math.min(state.year, def.requiresYear),
+      required: def.requiresYear,
+      met: state.year >= def.requiresYear,
+    },
+    {
+      name: def.requiresName,
+      current: balance,
+      required: def.requiresAmount,
+      met: balance >= def.requiresAmount,
+    },
+  ];
+  const sendsBack = featuresEarned(tier, state.prestigeCounts[tier] + 1).map(toSendsBack);
+  const canSeeGain = check.eligible || hasFeature(state, 'temporal_foresight');
+  const sendsBackText = sendsBack.length
+    ? `
+• Sends back a new function: ${sendsBack.map((f) => f.name).join(', ')}`
+    : '';
+
+  return {
+    tier,
+    name: def.name,
+    icon: def.icon,
+    actionLabel: def.actionLabel,
+    currencyName: def.currencyName,
+    balance: state[def.currency],
+    eligible: check.eligible,
+    reasons: check.reasons,
+    items,
+    projectedGain: canSeeGain ? gain : null,
+    whatItDoes: def.whatItDoes,
+    nextRun: def.nextRun,
+    howEarned: def.howEarned,
+    resets: def.resets,
+    lore: def.lore,
+    sendsBack,
+    confirmationText: `${def.actionLabel}?
+
+• Gain: +${gain} ${def.currencyName}
+• ${def.whatItDoes}
+• ${def.resets}${sendsBackText}
+
+This cannot be undone.`,
+  };
 }
 
 export function buildTimelineViewModel(state: TimelineState): TimelineViewModel {
-  const rawRates = calculateNetRates(state);
-  const rates =
-    state.learningGraceTicks > 0 && state.rung === 'hearth'
-      ? { ...rawRates, food: Math.max(0, rawRates.food) }
-      : rawRates;
+  const rates = calculateNetRates(state);
 
   const seasonClass = `season-${state.season.toLowerCase()}`;
 
@@ -221,12 +658,9 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   );
 
   // Population roles
-  const RUNG_LEVELS: Record<RungId, number> = {
-    hearth: 0,
-    band: 1,
-    settlement: 2,
-    village: 3,
-  };
+  const RUNG_LEVELS: Record<RungId, number> = Object.fromEntries(
+    RUNG_ORDER.map((r, i) => [r, i])
+  ) as Record<RungId, number>;
   const currentLevel = RUNG_LEVELS[state.rung];
 
   const roleDefinitions: Array<{
@@ -238,25 +672,25 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     {
       id: 'forager',
       name: 'Forager',
-      minRung: 'band',
-      description: 'Gathers wild food (+1.5 Food/tick, +0.9 in Winter).',
+      minRung: ROLE_MIN_RUNG.forager,
+      description: 'Gathers wild food (+1.5 Food/tick; +2.0 in Autumn, +0.9 in Winter).',
     },
     {
       id: 'builder',
       name: 'Builder',
-      minRung: 'band',
-      description: 'Collects and shapes materials (+1.0 Materials/tick).',
+      minRung: ROLE_MIN_RUNG.builder,
+      description: 'Collects and shapes materials (+1.0 Materials/tick; +20% in Summer).',
     },
     {
       id: 'scholar',
       name: 'Scholar',
-      minRung: 'settlement',
-      description: 'Contemplates time and stone (+0.8 Knowledge/tick).',
+      minRung: ROLE_MIN_RUNG.scholar,
+      description: 'Contemplates time and stone (+0.8 Knowledge/tick; +25% in Winter).',
     },
     {
       id: 'healer',
       name: 'Healer',
-      minRung: 'village',
+      minRung: ROLE_MIN_RUNG.healer,
       description: 'Tends to the sick and preserves community (+2.0 Stability/tick).',
     },
   ];
@@ -293,7 +727,13 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     if (cost.food) costParts.push(`${cost.food} Food`);
     if (cost.knowledge) costParts.push(`${cost.knowledge} Knw`);
 
+    const maxed = def.maxCount !== undefined && count >= def.maxCount;
+    const banned = Boolean(
+      state.challenge && getChallenge(state.challenge)?.noBuildings?.includes(bId)
+    );
     const canAfford =
+      !maxed &&
+      !banned &&
       state.resources.materials >= cost.materials &&
       state.resources.food >= (cost.food || 0) &&
       state.resources.knowledge >= (cost.knowledge || 0);
@@ -309,6 +749,8 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       costString: costParts.join(', '),
       canAfford,
       affordable: canAfford,
+      maxed,
+      gains: describeBuildingGain(state, bId),
     };
   });
 
@@ -364,40 +806,17 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
           met: state.population.total >= prereqs.population,
         });
       }
-      if (prereqs.huts) {
+      for (const [id, needed] of Object.entries(prereqs.buildings ?? {}) as Array<[BuildingId, number]>) {
         items.push({
-          name: 'Huts',
-          current: state.buildings.hut,
-          required: prereqs.huts,
-          met: state.buildings.hut >= prereqs.huts,
-        });
-      }
-      if (prereqs.workshop) {
-        items.push({
-          name: 'Workshop',
-          current: state.buildings.workshop,
-          required: prereqs.workshop,
-          met: state.buildings.workshop >= prereqs.workshop,
-        });
-      }
-      if (prereqs.granary) {
-        items.push({
-          name: 'Granary',
-          current: state.buildings.granary,
-          required: prereqs.granary,
-          met: state.buildings.granary >= prereqs.granary,
+          name: BUILDINGS[id].name,
+          current: state.buildings[id],
+          required: needed,
+          met: state.buildings[id] >= needed,
         });
       }
     }
 
-    const unlockedFeatures: string[] = [];
-    if (nextRungId === 'band') {
-      unlockedFeatures.push('Foragers', 'Builders', 'Thatched Huts', 'Elevated Granaries');
-    } else if (nextRungId === 'settlement') {
-      unlockedFeatures.push('Scholars', 'Tool Workshops', 'Eternal Fire Pits', 'Chronicle Obelisks');
-    } else if (nextRungId === 'village') {
-      unlockedFeatures.push('Healers', 'Expanded Horizon');
-    }
+    const unlockedFeatures: string[] = [...nextDef.unlocks];
 
     nextRungVm = {
       id: nextRungId,
@@ -416,14 +835,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   const projectedInsight = calculateTimeJumpInsight(state);
 
   const yearComponent = Math.floor(Math.sqrt(state.year));
-  const rungBonus =
-    state.rung === 'village'
-      ? 5
-      : state.rung === 'settlement'
-      ? 3
-      : state.rung === 'band'
-      ? 1
-      : 0;
+  const rungBonus = RUNGS[state.rung].insightBonus;
   const knowledgeComponent = Math.floor(state.resources.knowledge / 40);
   const popComponent = Math.floor(state.population.total / 4);
 
@@ -431,11 +843,14 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   const nextTotalInsight = state.insight + projectedInsight;
   const currentMultiplier = `+${currentProductionBonusPercent}% permanent production to all roles and builders (+1% per Insight, up to +50%)`;
 
+  const curBonus = insightStartBonus(state.insight);
+  const nextBonus = insightStartBonus(nextTotalInsight);
+
   const projectedGain = timeJumpEligible
-    ? `+${projectedInsight} Insight (+${projectedInsight}% production boost next cycle, starts with +${projectedInsight * 2} Food, +${projectedInsight} Materials)`
+    ? `+${projectedInsight} Insight (production bonus becomes +${Math.min(nextTotalInsight, 50)}%, max +50%; starts with +${nextBonus.food} Food, +${nextBonus.materials} Materials)`
     : `+0 Insight (Endure until at least Year 3 to harvest Insight)`;
 
-  const startingBonus = `+2 Food, +1 Materials per Insight at the dawn of each new timeline (currently +${state.insight * 2} Food, +${state.insight} Materials; next timeline starts with +${nextTotalInsight * 2} Food, +${nextTotalInsight} Materials)`;
+  const startingBonus = `+2 Food and +1 Materials per Insight at the dawn of each new timeline, up to +20 Food and +15 Materials (currently +${curBonus.food} Food, +${curBonus.materials} Materials; next timeline +${nextBonus.food} Food, +${nextBonus.materials} Materials)`;
 
   const formulaExplanation = `Calculated from Year (+${yearComponent}), Highest Rung (+${rungBonus}), Population (+${popComponent}), and Knowledge (+${knowledgeComponent}).`;
 
@@ -446,10 +861,10 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     startingBonus,
     currentProductionBonusPercent,
     projectedProductionBonusPercent: projectedInsight,
-    currentStartingFood: state.insight * 2,
-    currentStartingMaterials: state.insight,
-    nextStartingFood: nextTotalInsight * 2,
-    nextStartingMaterials: nextTotalInsight,
+    currentStartingFood: curBonus.food,
+    currentStartingMaterials: curBonus.materials,
+    nextStartingFood: nextBonus.food,
+    nextStartingMaterials: nextBonus.materials,
     formulaExplanation,
     calculationDetails: [
       {
@@ -475,7 +890,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     ],
   };
 
-  const confirmationText = `Initiate Time Jump?\n\nThis will collapse the current timeline into permanent cosmic memory:\n• Gain: +${projectedInsight} permanent Insight\n• Production boost: +${projectedInsight}% to all roles and builders next cycle\n• Next dawn reserves: Starts with +${nextTotalInsight * 2} Food, +${nextTotalInsight} Materials\n• Retains Furthest Year record (${Math.max(state.furthestYear, state.year)})\n\nAre you ready to awaken in a new dawn?`;
+  const confirmationText = `Initiate Time Jump?\n\nThis will collapse the current timeline into permanent cosmic memory:\n• Gain: +${projectedInsight} permanent Insight\n• Production bonus from Insight becomes +${Math.min(nextTotalInsight, 50)}% (it stops growing at +50%; extra Insight still counts toward Epoch Shift)\n• Next dawn reserves: Starts with +${nextBonus.food} Food, +${nextBonus.materials} Materials\n• Retains Furthest Year record (${Math.max(state.furthestYear, state.year)})\n\nAre you ready to awaken in a new dawn?`;
 
   const timeJumpVm: TimeJumpViewModel = {
     eligible: timeJumpEligible,
@@ -484,7 +899,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       ? `Collapse this timeline to awaken in a new dawn. Retains Furthest Year (${Math.max(
           state.furthestYear,
           state.year
-        )}) and grants +${projectedInsight} permanent Insight (+${projectedInsight}% production boost next cycle, starts with +${projectedInsight * 2} Food, +${projectedInsight} Materials).`
+        )}) and grants +${projectedInsight} permanent Insight (production bonus becomes +${Math.min(nextTotalInsight, 50)}%, max +50%; starts with +${nextBonus.food} Food, +${nextBonus.materials} Materials).`
       : 'The timeline is too fragile to yield Insight. Endure until at least Year 3 to collapse this timeline into enduring Insight.',
     currentInsight: state.insight,
     currentMultiplier,
@@ -493,17 +908,104 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
     breakdown: benefitsBreakdown,
     benefits: benefitsBreakdown,
     confirmationText,
+    sendsBack: [],
   };
 
+  timeJumpVm.sendsBack = featuresEarned(1, state.prestigeCounts[1] + 1).map(toSendsBack);
+  if (timeJumpVm.sendsBack.length > 0 && timeJumpEligible) {
+    timeJumpVm.confirmationText = timeJumpVm.confirmationText.replace(
+      '\n\nAre you ready',
+      `\n• Sends back a new function: ${timeJumpVm.sendsBack.map((f) => f.name).join(', ')}\n\nAre you ready`
+    );
+  }
+
+  const prestigeVm = PRESTIGE_TIER_ORDER.map((tier) => buildPrestigeTierViewModel(state, tier));
+  const featuresVm: FeatureViewModel[] = FEATURE_IDS.filter((id) => hasFeature(state, id)).map(
+    (id) => ({
+      ...toSendsBack(FEATURES[id]),
+      automation: FEATURES[id].automation ?? null,
+      enabled: FEATURES[id].automation ? state.automation[FEATURES[id].automation!] : true,
+    })
+  );
+
+  const achievementList: AchievementViewModel[] = ACHIEVEMENTS.map((a) => {
+    const earned = state.achievements.includes(a.id);
+    const progress = a.progress?.(state);
+    return {
+      id: a.id,
+      name: a.name,
+      icon: a.icon,
+      description: a.description,
+      earned,
+      progressText: earned ? 'Earned' : progress ? `${progress[0]}/${progress[1]}` : '',
+    };
+  });
+  const achievementsVm = {
+    earned: state.achievements.length,
+    total: ACHIEVEMENTS.length,
+    renownPercent: Math.round(state.achievements.length * RENOWN_PER_ACHIEVEMENT * 100),
+    list: achievementList,
+  };
+
+  const discoveriesVm: DiscoveryViewModel[] = DISCOVERIES.map((d) => {
+    const unlocked = rungLevel(state.rung) >= rungLevel(d.minRung) && legacyMet(state, d);
+    const researched = state.discoveries.includes(d.id);
+    return {
+      id: d.id,
+      name: d.name,
+      icon: d.icon,
+      description: d.description,
+      cost: discoveryCost(state, d.cost),
+      unlocked,
+      unlockPrereq:
+        rungLevel(state.rung) < rungLevel(d.minRung)
+          ? `Unlocks at ${RUNGS[d.minRung].name}`
+          : legacyNote(d),
+      researched,
+      canAfford: unlocked && !researched && state.resources.knowledge >= discoveryCost(state, d.cost),
+    };
+  });
+
+  const goal = buildGoal(state, nextRungVm, prestigeVm);
+  const activeChallenge = state.challenge ? CHALLENGES.find((c) => c.id === state.challenge) : undefined;
+  if (activeChallenge) {
+    goal.title = `${activeChallenge.icon} Challenge: ${activeChallenge.name}`;
+    goal.steps = [activeChallenge.description, `Goal: reach ${RUNGS[activeChallenge.goalRung].name}${activeChallenge.maxYear ? ` before Year ${activeChallenge.maxYear + 1}` : ''}`, ...goal.steps];
+  }
+
+  const edictSlotsVm: EdictSlotViewModel[] = RUNG_ORDER.filter(
+    (r) => r !== 'hearth' && rungLevel(state.rung) >= rungLevel(r)
+  ).map((slot) => ({
+    slot,
+    slotName: RUNGS[slot].name,
+    chosenId: state.edicts[slot] ?? null,
+    options: edictsForSlot(slot).map((e) => ({
+      id: e.id,
+      name: e.name,
+      icon: e.icon,
+      description: e.description,
+      chosen: state.edicts[slot] === e.id,
+    })),
+  }));
+  const emptyEdictSlots = edictSlotsVm.filter((s) => s.chosenId === null).length;
+
   // Actionable Tab Notification Badges
-  const unassignedCount = state.population.roles.unassigned;
-  const affordableBuildingsCount = buildingsVm.filter(
-    (b) => b.unlocked && (b.canAfford || b.affordable)
-  ).length;
-  const evolutionReady = Boolean(nextRungVm?.eligible || timeJumpEligible);
+  // Unassigned people only need attention once some role is open to them.
+  const rolesOpen = rungLevel(state.rung) >= rungLevel(ROLE_MIN_RUNG.forager);
+  const unassignedCount = rolesOpen ? state.population.roles.unassigned : 0;
+  const affordableBuildingsCount =
+    buildingsVm.filter((b) => b.unlocked && (b.canAfford || b.affordable)).length +
+    discoveriesVm.filter((d) => d.canAfford).length +
+    emptyEdictSlots;
+  const evolutionReady = Boolean(
+    nextRungVm?.eligible ||
+      prestigeVm.some((p) => p.eligible) ||
+      // Time Jump is always on offer after Year 3; only flag it for a first jump or at the climax.
+      (timeJumpEligible && (state.rung === 'realm' || state.prestigeCounts[1] === 0))
+  );
 
   const tabBadges: TabBadgesViewModel = {
-    hearth: unassignedCount > 0,
+    hearth: unassignedCount > 0 || state.pendingChoice !== null,
     settlement: affordableBuildingsCount > 0,
     evolution: evolutionReady,
     chronicle: false,
@@ -517,25 +1019,29 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       year: state.year,
       season: state.season,
       seasonClass,
+      seasonNote: SEASON_PROFILES[state.season].note,
       rungName: RUNGS[state.rung].name,
       furthestYear: state.furthestYear,
       timelinesCreated: state.timelinesCreated,
       insight: state.insight,
+      echoes: state.echoes,
+      resonance: state.resonance,
+      eternity: state.eternity,
+      totalMultiplier: formatMultiplier(state),
     },
     resources: {
       food: {
         current: Math.floor(state.resources.food),
         max: state.caps.food,
         rate: rates.food,
-        rateFormatted: formatRate(rates.food),
-        isDeficit: rates.food < 0,
+        rateFormatted: formatRateAtCap(rates.food, state.resources.food, state.caps.food),
         percentage: Math.min(100, Math.floor((state.resources.food / state.caps.food) * 100)),
       },
       materials: {
         current: Math.floor(state.resources.materials),
         max: state.caps.materials,
         rate: rates.materials,
-        rateFormatted: formatRate(rates.materials),
+        rateFormatted: formatRateAtCap(rates.materials, state.resources.materials, state.caps.materials),
         percentage: Math.min(
           100,
           Math.floor((state.resources.materials / state.caps.materials) * 100)
@@ -545,7 +1051,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
         current: Math.floor(state.resources.knowledge),
         max: state.caps.knowledge,
         rate: rates.knowledge,
-        rateFormatted: formatRate(rates.knowledge),
+        rateFormatted: formatRateAtCap(rates.knowledge, state.resources.knowledge, state.caps.knowledge),
         percentage: Math.min(
           100,
           Math.floor((state.resources.knowledge / state.caps.knowledge) * 100)
@@ -569,12 +1075,8 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
        canScavenge: true,
        canStudy: true,
        actionPacing: 'Manual actions resolve immediately. Repeat any action whenever you choose.',
-       forageYield: state.season === 'Winter' ? 1.8 : 3,
+       forageYield: (state.season === 'Winter' ? 1.8 : 3) * manualMultiplier(state),
        pacing: 'Act quickly or let the timeline breathe; ticks continue independently.',
-      learningGrace:
-        state.learningGraceTicks > 0
-          ? `Learning grace: ${state.learningGraceTicks} ticks. Reading and exploring will not drain the hearth.`
-          : 'Learning grace ended: keep an eye on food and stability.',
     },
     buildings: buildingsVm,
     rungProgression: {
@@ -585,6 +1087,52 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       nextRung: nextRungVm,
     },
     timeJump: timeJumpVm,
+    prestige: prestigeVm,
+    features: featuresVm,
+    nextFeatures: buildNextFeatures(state),
+    goal,
+    challenges: buildChallenges(state),
+    decision: buildDecision(state),
+    productionNotes: explainProduction(state),
+    market: buildMarket(state),
+    people: buildPeople(state),
+    relics: {
+      found: state.relics.length,
+      total: RELICS.length,
+      list: RELICS.map((r) => ({
+        name: state.relics.includes(r.id) ? r.name : '???',
+        icon: state.relics.includes(r.id) ? r.icon : '❔',
+        description: state.relics.includes(r.id)
+          ? r.description
+          : r.trophyOf
+            ? `Earned by completing the "${CHALLENGES.find((c) => c.id === r.trophyOf)?.name ?? 'challenge'}" challenge.`
+            : `Found in seasonal events once you reach ${RUNGS[r.minRung].name}.`,
+        owned: state.relics.includes(r.id),
+      })),
+    },
+    records: [
+      { label: 'Furthest year', value: `${state.furthestYear}` },
+      { label: 'Timelines begun', value: `${state.timelinesCreated + 1}` },
+      { label: 'Time Jumps', value: `${state.prestigeCounts[1]}` },
+      { label: 'Epoch Shifts', value: `${state.prestigeCounts[2]}` },
+      { label: 'Paradigm Shifts', value: `${state.prestigeCounts[3]}` },
+      { label: 'Ascensions', value: `${state.prestigeCounts[4]}` },
+      { label: 'Total production', value: formatMultiplier(state) },
+      { label: 'Functions sent back', value: `${state.features.length}/${FEATURE_IDS.length}` },
+      { label: 'Time lived', value: `${Math.floor(state.stats.ticks / 3600)}h ${Math.floor((state.stats.ticks % 3600) / 60)}m` },
+      { label: 'Gathered by hand', value: `${state.stats.gathers}` },
+      { label: 'Buildings built', value: `${state.stats.built}` },
+      { label: 'Discoveries made', value: `${state.stats.researched}` },
+      { label: 'Trades', value: `${state.stats.traded}` },
+    ],
+    shareText: buildShareText(state),
+    history: state.history.map((h) => ({
+      label: `#${h.number} ${PRESTIGE_LABELS[h.tier]}`,
+      detail: `Year ${h.year}, ${RUNGS[h.rung].name}: ${h.gained}`,
+    })),
+    discoveries: discoveriesVm,
+    edictSlots: edictSlotsVm,
+    achievements: achievementsVm,
     tabBadges,
     logs: state.logs,
   };

@@ -1,10 +1,54 @@
 export type Season = 'Spring' | 'Summer' | 'Autumn' | 'Winter';
 
-export type RungId = 'hearth' | 'band' | 'settlement' | 'village';
+export type RungId = 'hearth' | 'band' | 'settlement' | 'village' | 'town' | 'city' | 'realm';
 
 export type RoleId = 'forager' | 'scholar' | 'healer' | 'builder';
 
-export type BuildingId = 'hut' | 'granary' | 'workshop' | 'fire_pit' | 'chronicle_stone';
+export type BuildingId =
+  | 'hut'
+  | 'granary'
+  | 'workshop'
+  | 'fire_pit'
+  | 'chronicle_stone'
+  | 'longhouse'
+  | 'smithy'
+  | 'library'
+  | 'aqueduct'
+  | 'academy'
+  | 'bazaar'
+  | 'observatory'
+  | 'citadel'
+  | 'spire'
+  | 'great_hearth_hall'
+  | 'standing_stones'
+  | 'triumphal_arch'
+  | 'colossus'
+  | 'wonder_of_ages';
+
+export type PrestigeTier = 2 | 3 | 4;
+
+export type TradeableResource = 'food' | 'materials' | 'knowledge';
+
+/** Permanent functions sent back by prestige; they survive every reset. */
+export type FeatureId =
+  | 'ancestral_hands'
+  | 'rising_tide'
+  | 'inherited_foundations'
+  | 'temporal_foresight'
+  | 'steward'
+  | 'seasoned_memory'
+  | 'lore_keepers'
+  | 'apprentice_scholars'
+  | 'second_wind'
+  | 'twin_stewards'
+  | 'chrono_dial'
+  | 'grand_foundations'
+  | 'echo_merchants'
+  | 'master_scholars';
+
+export type AutomationKey = 'assign' | 'advance' | 'build' | 'research';
+
+export type AutomationSettings = Record<AutomationKey, boolean>;
 
 export type ResourceName = 'food' | 'materials' | 'knowledge' | 'stability';
 
@@ -37,18 +81,31 @@ export interface RolesMap {
   builder: number;
 }
 
-export interface BuildingsMap {
-  hut: number;
-  granary: number;
-  workshop: number;
-  fire_pit: number;
-  chronicle_stone: number;
-}
+export type BuildingsMap = Record<BuildingId, number>;
 
 export interface PopulationState {
   total: number;
   max: number;
   roles: RolesMap;
+}
+
+export interface HistoryEntry {
+  /** Which timeline this was (1 = the first). */
+  number: number;
+  /** 1 = Time Jump, 2 = Epoch Shift, 3 = Paradigm Shift, 4 = Ascension. */
+  tier: 1 | 2 | 3 | 4;
+  year: number;
+  rung: RungId;
+  gained: string;
+}
+
+/** Lifetime counters. They only ever go up and survive every prestige. */
+export interface LifetimeStats {
+  ticks: number;
+  gathers: number;
+  built: number;
+  researched: number;
+  traded: number;
 }
 
 export interface TimelineState {
@@ -62,8 +119,34 @@ export interface TimelineState {
   furthestYear: number;
   timelinesCreated: number;
   insight: number;
-  /** Number of ticks remaining in the protected opening/learning window. */
-  learningGraceTicks: number;
+  /** Tier 2 currency (Epoch Shift): +10% production each. */
+  echoes: number;
+  /** Tier 3 currency (Paradigm Shift): x1.25 production each and a head start up the rungs. */
+  resonance: number;
+  /** Tier 4 currency (Ascension): x2 production each. */
+  eternity: number;
+  /** Chosen edict per rung slot (free to swap). */
+  edicts: Record<string, string>;
+  /** Discoveries researched in this timeline (rediscovered each timeline). */
+  discoveries: string[];
+  /** The most recent ended timelines, newest first. */
+  history: HistoryEntry[];
+  /** Lifetime counters that survive every reset. */
+  stats: LifetimeStats;
+  /** The challenge currently being attempted, if any. */
+  challenge: string | null;
+  /** A choice event awaiting the player's pick (resolved automatically if they stay away). */
+  pendingChoice: { eventId: string; tick: number } | null;
+  /** Relics found in events. Permanent: never lost by any reset. */
+  relics: string[];
+  /** Earned achievement ids. Permanent; each adds Renown production. */
+  achievements: string[];
+  /** Functions unlocked by prestige. Never lost. */
+  features: FeatureId[];
+  /** Player on/off switches for unlocked automation. */
+  automation: AutomationSettings;
+  /** How many times each prestige tier has been performed (1 = Time Jump). */
+  prestigeCounts: Record<1 | 2 | 3 | 4, number>;
   /** Legacy save field; manual actions are immediate and always responsive. */
   actionCooldown: number;
   rung: RungId;
@@ -83,8 +166,18 @@ export type EngineAction =
   | { type: 'BUILD'; buildingId: BuildingId }
   | { type: 'ADVANCE_RUNG'; rungId: RungId }
   | { type: 'TIME_JUMP' }
+  | { type: 'PRESTIGE'; tier: PrestigeTier }
+  | { type: 'TOGGLE_AUTOMATION'; key: AutomationKey }
+  | { type: 'RESEARCH'; discoveryId: string }
+  | { type: 'START_CHALLENGE'; challengeId: string }
+  | { type: 'ABANDON_CHALLENGE' }
+  | { type: 'RESOLVE_CHOICE'; index: number }
+  | { type: 'BARTER'; from: TradeableResource; to: TradeableResource; amount: number }
+  | { type: 'SET_EDICT'; slot: RungId; edictId: string | null }
   | { type: 'DEV_ADD_RESOURCES'; amount: number }
   | { type: 'DEV_SET_YEAR'; year: number }
+  | { type: 'DEV_SET_RUNG'; rung: RungId }
+  | { type: 'DEV_ADD_INSIGHT'; amount: number }
   | { type: 'DEV_RESET' };
 
 export interface EngineResult {

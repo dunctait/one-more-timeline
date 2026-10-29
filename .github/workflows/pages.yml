@@ -26,6 +26,10 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      - name: Type check
+        run: npm run check
+      - name: Run tests
+        run: npm test
       - name: Build static site
         run: npm run build
       - name: Configure Pages

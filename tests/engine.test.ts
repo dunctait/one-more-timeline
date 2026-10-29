@@ -13,7 +13,6 @@ describe('Deterministic Engine', () => {
     expect(state.population.total).toBe(1);
     expect(state.population.roles.unassigned).toBe(1);
     expect(state.timelineId).toBe('timeline_1337_0');
-    expect(state.learningGraceTicks).toBeGreaterThan(0);
   });
 
   it('runs deterministic ticks identically from identical initial state', () => {
@@ -310,5 +309,23 @@ describe('Deterministic Engine', () => {
     const reset = executeAction(warpYear.state, { type: 'DEV_RESET' });
     expect(reset.success).toBe(true);
     expect(reset.state.year).toBe(1);
+  });
+});
+
+describe('Number only goes up', () => {
+  it('never decreases any resource or population across idle ticks, even when overstaffed', () => {
+    let state = createInitialState();
+    state = { ...state, rung: 'village', population: { ...state.population, total: 8, max: 8, roles: { unassigned: 0, forager: 0, scholar: 2, healer: 2, builder: 4 } } };
+    for (let i = 0; i < 200; i++) {
+      const rates = calculateNetRates(state);
+      expect(Math.min(rates.food, rates.materials, rates.knowledge, rates.stability)).toBeGreaterThanOrEqual(0);
+      const next = stepTick(state);
+      expect(next.resources.food).toBeGreaterThanOrEqual(state.resources.food);
+      expect(next.resources.materials).toBeGreaterThanOrEqual(state.resources.materials);
+      expect(next.resources.knowledge).toBeGreaterThanOrEqual(state.resources.knowledge);
+      expect(next.resources.stability).toBeGreaterThanOrEqual(state.resources.stability);
+      expect(next.population.total).toBeGreaterThanOrEqual(state.population.total);
+      state = next;
+    }
   });
 });
