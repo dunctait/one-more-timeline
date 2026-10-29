@@ -109,4 +109,4 @@ A ready goal (a rung within reach, the first Jumpback, a prestige tier) MUST be 
 
 ## Locked things and page sizes
 
-Locked buildings, wonders, Discoveries and trials MUST NOT be rendered. A sub-menu page exactly one rung from opening is shown greyed out and explains when it opens; further pages are blank. Every full page of a paged list holds between five and ten items on a 412 by 780 phone. Population begins at twelve.
+Locked buildings, wonders, Discoveries and trials MUST NOT be rendered. A sub-menu page exactly one rung from opening is shown greyed out and explains when it opens; further pages are blank. Every full page of a paged list holds between five and ten items on a 412 by 780 phone. Population begins at twelve, and only half of the people (rounded down) can hold a role.

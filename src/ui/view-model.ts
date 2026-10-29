@@ -44,6 +44,9 @@ import {
   rungLevel,
   SEASON_PROFILES,
   WONDER_IDS,
+  assignedWorkers,
+  openJobs,
+  workerSlots,
 } from '../engine/rules.js';
 import {
   AutomationKey,
@@ -317,6 +320,8 @@ export interface TimelineViewModel {
     max: number;
     unassigned: number;
     unallocated: number;
+    /** Only half of the people work: the jobs there are, the ones taken, and the ones still open. */
+    jobs: { total: number; taken: number; open: number };
     roles: RoleViewModel[];
   };
   actions: {
@@ -836,7 +841,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   const rolesVm: RoleViewModel[] = roleDefinitions.map((roleDef) => {
     const unlocked = currentLevel >= RUNG_LEVELS[roleDef.minRung];
     const count = state.population.roles[roleDef.id];
-    const canAdd = unlocked && state.population.roles.unassigned > 0;
+    const canAdd = unlocked && state.population.roles.unassigned > 0 && openJobs(state.population) > 0;
     const canRemove = count > 0;
 
     return {
@@ -1184,7 +1189,7 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
   // Actionable Tab Notification Badges
   // Unassigned people only need attention once some role is open to them.
   const rolesOpen = rungLevel(state.rung) >= rungLevel(ROLE_MIN_RUNG.forager);
-  const unassignedCount = rolesOpen ? state.population.roles.unassigned : 0;
+  const unassignedCount = rolesOpen ? Math.min(state.population.roles.unassigned, openJobs(state.population)) : 0;
   const affordableBuildingsCount =
     buildingsVm.filter((b) => b.unlocked && (b.canAfford || b.affordable)).length +
     discoveriesVm.filter((d) => d.canAfford).length +
@@ -1296,6 +1301,11 @@ export function buildTimelineViewModel(state: TimelineState): TimelineViewModel 
       max: state.population.max,
       unassigned: state.population.roles.unassigned,
       unallocated: state.population.roles.unassigned,
+      jobs: {
+        total: workerSlots(state.population.total),
+        taken: assignedWorkers(state.population.roles),
+        open: openJobs(state.population),
+      },
       roles: rolesVm,
     },
      actions: {

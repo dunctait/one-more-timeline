@@ -27,6 +27,7 @@ import {
   LORE_KEEPER_DISCOVERIES,
   BOON_FIRST_JUMPBACK,
   START_POPULATION,
+  openJobs,
   BOON_OFFERS,
   PACKED_PROVISIONS,
   marketRungFor,
@@ -504,15 +505,15 @@ function autoAssign(state: TimelineState): TimelineState {
   const level = rungLevel(state.rung);
   const barred = (state.challenge && getChallenge(state.challenge)?.noRoles) || [];
   const open = AUTO_ROLES.filter((r) => level >= rungLevel(ROLE_MIN_RUNG[r]) && !barred.includes(r));
-  let unassigned = state.population.roles.unassigned;
-  if (unassigned <= 0 || open.length === 0) return state;
+  let jobs = Math.min(state.population.roles.unassigned, openJobs(state.population));
+  if (jobs <= 0 || open.length === 0) return state;
   const roles = { ...state.population.roles };
-  while (unassigned > 0) {
+  while (jobs > 0) {
     const target = open.reduce((a, b) => (roles[b] < roles[a] ? b : a));
     roles[target] += 1;
-    unassigned -= 1;
+    roles.unassigned -= 1;
+    jobs -= 1;
   }
-  roles.unassigned = 0;
   return { ...state, population: { ...state.population, roles } };
 }
 
@@ -733,6 +734,15 @@ function executeActionCore(
             success: false,
             state,
             error: 'Not enough unassigned population available.',
+            events: [],
+          };
+        }
+        const jobs = openJobs(state.population);
+        if (delta > jobs) {
+          return {
+            success: false,
+            state,
+            error: `Only half of your people can work: ${jobs === 0 ? 'every job is taken' : `${jobs} job${jobs > 1 ? 's' : ''} open`}. More people (build Huts) means more jobs.`,
             events: [],
           };
         }

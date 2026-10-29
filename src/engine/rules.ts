@@ -19,10 +19,28 @@ import { relicBonus } from './relics.js';
 export const START_POPULATION = 12;
 
 /**
- * How much of a role's nominal yield actually arrives each tick. With a whole band at the fire from the first moment,
- * people are plentiful and each pair of hands is worth less, so every purchase has to be earned.
+ * How much of a role's nominal yield actually arrives each tick. Only half of a society works, so a worker's output is
+ * the other half of the economy's slowness: every purchase has to be earned.
  */
-export const ROLE_PACE = 0.4;
+export const ROLE_PACE = 0.8;
+
+/** What each person at the fire eats per tick, working or not. */
+export const FOOD_PER_PERSON = 0.14;
+
+/** Only half of a society works; the rest raise the young, mind the fires and rest. Rounded down. */
+export function workerSlots(total: number): number {
+  return Math.floor(total / 2);
+}
+
+/** People currently holding a role (everyone who is not just resting at the fire). */
+export function assignedWorkers(roles: { forager: number; builder: number; scholar: number; healer: number }): number {
+  return roles.forager + roles.builder + roles.scholar + roles.healer;
+}
+
+/** Jobs still open. A society that already has more workers than half (an old save) keeps them but takes no more. */
+export function openJobs(population: { total: number; roles: { forager: number; builder: number; scholar: number; healer: number } }): number {
+  return Math.max(0, workerSlots(population.total) - assignedWorkers(population.roles));
+}
 
 export const SEASONS: readonly ['Spring', 'Summer', 'Autumn', 'Winter'] = [
   'Spring',
@@ -597,7 +615,7 @@ export function calculateNetRates(state: TimelineState): NetRates {
   const foragerYield = profile.forager;
   const foodProduced =
     (roles.forager * foragerYield * ROLE_PACE + sumEffect(buildings, 'food')) * foodBoost;
-  const foodConsumed = population.total * 0.35 * ROLE_PACE;
+  const foodConsumed = population.total * FOOD_PER_PERSON;
   const foodRate = Math.max(0, foodProduced - foodConsumed);
 
   // Builder base: 1.0 plus building bonuses.

@@ -28,7 +28,7 @@ describe('notification pills: loud for the new, quiet for the familiar', () => {
 
   it('counts idle people as available, not novel, and shows nothing when nothing can be done', () => {
     const idle = buildTimelineViewModel(rich({ resources: { food: 0, materials: 0, knowledge: 0, stability: 80 } })).tabBadges.levels;
-    expect(idle['hearth.roles']).toEqual({ novel: 0, available: 12 });
+    expect(idle['hearth.roles']).toEqual({ novel: 0, available: 6 });
     expect(idle['settlement.works']).toBeUndefined();
   });
 });

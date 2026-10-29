@@ -2819,3 +2819,11 @@ html[data-text='large'] .subpanel {
 .subnav .tab-badge.badge-count.badge-open {
   line-height: 10px;
 }
+
+#role-slots {
+  margin: 0 0 0.3rem;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

@@ -193,12 +193,12 @@ describe('fifth review fixes', () => {
 describe('bulk assignment', () => {
   it('moves every idle person to a role in one action', () => {
     const s: TimelineState = { ...createInitialState(), rung: 'band' };
-    s.population.total = 9;
-    s.population.roles = { ...s.population.roles, unassigned: 9 };
+    s.population.total = 18;
+    s.population.roles = { ...s.population.roles, unassigned: 18 };
     const r = executeAction(s, { type: 'ASSIGN_ROLE', role: 'forager', delta: 9 });
     expect(r.success).toBe(true);
     expect(r.state.population.roles.forager).toBe(9);
-    expect(r.state.population.roles.unassigned).toBe(0);
+    expect(r.state.population.roles.unassigned).toBe(9);
     expect(r.state.logs.some((l) => l.text.includes('Assigned 9 forager'))).toBe(true);
   });
 });

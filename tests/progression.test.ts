@@ -204,10 +204,11 @@ describe('prestige tiers and sent-back functions', () => {
     const jump = executeAction(ripe({ ...first.state, year: 5 }), { type: 'TIME_JUMP' });
     expect(jump.state.features).toContain('ancestral_hands');
     let s: TimelineState = { ...jump.state, rung: 'band' };
-    s = { ...s, population: { ...s.population, total: 3, roles: { ...s.population.roles, unassigned: 3 } } };
+    s = { ...s, population: { ...s.population, total: 6, roles: { ...s.population.roles, unassigned: 6 } } };
     s = stepTick(s);
-    expect(s.population.roles.unassigned).toBe(0);
-    expect(s.population.roles.forager + s.population.roles.builder).toBe(s.population.total);
+    // Half of six can work; the rest keep the fires.
+    expect(s.population.roles.unassigned).toBe(3);
+    expect(s.population.roles.forager + s.population.roles.builder).toBe(3);
     const off = executeAction(s, { type: 'TOGGLE_AUTOMATION', key: 'assign' }).state;
     expect(off.automation.assign).toBe(false);
   });

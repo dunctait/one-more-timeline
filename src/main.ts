@@ -8,7 +8,7 @@ import {
   stepTick,
 } from './engine/engine.js';
 import { AutomationKey, BuildingId, EngineAction, FeatureId, PrestigeTier, RoleId, RungId, TimelineState, TradeableResource } from './engine/types.js';
-import { BUILDINGS, checkPrestigeTier, FEATURES, PRESTIGE_TIER_ORDER, PRESTIGE_TIERS, RUNGS, RUNG_ORDER, rungLevel } from './engine/rules.js';
+import { BUILDINGS, openJobs, checkPrestigeTier, FEATURES, PRESTIGE_TIER_ORDER, PRESTIGE_TIERS, RUNGS, RUNG_ORDER, rungLevel } from './engine/rules.js';
 import { resolveTheme, themeOptions } from './ui/themes.js';
 import { playSound, soundForAction } from './ui/sound.js';
 import {
@@ -125,6 +125,7 @@ const elResStabilityBar = document.getElementById('res-stability-bar') as HTMLEl
 const elPopTotal = document.getElementById('pop-total') as HTMLElement;
 const elPopMax = document.getElementById('pop-max') as HTMLElement;
 const elPopUnassigned = document.getElementById('pop-unassigned') as HTMLElement;
+const elRoleSlots = document.getElementById('role-slots') as HTMLElement;
 const elResPopBar = document.getElementById('res-pop-bar') as HTMLElement;
 
 // Tab 1: Hearth
@@ -735,12 +736,14 @@ function render(): void {
   // Population
   elPopTotal.textContent = `${vm.population.total}`;
   elPopMax.textContent = `${vm.population.max}`;
-  elPopUnassigned.textContent = `${vm.population.unassigned}`;
+  elPopUnassigned.textContent = `${vm.population.jobs.open}`;
+  elRoleSlots.textContent = `Jobs ${vm.population.jobs.taken} / ${vm.population.jobs.total} (half work)`;
+  elRoleSlots.title = 'Only half of your people work; the rest raise the young and keep the fires. Build Huts for more people, and so more jobs.';
   const popPercent = Math.min(100, Math.floor((vm.population.total / vm.population.max) * 100));
   elResPopBar.style.width = `${popPercent}%`;
 
   // Tab 1: Community Roles
-  const hasFreePop = vm.population.unassigned > 0;
+  const hasFreePop = vm.population.jobs.open > 0;
   elRoleList.innerHTML = vm.population.roles
     .map((role) => {
       if (!role.unlocked) {
@@ -1201,7 +1204,7 @@ function setupListeners(): void {
       if (role) dispatch({ type: 'ASSIGN_ROLE', role, delta: 1 });
     } else if (target.classList.contains('btn-role-all')) {
       const role = target.getAttribute('data-role') as RoleId;
-      const idle = state.population.roles.unassigned;
+      const idle = Math.min(state.population.roles.unassigned, openJobs(state.population));
       if (role && idle > 0) dispatch({ type: 'ASSIGN_ROLE', role, delta: idle });
     } else if (target.classList.contains('btn-role-minus')) {
       const role = target.getAttribute('data-role') as RoleId;

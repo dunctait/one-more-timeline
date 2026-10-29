@@ -32,6 +32,7 @@ Feedback Codification Protocol: Whenever user feedback is received or an operati
 - Quietly notified when it can be done, clearly when it is new: pills always show a number; a filled orange pill means something novel (a first of its kind), a hollow ring means more of the familiar.
 - Badges are for actionable state, not logs: navigation indicators MUST point to attention-required work, not historical or log-only views.
 - Progressive disclosure of complexity: never show a mechanic, currency, tier or preview until the player first comes across it; once met it stays. Hidden mechanics must not be named in goals, banners, badges or header pills.
+- Only half the people work (rounded down): jobs, not headcount, gate roles; explain it where roles are assigned and never unassign anyone from an old save.
 - Show only what is unlocked: never render a locked building, wonder, idea or trial; a sub-menu page exactly one rung from opening MAY show greyed out with when it opens, otherwise the cell is blank.
 - The first of anything is an event: the first purchase, rung or unlock must be a short earned slog followed by clear relief; do not let players plough through purchases until each feels unimportant.
 - Pages hold a handful: five to ten items on every full page of a paged list; condense cards to icons and numbers (board-game style, `src/ui/icons.ts`) rather than sentences.
